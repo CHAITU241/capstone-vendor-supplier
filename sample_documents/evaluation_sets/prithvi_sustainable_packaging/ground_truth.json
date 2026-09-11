@@ -1,0 +1,93 @@
+{
+  "slug": "prithvi_sustainable_packaging",
+  "create_payload": {
+    "name": "Prithvi Sustainable Packaging Private Limited",
+    "country": "India",
+    "contact_email": "devika.shah@example.com"
+  },
+  "documents": {
+    "registration": "01_supplier_registration_form.pdf",
+    "tax": "02_gst_registration_certificate.pdf",
+    "insurance": "03_certificate_of_liability_insurance.pdf"
+  },
+  "expected_fields": {
+    "supplier_name": "Prithvi Sustainable Packaging Private Limited",
+    "address": "Survey 118, Sanand Industrial Cluster, Ahmedabad, Gujarat 382110",
+    "country": "India",
+    "tax_identifier": "24AAGCP4321L1Z6",
+    "contact_name": "Devika Shah",
+    "contact_email": "devika.shah@example.com",
+    "insurance_provider": "Meridian Risk Assurance Company Limited",
+    "insurance_expiry_date": "31 JAN 2028",
+    "payment_terms": "Net 60 days from invoice date"
+  },
+  "questions": [
+    {
+      "id": "legal_name",
+      "question": "What is the supplier's full legal name?",
+      "expected_terms": [
+        "Prithvi Sustainable Packaging Private Limited"
+      ],
+      "expected_sources": [
+        "01_supplier_registration_form.pdf",
+        "02_gst_registration_certificate.pdf",
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "information_found": true
+    },
+    {
+      "id": "payment_terms",
+      "question": "What are the supplier's standard payment terms?",
+      "expected_terms": [
+        "Net 60 days from invoice date"
+      ],
+      "expected_sources": [
+        "01_supplier_registration_form.pdf"
+      ],
+      "information_found": true
+    },
+    {
+      "id": "insurance_provider",
+      "question": "Which company provides the supplier's liability insurance?",
+      "expected_terms": [
+        "Meridian Risk Assurance Company Limited"
+      ],
+      "expected_sources": [
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "information_found": true
+    },
+    {
+      "id": "insurance_expiry",
+      "question": "When does the supplier's liability insurance expire?",
+      "expected_terms": [
+        "31 JAN 2028"
+      ],
+      "expected_sources": [
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "information_found": true
+    },
+    {
+      "id": "business_activity",
+      "question": "What products or services does this supplier provide?",
+      "expected_terms": [
+        "Recycled corrugated cartons, molded fibre inserts and protective packaging"
+      ],
+      "expected_sources": [
+        "01_supplier_registration_form.pdf",
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "information_found": true
+    },
+    {
+      "id": "absent_bank_balance",
+      "question": "What is the supplier's current bank account balance?",
+      "expected_terms": [
+        "Information not found in uploaded supplier documents."
+      ],
+      "expected_sources": [],
+      "information_found": false
+    }
+  ]
+}

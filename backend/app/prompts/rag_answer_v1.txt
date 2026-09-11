@@ -1,0 +1,5 @@
+Answer the supplier question using only the retrieved evidence.
+Each evidence block has a chunk ID. Cite only chunk IDs that directly support the answer.
+If the evidence does not answer the question, set information_found to false, return the exact answer
+"Information not found in uploaded supplier documents.", and return no cited chunk IDs.
+Do not use outside knowledge and do not reconstruct typed PII placeholders.

@@ -1,0 +1,196 @@
+import uuid
+from pathlib import Path
+
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile, status
+from sqlalchemy import delete, select
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
+
+from app.config import Settings, get_settings
+from app.database import get_db
+from app.models import (
+    AuditEvent,
+    ComplianceResult,
+    Document,
+    DocumentType,
+    ExtractedField,
+    ProcessingStatus,
+    Supplier,
+    SupplierStatus,
+)
+from app.schemas import DocumentRead
+from app.services.documents import DocumentExtractionError, extract_document_text
+from app.services.retrieval import delete_supplier_chunks, get_chunk_collection
+
+router = APIRouter(prefix="/suppliers", tags=["documents"])
+ALLOWED_CONTENT_TYPES = {"application/pdf": ".pdf", "text/plain": ".txt"}
+
+
+@router.post(
+    "/{supplier_id}/documents",
+    response_model=DocumentRead,
+    status_code=status.HTTP_201_CREATED,
+)
+async def upload_document(
+    supplier_id: uuid.UUID,
+    document_type: DocumentType = Form(...),
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> Document:
+    supplier = db.get(Supplier, supplier_id)
+    if supplier is None:
+        raise HTTPException(status_code=404, detail="Supplier was not found.")
+    if supplier.status in {SupplierStatus.APPROVED, SupplierStatus.REJECTED}:
+        raise HTTPException(
+            status_code=409,
+            detail="A finalized supplier cannot be changed in this demo workflow.",
+        )
+
+    existing_document = db.scalar(
+        select(Document).where(
+            Document.supplier_id == supplier_id,
+            Document.document_type == document_type,
+        )
+    )
+    if existing_document is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"A {document_type.value} document has already been uploaded. "
+                "Delete it before uploading a replacement."
+            ),
+        )
+
+    content_type = file.content_type or ""
+    if content_type not in ALLOWED_CONTENT_TYPES:
+        raise HTTPException(status_code=415, detail="Only PDF and plain-text files are supported.")
+
+    contents = await file.read(settings.max_upload_size_bytes + 1)
+    await file.close()
+    if not contents:
+        raise HTTPException(status_code=400, detail="The uploaded file is empty.")
+    if len(contents) > settings.max_upload_size_bytes:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Files must not exceed {settings.max_upload_size_mb} MB.",
+        )
+
+    supplier_directory = settings.upload_dir.resolve() / str(supplier_id)
+    supplier_directory.mkdir(parents=True, exist_ok=True)
+    document_id = uuid.uuid4()
+    file_path = supplier_directory / f"{document_id}{ALLOWED_CONTENT_TYPES[content_type]}"
+    file_path.write_bytes(contents)
+
+    document = Document(
+        id=document_id,
+        supplier_id=supplier_id,
+        document_type=document_type,
+        filename=Path(file.filename or "document").name[:255],
+        storage_path=str(file_path),
+        content_type=content_type,
+        file_size=len(contents),
+        processing_status=ProcessingStatus.PROCESSING,
+    )
+    db.add(document)
+
+    try:
+        extracted = extract_document_text(file_path, content_type)
+        document.extracted_text = extracted.text
+        document.page_count = extracted.page_count
+        document.processing_status = ProcessingStatus.READY
+        audit_action = "document.ready"
+        audit_details = {"filename": document.filename, "pages": document.page_count}
+    except DocumentExtractionError as exc:
+        document.processing_status = ProcessingStatus.FAILED
+        document.error_message = str(exc)
+        audit_action = "document.failed"
+        audit_details = {"filename": document.filename, "reason": str(exc)}
+
+    db.add(
+        AuditEvent(
+            supplier_id=supplier_id,
+            action=audit_action,
+            entity_type="document",
+            entity_id=str(document.id),
+            details=audit_details,
+        )
+    )
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        file_path.unlink(missing_ok=True)
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"A {document_type.value} document has already been uploaded. "
+                "Delete it before uploading a replacement."
+            ),
+        ) from exc
+    db.refresh(document)
+    return document
+
+
+@router.delete(
+    "/{supplier_id}/documents/{document_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def delete_document(
+    supplier_id: uuid.UUID,
+    document_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> Response:
+    document = db.scalar(
+        select(Document).where(
+            Document.id == document_id,
+            Document.supplier_id == supplier_id,
+        )
+    )
+    if document is None:
+        raise HTTPException(status_code=404, detail="Document was not found.")
+
+    file_path = Path(document.storage_path).resolve()
+    upload_root = settings.upload_dir.resolve()
+    supplier = db.get(Supplier, supplier_id)
+    if supplier is not None and supplier.status in {
+        SupplierStatus.APPROVED,
+        SupplierStatus.REJECTED,
+    }:
+        raise HTTPException(
+            status_code=409,
+            detail="A finalized supplier cannot be changed in this demo workflow.",
+        )
+    db.execute(
+        delete(ExtractedField).where(ExtractedField.supplier_id == supplier_id)
+    )
+    db.execute(
+        delete(ComplianceResult).where(ComplianceResult.supplier_id == supplier_id)
+    )
+    delete_supplier_chunks(get_chunk_collection(), str(supplier_id))
+    if supplier is not None:
+        supplier.status = SupplierStatus.NEW
+        supplier.decision_reason = None
+        supplier.decided_at = None
+        supplier.erp_supplier_id = None
+    db.add(
+        AuditEvent(
+            supplier_id=supplier_id,
+            action="document.deleted",
+            entity_type="document",
+            entity_id=str(document.id),
+            details={
+                "filename": document.filename,
+                "document_type": document.document_type.value,
+                "ai_results_cleared": True,
+            },
+        )
+    )
+    db.delete(document)
+    db.commit()
+
+    if file_path.is_relative_to(upload_root):
+        file_path.unlink(missing_ok=True)
+
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

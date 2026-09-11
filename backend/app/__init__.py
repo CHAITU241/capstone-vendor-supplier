@@ -1,0 +1,2 @@
+"""VendorLens AI backend package."""
+

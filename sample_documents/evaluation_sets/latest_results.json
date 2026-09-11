@@ -1,0 +1,900 @@
+{
+  "evaluated_at": "2026-08-04T09:01:15.148198+00:00",
+  "base_url": "http://127.0.0.1:8000/api",
+  "summary": {
+    "suppliers": 4,
+    "fields_passed": 36,
+    "fields_total": 36,
+    "field_accuracy": 1.0,
+    "questions_passed": 24,
+    "questions_total": 24,
+    "question_accuracy": 1.0,
+    "citation_accuracy": 1.0,
+    "not_found_accuracy": 1.0,
+    "supplier_isolation_accuracy": 1.0,
+    "average_question_latency_ms": 2035,
+    "maximum_question_latency_ms": 2439
+  },
+  "suppliers": [
+    {
+      "slug": "kaveri_flow_controls",
+      "supplier_id": "9b043b1e-a1fc-4192-9b5c-98ba8d35d8e0",
+      "processing": {
+        "field_count": 9,
+        "chunk_count": 3,
+        "latency_ms": 13387,
+        "input_tokens": 2326,
+        "output_tokens": 691,
+        "prompt_version": "extraction-v3"
+      },
+      "fields": {
+        "passed": 9,
+        "total": 9,
+        "checks": [
+          {
+            "field_name": "supplier_name",
+            "passed": true,
+            "expected": "Kaveri Flow Controls Private Limited",
+            "actual": "Kaveri Flow Controls Private Limited",
+            "needs_review": false
+          },
+          {
+            "field_name": "address",
+            "passed": true,
+            "expected": "Plot 22, SIDCO Industrial Estate, Kurichi, Coimbatore, Tamil Nadu 641021",
+            "actual": "Plot 22, SIDCO Industrial Estate, Kurichi, Coimbatore, Tamil Nadu 641021",
+            "needs_review": false
+          },
+          {
+            "field_name": "country",
+            "passed": true,
+            "expected": "India",
+            "actual": "India",
+            "needs_review": false
+          },
+          {
+            "field_name": "tax_identifier",
+            "passed": true,
+            "expected": "33AABCK1234F1Z8",
+            "actual": "33AABCK1234F1Z8",
+            "needs_review": false
+          },
+          {
+            "field_name": "contact_name",
+            "passed": true,
+            "expected": "Ananya Rao",
+            "actual": "Ananya Rao",
+            "needs_review": true
+          },
+          {
+            "field_name": "contact_email",
+            "passed": true,
+            "expected": "ananya.rao@example.com",
+            "actual": "ananya.rao@example.com",
+            "needs_review": false
+          },
+          {
+            "field_name": "insurance_provider",
+            "passed": true,
+            "expected": "HarborPoint General Insurance Company Limited",
+            "actual": "HarborPoint General Insurance Company Limited",
+            "needs_review": false
+          },
+          {
+            "field_name": "insurance_expiry_date",
+            "passed": true,
+            "expected": "30 JUN 2027",
+            "actual": "30 JUN 2027",
+            "needs_review": false
+          },
+          {
+            "field_name": "payment_terms",
+            "passed": true,
+            "expected": "Net 30 days from invoice receipt",
+            "actual": "Net 30 days from invoice receipt",
+            "needs_review": false
+          }
+        ]
+      },
+      "questions": [
+        {
+          "id": "legal_name",
+          "question": "What is the supplier's full legal name?",
+          "passed": true,
+          "answer_match": true,
+          "found_match": true,
+          "citation_match": true,
+          "isolation_match": true,
+          "answer": "Kaveri Flow Controls Private Limited",
+          "information_found": true,
+          "citations": [
+            {
+              "filename": "01_supplier_registration_form.pdf",
+              "page_number": 1
+            },
+            {
+              "filename": "02_gst_registration_certificate.pdf",
+              "page_number": 1
+            },
+            {
+              "filename": "03_certificate_of_liability_insurance.pdf",
+              "page_number": 1
+            }
+          ],
+          "retrieval_count": 3,
+          "api_latency_ms": 2300,
+          "recorded_latency_ms": 2279,
+          "input_tokens": 950,
+          "output_tokens": 35
+        },
+        {
+          "id": "payment_terms",
+          "question": "What are the supplier's standard payment terms?",
+          "passed": true,
+          "answer_match": true,
+          "found_match": true,
+          "citation_match": true,
+          "isolation_match": true,
+          "answer": "Net 30 days from invoice receipt",
+          "information_found": true,
+          "citations": [
+            {
+              "filename": "01_supplier_registration_form.pdf",
+              "page_number": 1
+            }
+          ],
+          "retrieval_count": 1,
+          "api_latency_ms": 1963,
+          "recorded_latency_ms": 1944,
+          "input_tokens": 549,
+          "output_tokens": 27
+        },
+        {
+          "id": "insurance_provider",
+          "question": "Which company provides the supplier's liability insurance?",
+          "passed": true,
+          "answer_match": true,
+          "found_match": true,
+          "citation_match": true,
+          "isolation_match": true,
+          "answer": "HarborPoint General Insurance Company Limited",
+          "information_found": true,
+          "citations": [
+            {
+              "filename": "03_certificate_of_liability_insurance.pdf",
+              "page_number": 1
+            }
+          ],
+          "retrieval_count": 1,
+          "api_latency_ms": 2072,
+          "recorded_latency_ms": 2054,
+          "input_tokens": 536,
+          "output_tokens": 27
+        },
+        {
+          "id": "insurance_expiry",
+          "question": "When does the supplier's liability insurance expire?",
+          "passed": true,
+          "answer_match": true,
+          "found_match": true,
+          "citation_match": true,
+          "isolation_match": true,
+          "answer": "30 JUN 2027",
+          "information_found": true,
+          "citations": [
+            {
+              "filename": "03_certificate_of_liability_insurance.pdf",
+              "page_number": 1
+            }
+          ],
+          "retrieval_count": 1,
+          "api_latency_ms": 1822,
+          "recorded_latency_ms": 1804,
+          "input_tokens": 536,
+          "output_tokens": 25
+        },
+        {
+          "id": "business_activity",
+          "question": "What products or services does this supplier provide?",
+          "passed": true,
+          "answer_match": true,
+          "found_match": true,
+          "citation_match": true,
+          "isolation_match": true,
+          "answer": "Industrial valves, actuator assemblies and flow-control skids",
+          "information_found": true,
+          "citations": [
+            {
+              "filename": "01_supplier_registration_form.pdf",
+              "page_number": 1
+            }
+          ],
+          "retrieval_count": 1,
+          "api_latency_ms": 2026,
+          "recorded_latency_ms": 2009,
+          "input_tokens": 549,
+          "output_tokens": 30
+        },
+        {
+          "id": "absent_bank_balance",
+          "question": "What is the supplier's current bank account balance?",
+          "passed": true,
+          "answer_match": true,
+          "found_match": true,
+          "citation_match": true,
+          "isolation_match": true,
+          "answer": "Information not found in uploaded supplier documents.",
+          "information_found": false,
+          "citations": [],
+          "retrieval_count": 1,
+          "api_latency_ms": 1983,
+          "recorded_latency_ms": 1965,
+          "input_tokens": 551,
+          "output_tokens": 23
+        }
+      ]
+    },
+    {
+      "slug": "norwood_clinical_systems",
+      "supplier_id": "1ed15016-73a9-4d35-a2c2-38e65d1622cb",
+      "processing": {
+        "field_count": 9,
+        "chunk_count": 3,
+        "latency_ms": 11710,
+        "input_tokens": 2274,
+        "output_tokens": 680,
+        "prompt_version": "extraction-v3"
+      },
+      "fields": {
+        "passed": 9,
+        "total": 9,
+        "checks": [
+          {
+            "field_name": "supplier_name",
+            "passed": true,
+            "expected": "Norwood Clinical Systems Private Limited",
+            "actual": "Norwood Clinical Systems Private Limited",
+            "needs_review": false
+          },
+          {
+            "field_name": "address",
+            "passed": true,
+            "expected": "48, KIADB Health Technology Park, Whitefield, Bengaluru, Karnataka 560066",
+            "actual": "48, KIADB Health Technology Park, Whitefield, Bengaluru, Karnataka 560066",
+            "needs_review": false
+          },
+          {
+            "field_name": "country",
+            "passed": true,
+            "expected": "India",
+            "actual": "India",
+            "needs_review": false
+          },
+          {
+            "field_name": "tax_identifier",
+            "passed": true,
+            "expected": "29AABCN5678K1Z2",
+            "actual": "29AABCN5678K1Z2",
+            "needs_review": false
+          },
+          {
+            "field_name": "contact_name",
+            "passed": true,
+            "expected": "Rohan Kulkarni",
+            "actual": "Rohan Kulkarni",
+            "needs_review": true
+          },
+          {
+            "field_name": "contact_email",
+            "passed": true,
+            "expected": "rohan.kulkarni@example.com",
+            "actual": "rohan.kulkarni@example.com",
+            "needs_review": false
+          },
+          {
+            "field_name": "insurance_provider",
+            "passed": true,
+            "expected": "CedarSure Commercial Insurance Company Limited",
+            "actual": "CedarSure Commercial Insurance Company Limited",
+            "needs_review": false
+          },
+          {
+            "field_name": "insurance_expiry_date",
+            "passed": true,
+            "expected": "15 DEC 2026",
+            "actual": "15 DEC 2026",
+            "needs_review": false
+          },
+          {
+            "field_name": "payment_terms",
+            "passed": true,
+            "expected": "Net 45 days from accepted delivery",
+            "actual": "Net 45 days from accepted delivery",
+            "needs_review": false
+          }
+        ]
+      },
+      "questions": [
+        {
+          "id": "legal_name",
+          "question": "What is the supplier's full legal name?",
+          "passed": true,
+          "answer_match": true,
+          "found_match": true,
+          "citation_match": true,
+          "isolation_match": true,
+          "answer": "Norwood Clinical Systems Private Limited",
+          "information_found": true,
+          "citations": [
+            {
+              "filename": "01_supplier_registration_form.pdf",
+              "page_number": 1
+            },
+            {
+              "filename": "02_gst_registration_certificate.pdf",
+              "page_number": 1
+            },
+            {
+              "filename": "03_certificate_of_liability_insurance.pdf",
+              "page_number": 1
+            }
+          ],
+          "retrieval_count": 3,
+          "api_latency_ms": 2082,
+          "recorded_latency_ms": 2059,
+          "input_tokens": 925,
+          "output_tokens": 34
+        },
+        {
+          "id": "payment_terms",
+          "question": "What are the supplier's standard payment terms?",
+          "passed": true,
+          "answer_match": true,
+          "found_match": true,
+          "citation_match": true,
+          "isolation_match": true,
+          "answer": "Net 45 days from accepted delivery",
+          "information_found": true,
+          "citations": [
+            {
+              "filename": "01_supplier_registration_form.pdf",
+              "page_number": 1
+            }
+          ],
+          "retrieval_count": 1,
+          "api_latency_ms": 2145,
+          "recorded_latency_ms": 2127,
+          "input_tokens": 538,
+          "output_tokens": 27
+        },
+        {
+          "id": "insurance_provider",
+          "question": "Which company provides the supplier's liability insurance?",
+          "passed": true,
+          "answer_match": true,
+          "found_match": true,
+          "citation_match": true,
+          "isolation_match": true,
+          "answer": "CedarSure Commercial Insurance Company Limited",
+          "information_found": true,
+          "citations": [
+            {
+              "filename": "03_certificate_of_liability_insurance.pdf",
+              "page_number": 1
+            }
+          ],
+          "retrieval_count": 1,
+          "api_latency_ms": 1979,
+          "recorded_latency_ms": 1951,
+          "input_tokens": 530,
+          "output_tokens": 27
+        },
+        {
+          "id": "insurance_expiry",
+          "question": "When does the supplier's liability insurance expire?",
+          "passed": true,
+          "answer_match": true,
+          "found_match": true,
+          "citation_match": true,
+          "isolation_match": true,
+          "answer": "15 DEC 2026",
+          "information_found": true,
+          "citations": [
+            {
+              "filename": "03_certificate_of_liability_insurance.pdf",
+              "page_number": 1
+            }
+          ],
+          "retrieval_count": 1,
+          "api_latency_ms": 2017,
+          "recorded_latency_ms": 1996,
+          "input_tokens": 530,
+          "output_tokens": 25
+        },
+        {
+          "id": "business_activity",
+          "question": "What products or services does this supplier provide?",
+          "passed": true,
+          "answer_match": true,
+          "found_match": true,
+          "citation_match": true,
+          "isolation_match": true,
+          "answer": "Diagnostic equipment carts, instrument stands and clinical workstations",
+          "information_found": true,
+          "citations": [
+            {
+              "filename": "01_supplier_registration_form.pdf",
+              "page_number": 1
+            },
+            {
+              "filename": "03_certificate_of_liability_insurance.pdf",
+              "page_number": 1
+            }
+          ],
+          "retrieval_count": 3,
+          "api_latency_ms": 1922,
+          "recorded_latency_ms": 1907,
+          "input_tokens": 925,
+          "output_tokens": 34
+        },
+        {
+          "id": "absent_bank_balance",
+          "question": "What is the supplier's current bank account balance?",
+          "passed": true,
+          "answer_match": true,
+          "found_match": true,
+          "citation_match": true,
+          "isolation_match": true,
+          "answer": "Information not found in uploaded supplier documents.",
+          "information_found": false,
+          "citations": [],
+          "retrieval_count": 1,
+          "api_latency_ms": 1906,
+          "recorded_latency_ms": 1881,
+          "input_tokens": 540,
+          "output_tokens": 23
+        }
+      ]
+    },
+    {
+      "slug": "prithvi_sustainable_packaging",
+      "supplier_id": "e8b66390-123d-46ae-942e-f41e3625fdb8",
+      "processing": {
+        "field_count": 9,
+        "chunk_count": 3,
+        "latency_ms": 12419,
+        "input_tokens": 2285,
+        "output_tokens": 690,
+        "prompt_version": "extraction-v3"
+      },
+      "fields": {
+        "passed": 9,
+        "total": 9,
+        "checks": [
+          {
+            "field_name": "supplier_name",
+            "passed": true,
+            "expected": "Prithvi Sustainable Packaging Private Limited",
+            "actual": "Prithvi Sustainable Packaging Private Limited",
+            "needs_review": false
+          },
+          {
+            "field_name": "address",
+            "passed": true,
+            "expected": "Survey 118, Sanand Industrial Cluster, Ahmedabad, Gujarat 382110",
+            "actual": "Survey 118, Sanand Industrial Cluster, Ahmedabad, Gujarat 382110",
+            "needs_review": false
+          },
+          {
+            "field_name": "country",
+            "passed": true,
+            "expected": "India",
+            "actual": "India",
+            "needs_review": false
+          },
+          {
+            "field_name": "tax_identifier",
+            "passed": true,
+            "expected": "24AAGCP4321L1Z6",
+            "actual": "24AAGCP4321L1Z6",
+            "needs_review": false
+          },
+          {
+            "field_name": "contact_name",
+            "passed": true,
+            "expected": "Devika Shah",
+            "actual": "Devika Shah",
+            "needs_review": true
+          },
+          {
+            "field_name": "contact_email",
+            "passed": true,
+            "expected": "devika.shah@example.com",
+            "actual": "devika.shah@example.com",
+            "needs_review": false
+          },
+          {
+            "field_name": "insurance_provider",
+            "passed": true,
+            "expected": "Meridian Risk Assurance Company Limited",
+            "actual": "Meridian Risk Assurance Company Limited",
+            "needs_review": false
+          },
+          {
+            "field_name": "insurance_expiry_date",
+            "passed": true,
+            "expected": "31 JAN 2028",
+            "actual": "31 JAN 2028",
+            "needs_review": false
+          },
+          {
+            "field_name": "payment_terms",
+            "passed": true,
+            "expected": "Net 60 days from invoice date",
+            "actual": "Net 60 days from invoice date",
+            "needs_review": false
+          }
+        ]
+      },
+      "questions": [
+        {
+          "id": "legal_name",
+          "question": "What is the supplier's full legal name?",
+          "passed": true,
+          "answer_match": true,
+          "found_match": true,
+          "citation_match": true,
+          "isolation_match": true,
+          "answer": "Prithvi Sustainable Packaging Private Limited",
+          "information_found": true,
+          "citations": [
+            {
+              "filename": "01_supplier_registration_form.pdf",
+              "page_number": 1
+            },
+            {
+              "filename": "02_gst_registration_certificate.pdf",
+              "page_number": 1
+            },
+            {
+              "filename": "03_certificate_of_liability_insurance.pdf",
+              "page_number": 1
+            }
+          ],
+          "retrieval_count": 3,
+          "api_latency_ms": 1915,
+          "recorded_latency_ms": 1896,
+          "input_tokens": 932,
+          "output_tokens": 35
+        },
+        {
+          "id": "payment_terms",
+          "question": "What are the supplier's standard payment terms?",
+          "passed": true,
+          "answer_match": true,
+          "found_match": true,
+          "citation_match": true,
+          "isolation_match": true,
+          "answer": "Net 60 days from invoice date",
+          "information_found": true,
+          "citations": [
+            {
+              "filename": "01_supplier_registration_form.pdf",
+              "page_number": 1
+            }
+          ],
+          "retrieval_count": 1,
+          "api_latency_ms": 2439,
+          "recorded_latency_ms": 2421,
+          "input_tokens": 542,
+          "output_tokens": 27
+        },
+        {
+          "id": "insurance_provider",
+          "question": "Which company provides the supplier's liability insurance?",
+          "passed": true,
+          "answer_match": true,
+          "found_match": true,
+          "citation_match": true,
+          "isolation_match": true,
+          "answer": "Meridian Risk Assurance Company Limited",
+          "information_found": true,
+          "citations": [
+            {
+              "filename": "03_certificate_of_liability_insurance.pdf",
+              "page_number": 1
+            }
+          ],
+          "retrieval_count": 1,
+          "api_latency_ms": 1942,
+          "recorded_latency_ms": 1919,
+          "input_tokens": 531,
+          "output_tokens": 26
+        },
+        {
+          "id": "insurance_expiry",
+          "question": "When does the supplier's liability insurance expire?",
+          "passed": true,
+          "answer_match": true,
+          "found_match": true,
+          "citation_match": true,
+          "isolation_match": true,
+          "answer": "31 JAN 2028",
+          "information_found": true,
+          "citations": [
+            {
+              "filename": "03_certificate_of_liability_insurance.pdf",
+              "page_number": 1
+            }
+          ],
+          "retrieval_count": 1,
+          "api_latency_ms": 2012,
+          "recorded_latency_ms": 1990,
+          "input_tokens": 531,
+          "output_tokens": 25
+        },
+        {
+          "id": "business_activity",
+          "question": "What products or services does this supplier provide?",
+          "passed": true,
+          "answer_match": true,
+          "found_match": true,
+          "citation_match": true,
+          "isolation_match": true,
+          "answer": "Recycled corrugated cartons, molded fibre inserts and protective packaging",
+          "information_found": true,
+          "citations": [
+            {
+              "filename": "01_supplier_registration_form.pdf",
+              "page_number": 1
+            }
+          ],
+          "retrieval_count": 1,
+          "api_latency_ms": 1996,
+          "recorded_latency_ms": 1980,
+          "input_tokens": 542,
+          "output_tokens": 32
+        },
+        {
+          "id": "absent_bank_balance",
+          "question": "What is the supplier's current bank account balance?",
+          "passed": true,
+          "answer_match": true,
+          "found_match": true,
+          "citation_match": true,
+          "isolation_match": true,
+          "answer": "Information not found in uploaded supplier documents.",
+          "information_found": false,
+          "citations": [],
+          "retrieval_count": 1,
+          "api_latency_ms": 1830,
+          "recorded_latency_ms": 1806,
+          "input_tokens": 544,
+          "output_tokens": 23
+        }
+      ]
+    },
+    {
+      "slug": "eastbridge_logistics",
+      "supplier_id": "fc7c7fa1-79f1-4522-bdfc-ed3c48581b21",
+      "processing": {
+        "field_count": 9,
+        "chunk_count": 3,
+        "latency_ms": 12751,
+        "input_tokens": 2310,
+        "output_tokens": 665,
+        "prompt_version": "extraction-v3"
+      },
+      "fields": {
+        "passed": 9,
+        "total": 9,
+        "checks": [
+          {
+            "field_name": "supplier_name",
+            "passed": true,
+            "expected": "Eastbridge Logistics and Warehousing Private Limited",
+            "actual": "Eastbridge Logistics and Warehousing Private Limited",
+            "needs_review": false
+          },
+          {
+            "field_name": "address",
+            "passed": true,
+            "expected": "Warehouse 7, Jalan Logistics Park, Dankuni, Hooghly, West Bengal 712311",
+            "actual": "Warehouse 7, Jalan Logistics Park, Dankuni, Hooghly, West Bengal 712311",
+            "needs_review": false
+          },
+          {
+            "field_name": "country",
+            "passed": true,
+            "expected": "India",
+            "actual": "India",
+            "needs_review": false
+          },
+          {
+            "field_name": "tax_identifier",
+            "passed": true,
+            "expected": "19AACCE8765M1Z4",
+            "actual": "19AACCE8765M1Z4",
+            "needs_review": false
+          },
+          {
+            "field_name": "contact_name",
+            "passed": true,
+            "expected": "Souvik Banerjee",
+            "actual": "Souvik Banerjee",
+            "needs_review": true
+          },
+          {
+            "field_name": "contact_email",
+            "passed": true,
+            "expected": "souvik.banerjee@example.com",
+            "actual": "souvik.banerjee@example.com",
+            "needs_review": false
+          },
+          {
+            "field_name": "insurance_provider",
+            "passed": true,
+            "expected": "AtlasGuard General Insurance Company Limited",
+            "actual": "AtlasGuard General Insurance Company Limited",
+            "needs_review": false
+          },
+          {
+            "field_name": "insurance_expiry_date",
+            "passed": true,
+            "expected": "30 SEP 2027",
+            "actual": "30 SEP 2027",
+            "needs_review": false
+          },
+          {
+            "field_name": "payment_terms",
+            "passed": true,
+            "expected": "Net 15 days after monthly service acceptance",
+            "actual": "Net 15 days after monthly service acceptance",
+            "needs_review": false
+          }
+        ]
+      },
+      "questions": [
+        {
+          "id": "legal_name",
+          "question": "What is the supplier's full legal name?",
+          "passed": true,
+          "answer_match": true,
+          "found_match": true,
+          "citation_match": true,
+          "isolation_match": true,
+          "answer": "Eastbridge Logistics and Warehousing Private Limited",
+          "information_found": true,
+          "citations": [
+            {
+              "filename": "01_supplier_registration_form.pdf",
+              "page_number": 1
+            },
+            {
+              "filename": "02_gst_registration_certificate.pdf",
+              "page_number": 1
+            },
+            {
+              "filename": "03_certificate_of_liability_insurance.pdf",
+              "page_number": 1
+            }
+          ],
+          "retrieval_count": 3,
+          "api_latency_ms": 2023,
+          "recorded_latency_ms": 2006,
+          "input_tokens": 948,
+          "output_tokens": 36
+        },
+        {
+          "id": "payment_terms",
+          "question": "What are the supplier's standard payment terms?",
+          "passed": true,
+          "answer_match": true,
+          "found_match": true,
+          "citation_match": true,
+          "isolation_match": true,
+          "answer": "Net 15 days after monthly service acceptance",
+          "information_found": true,
+          "citations": [
+            {
+              "filename": "01_supplier_registration_form.pdf",
+              "page_number": 1
+            }
+          ],
+          "retrieval_count": 2,
+          "api_latency_ms": 2275,
+          "recorded_latency_ms": 2261,
+          "input_tokens": 769,
+          "output_tokens": 28
+        },
+        {
+          "id": "insurance_provider",
+          "question": "Which company provides the supplier's liability insurance?",
+          "passed": true,
+          "answer_match": true,
+          "found_match": true,
+          "citation_match": true,
+          "isolation_match": true,
+          "answer": "AtlasGuard General Insurance Company Limited",
+          "information_found": true,
+          "citations": [
+            {
+              "filename": "03_certificate_of_liability_insurance.pdf",
+              "page_number": 1
+            }
+          ],
+          "retrieval_count": 2,
+          "api_latency_ms": 2067,
+          "recorded_latency_ms": 2052,
+          "input_tokens": 769,
+          "output_tokens": 26
+        },
+        {
+          "id": "insurance_expiry",
+          "question": "When does the supplier's liability insurance expire?",
+          "passed": true,
+          "answer_match": true,
+          "found_match": true,
+          "citation_match": true,
+          "isolation_match": true,
+          "answer": "30 SEP 2027",
+          "information_found": true,
+          "citations": [
+            {
+              "filename": "03_certificate_of_liability_insurance.pdf",
+              "page_number": 1
+            }
+          ],
+          "retrieval_count": 2,
+          "api_latency_ms": 2012,
+          "recorded_latency_ms": 1986,
+          "input_tokens": 769,
+          "output_tokens": 25
+        },
+        {
+          "id": "business_activity",
+          "question": "What products or services does this supplier provide?",
+          "passed": true,
+          "answer_match": true,
+          "found_match": true,
+          "citation_match": true,
+          "isolation_match": true,
+          "answer": "Contract warehousing, inventory handling and regional freight coordination",
+          "information_found": true,
+          "citations": [
+            {
+              "filename": "01_supplier_registration_form.pdf",
+              "page_number": 1
+            },
+            {
+              "filename": "03_certificate_of_liability_insurance.pdf",
+              "page_number": 1
+            }
+          ],
+          "retrieval_count": 3,
+          "api_latency_ms": 1944,
+          "recorded_latency_ms": 1929,
+          "input_tokens": 948,
+          "output_tokens": 34
+        },
+        {
+          "id": "absent_bank_balance",
+          "question": "What is the supplier's current bank account balance?",
+          "passed": true,
+          "answer_match": true,
+          "found_match": true,
+          "citation_match": true,
+          "isolation_match": true,
+          "answer": "Information not found in uploaded supplier documents.",
+          "information_found": false,
+          "citations": [],
+          "retrieval_count": 3,
+          "api_latency_ms": 2168,
+          "recorded_latency_ms": 2151,
+          "input_tokens": 950,
+          "output_tokens": 23
+        }
+      ]
+    }
+  ]
+}

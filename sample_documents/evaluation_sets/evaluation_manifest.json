@@ -1,0 +1,377 @@
+{
+  "version": 1,
+  "suppliers": [
+    {
+      "slug": "kaveri_flow_controls",
+      "create_payload": {
+        "name": "Kaveri Flow Controls Private Limited",
+        "country": "India",
+        "contact_email": "ananya.rao@example.com"
+      },
+      "documents": {
+        "registration": "01_supplier_registration_form.pdf",
+        "tax": "02_gst_registration_certificate.pdf",
+        "insurance": "03_certificate_of_liability_insurance.pdf"
+      },
+      "expected_fields": {
+        "supplier_name": "Kaveri Flow Controls Private Limited",
+        "address": "Plot 22, SIDCO Industrial Estate, Kurichi, Coimbatore, Tamil Nadu 641021",
+        "country": "India",
+        "tax_identifier": "33AABCK1234F1Z8",
+        "contact_name": "Ananya Rao",
+        "contact_email": "ananya.rao@example.com",
+        "insurance_provider": "HarborPoint General Insurance Company Limited",
+        "insurance_expiry_date": "30 JUN 2027",
+        "payment_terms": "Net 30 days from invoice receipt"
+      },
+      "questions": [
+        {
+          "id": "legal_name",
+          "question": "What is the supplier's full legal name?",
+          "expected_terms": [
+            "Kaveri Flow Controls Private Limited"
+          ],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf",
+            "02_gst_registration_certificate.pdf",
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "payment_terms",
+          "question": "What are the supplier's standard payment terms?",
+          "expected_terms": [
+            "Net 30 days from invoice receipt"
+          ],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "insurance_provider",
+          "question": "Which company provides the supplier's liability insurance?",
+          "expected_terms": [
+            "HarborPoint General Insurance Company Limited"
+          ],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "insurance_expiry",
+          "question": "When does the supplier's liability insurance expire?",
+          "expected_terms": [
+            "30 JUN 2027"
+          ],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "business_activity",
+          "question": "What products or services does this supplier provide?",
+          "expected_terms": [
+            "Industrial valves, actuator assemblies and flow-control skids"
+          ],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf",
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "absent_bank_balance",
+          "question": "What is the supplier's current bank account balance?",
+          "expected_terms": [
+            "Information not found in uploaded supplier documents."
+          ],
+          "expected_sources": [],
+          "information_found": false
+        }
+      ]
+    },
+    {
+      "slug": "norwood_clinical_systems",
+      "create_payload": {
+        "name": "Norwood Clinical Systems Private Limited",
+        "country": "India",
+        "contact_email": "rohan.kulkarni@example.com"
+      },
+      "documents": {
+        "registration": "01_supplier_registration_form.pdf",
+        "tax": "02_gst_registration_certificate.pdf",
+        "insurance": "03_certificate_of_liability_insurance.pdf"
+      },
+      "expected_fields": {
+        "supplier_name": "Norwood Clinical Systems Private Limited",
+        "address": "48, KIADB Health Technology Park, Whitefield, Bengaluru, Karnataka 560066",
+        "country": "India",
+        "tax_identifier": "29AABCN5678K1Z2",
+        "contact_name": "Rohan Kulkarni",
+        "contact_email": "rohan.kulkarni@example.com",
+        "insurance_provider": "CedarSure Commercial Insurance Company Limited",
+        "insurance_expiry_date": "15 DEC 2026",
+        "payment_terms": "Net 45 days from accepted delivery"
+      },
+      "questions": [
+        {
+          "id": "legal_name",
+          "question": "What is the supplier's full legal name?",
+          "expected_terms": [
+            "Norwood Clinical Systems Private Limited"
+          ],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf",
+            "02_gst_registration_certificate.pdf",
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "payment_terms",
+          "question": "What are the supplier's standard payment terms?",
+          "expected_terms": [
+            "Net 45 days from accepted delivery"
+          ],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "insurance_provider",
+          "question": "Which company provides the supplier's liability insurance?",
+          "expected_terms": [
+            "CedarSure Commercial Insurance Company Limited"
+          ],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "insurance_expiry",
+          "question": "When does the supplier's liability insurance expire?",
+          "expected_terms": [
+            "15 DEC 2026"
+          ],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "business_activity",
+          "question": "What products or services does this supplier provide?",
+          "expected_terms": [
+            "Diagnostic equipment carts, instrument stands and clinical workstations"
+          ],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf",
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "absent_bank_balance",
+          "question": "What is the supplier's current bank account balance?",
+          "expected_terms": [
+            "Information not found in uploaded supplier documents."
+          ],
+          "expected_sources": [],
+          "information_found": false
+        }
+      ]
+    },
+    {
+      "slug": "prithvi_sustainable_packaging",
+      "create_payload": {
+        "name": "Prithvi Sustainable Packaging Private Limited",
+        "country": "India",
+        "contact_email": "devika.shah@example.com"
+      },
+      "documents": {
+        "registration": "01_supplier_registration_form.pdf",
+        "tax": "02_gst_registration_certificate.pdf",
+        "insurance": "03_certificate_of_liability_insurance.pdf"
+      },
+      "expected_fields": {
+        "supplier_name": "Prithvi Sustainable Packaging Private Limited",
+        "address": "Survey 118, Sanand Industrial Cluster, Ahmedabad, Gujarat 382110",
+        "country": "India",
+        "tax_identifier": "24AAGCP4321L1Z6",
+        "contact_name": "Devika Shah",
+        "contact_email": "devika.shah@example.com",
+        "insurance_provider": "Meridian Risk Assurance Company Limited",
+        "insurance_expiry_date": "31 JAN 2028",
+        "payment_terms": "Net 60 days from invoice date"
+      },
+      "questions": [
+        {
+          "id": "legal_name",
+          "question": "What is the supplier's full legal name?",
+          "expected_terms": [
+            "Prithvi Sustainable Packaging Private Limited"
+          ],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf",
+            "02_gst_registration_certificate.pdf",
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "payment_terms",
+          "question": "What are the supplier's standard payment terms?",
+          "expected_terms": [
+            "Net 60 days from invoice date"
+          ],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "insurance_provider",
+          "question": "Which company provides the supplier's liability insurance?",
+          "expected_terms": [
+            "Meridian Risk Assurance Company Limited"
+          ],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "insurance_expiry",
+          "question": "When does the supplier's liability insurance expire?",
+          "expected_terms": [
+            "31 JAN 2028"
+          ],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "business_activity",
+          "question": "What products or services does this supplier provide?",
+          "expected_terms": [
+            "Recycled corrugated cartons, molded fibre inserts and protective packaging"
+          ],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf",
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "absent_bank_balance",
+          "question": "What is the supplier's current bank account balance?",
+          "expected_terms": [
+            "Information not found in uploaded supplier documents."
+          ],
+          "expected_sources": [],
+          "information_found": false
+        }
+      ]
+    },
+    {
+      "slug": "eastbridge_logistics",
+      "create_payload": {
+        "name": "Eastbridge Logistics and Warehousing Private Limited",
+        "country": "India",
+        "contact_email": "souvik.banerjee@example.com"
+      },
+      "documents": {
+        "registration": "01_supplier_registration_form.pdf",
+        "tax": "02_gst_registration_certificate.pdf",
+        "insurance": "03_certificate_of_liability_insurance.pdf"
+      },
+      "expected_fields": {
+        "supplier_name": "Eastbridge Logistics and Warehousing Private Limited",
+        "address": "Warehouse 7, Jalan Logistics Park, Dankuni, Hooghly, West Bengal 712311",
+        "country": "India",
+        "tax_identifier": "19AACCE8765M1Z4",
+        "contact_name": "Souvik Banerjee",
+        "contact_email": "souvik.banerjee@example.com",
+        "insurance_provider": "AtlasGuard General Insurance Company Limited",
+        "insurance_expiry_date": "30 SEP 2027",
+        "payment_terms": "Net 15 days after monthly service acceptance"
+      },
+      "questions": [
+        {
+          "id": "legal_name",
+          "question": "What is the supplier's full legal name?",
+          "expected_terms": [
+            "Eastbridge Logistics and Warehousing Private Limited"
+          ],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf",
+            "02_gst_registration_certificate.pdf",
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "payment_terms",
+          "question": "What are the supplier's standard payment terms?",
+          "expected_terms": [
+            "Net 15 days after monthly service acceptance"
+          ],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "insurance_provider",
+          "question": "Which company provides the supplier's liability insurance?",
+          "expected_terms": [
+            "AtlasGuard General Insurance Company Limited"
+          ],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "insurance_expiry",
+          "question": "When does the supplier's liability insurance expire?",
+          "expected_terms": [
+            "30 SEP 2027"
+          ],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "business_activity",
+          "question": "What products or services does this supplier provide?",
+          "expected_terms": [
+            "Contract warehousing, inventory handling and regional freight coordination"
+          ],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf",
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "absent_bank_balance",
+          "question": "What is the supplier's current bank account balance?",
+          "expected_terms": [
+            "Information not found in uploaded supplier documents."
+          ],
+          "expected_sources": [],
+          "information_found": false
+        }
+      ]
+    }
+  ]
+}

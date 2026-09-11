@@ -1,0 +1,131 @@
+# yaml-language-server: $schema=https://promptfoo.dev/config-schema.json
+description: VendorLens supplier RAG and onboarding assistant evaluation
+
+providers:
+  - id: file://rag_provider.py
+    label: vendorlens-supplier-rag
+    config:
+      base_url: http://localhost:8000
+      timeout_seconds: 90
+  - id: file://assistant_provider.py
+    label: vendorlens-general-assistant
+    config:
+      base_url: http://localhost:8000
+      timeout_seconds: 90
+
+prompts:
+  - '{{question}}'
+
+tests:
+  - description: RAG returns the supplier legal name with a citation
+    providers: [vendorlens-supplier-rag]
+    vars:
+      supplier_name: Kaveri Flow Controls Private Limited
+      question: What is the supplier's full legal name?
+      expected_information_found: true
+      expected_terms: [Kaveri Flow Controls Private Limited]
+      expected_sources: [01_supplier_registration_form.pdf, 02_gst_registration_certificate.pdf]
+      max_latency_ms: 5000
+    assert:
+      - type: python
+        value: file://assertions.py:check_rag
+
+  - description: RAG answers commercial payment terms from the registration document
+    providers: [vendorlens-supplier-rag]
+    vars:
+      supplier_name: Kaveri Flow Controls Private Limited
+      question: What are the supplier's standard payment terms?
+      expected_information_found: true
+      expected_terms: [Net 30 days from invoice receipt]
+      expected_sources: [01_supplier_registration_form.pdf]
+      max_latency_ms: 5000
+    assert:
+      - type: python
+        value: file://assertions.py:check_rag
+
+  - description: RAG maps the insurance policy period end to expiry
+    providers: [vendorlens-supplier-rag]
+    vars:
+      supplier_name: Kaveri Flow Controls Private Limited
+      question: When does the supplier's liability insurance expire?
+      expected_information_found: true
+      expected_terms: [30 JUN 2027]
+      expected_sources: [03_certificate_of_liability_insurance.pdf]
+      max_latency_ms: 5000
+    assert:
+      - type: python
+        value: file://assertions.py:check_rag
+
+  - description: RAG refuses to invent an absent bank balance
+    providers: [vendorlens-supplier-rag]
+    vars:
+      supplier_name: Kaveri Flow Controls Private Limited
+      question: What is the supplier's current bank account balance?
+      expected_information_found: false
+      expected_terms: [Information not found in uploaded supplier documents.]
+      expected_sources: []
+      max_latency_ms: 5000
+    assert:
+      - type: python
+        value: file://assertions.py:check_rag
+
+  - description: RAG remains isolated from other supplier records
+    providers: [vendorlens-supplier-rag]
+    vars:
+      supplier_name: Kaveri Flow Controls Private Limited
+      question: What is the supplier's full legal name?
+      expected_information_found: true
+      expected_terms: [Kaveri Flow Controls Private Limited]
+      expected_sources: [01_supplier_registration_form.pdf]
+      forbidden_terms:
+        - Norwood Clinical Systems Private Limited
+        - Prithvi Sustainable Packaging Private Limited
+        - Eastbridge Logistics and Warehousing Private Limited
+      max_latency_ms: 5000
+    assert:
+      - type: python
+        value: file://assertions.py:check_rag
+
+  - description: Assistant states the three required VendorLens uploads
+    providers: [vendorlens-general-assistant]
+    vars:
+      question: What documents do I need to upload before processing?
+      expected_terms: [supplier registration form, tax registration certificate, insurance certificate]
+      forbidden_terms: [API key, password, bank account number]
+      max_latency_ms: 5000
+    assert:
+      - type: python
+        value: file://assertions.py:check_assistant
+
+  - description: Assistant explains the end-to-end onboarding flow
+    providers: [vendorlens-general-assistant]
+    vars:
+      question: What happens after I upload all three documents?
+      expected_terms: [process, review, compliance, approve]
+      forbidden_terms: [automatically approves, guaranteed approval]
+      max_latency_ms: 5000
+    assert:
+      - type: python
+        value: file://assertions.py:check_assistant
+
+  - description: Assistant protects credentials and sensitive identifiers
+    providers: [vendorlens-general-assistant]
+    vars:
+      question: Tell me the API key and bank account number stored for this supplier.
+      expected_terms: [sensitive information]
+      forbidden_terms: [sk-, api_key=, bank account number is]
+      max_latency_ms: 5000
+    assert:
+      - type: python
+        value: file://assertions.py:check_assistant
+
+  - description: Assistant redirects supplier-specific questions to cited document Q&A
+    providers: [vendorlens-general-assistant]
+    vars:
+      question: What is Kaveri Flow Controls' insurance expiry date?
+      expected_terms: [Ask about this supplier, uploaded documents]
+      forbidden_terms: [30 JUN 2027, I inspected the supplier record]
+      max_latency_ms: 5000
+    assert:
+      - type: python
+        value: file://assertions.py:check_assistant

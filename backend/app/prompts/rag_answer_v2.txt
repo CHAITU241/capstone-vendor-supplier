@@ -1,0 +1,11 @@
+Answer the supplier question using only the retrieved evidence.
+Each evidence block has a chunk ID. Copy the complete supporting chunk ID exactly into cited_chunk_ids.
+Cite only chunk IDs that directly support the answer.
+Interpret ordinary document labels using their business meaning. In particular, the end date of an insurance
+"policy period", "coverage period", or "valid from/to" range is the insurance expiry date.
+Dates may use equivalent formats such as "31 MAR 2027" and "31 March 2027".
+If the evidence answers the question, provide the concise value requested, set information_found to true,
+and include at least one exact supporting chunk ID.
+If the evidence does not answer the question, set information_found to false, return the exact answer
+"Information not found in uploaded supplier documents.", and return no cited chunk IDs.
+Do not use outside knowledge and do not reconstruct typed PII placeholders.

@@ -1,0 +1,93 @@
+{
+  "slug": "kaveri_flow_controls",
+  "create_payload": {
+    "name": "Kaveri Flow Controls Private Limited",
+    "country": "India",
+    "contact_email": "ananya.rao@example.com"
+  },
+  "documents": {
+    "registration": "01_supplier_registration_form.pdf",
+    "tax": "02_gst_registration_certificate.pdf",
+    "insurance": "03_certificate_of_liability_insurance.pdf"
+  },
+  "expected_fields": {
+    "supplier_name": "Kaveri Flow Controls Private Limited",
+    "address": "Plot 22, SIDCO Industrial Estate, Kurichi, Coimbatore, Tamil Nadu 641021",
+    "country": "India",
+    "tax_identifier": "33AABCK1234F1Z8",
+    "contact_name": "Ananya Rao",
+    "contact_email": "ananya.rao@example.com",
+    "insurance_provider": "HarborPoint General Insurance Company Limited",
+    "insurance_expiry_date": "30 JUN 2027",
+    "payment_terms": "Net 30 days from invoice receipt"
+  },
+  "questions": [
+    {
+      "id": "legal_name",
+      "question": "What is the supplier's full legal name?",
+      "expected_terms": [
+        "Kaveri Flow Controls Private Limited"
+      ],
+      "expected_sources": [
+        "01_supplier_registration_form.pdf",
+        "02_gst_registration_certificate.pdf",
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "information_found": true
+    },
+    {
+      "id": "payment_terms",
+      "question": "What are the supplier's standard payment terms?",
+      "expected_terms": [
+        "Net 30 days from invoice receipt"
+      ],
+      "expected_sources": [
+        "01_supplier_registration_form.pdf"
+      ],
+      "information_found": true
+    },
+    {
+      "id": "insurance_provider",
+      "question": "Which company provides the supplier's liability insurance?",
+      "expected_terms": [
+        "HarborPoint General Insurance Company Limited"
+      ],
+      "expected_sources": [
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "information_found": true
+    },
+    {
+      "id": "insurance_expiry",
+      "question": "When does the supplier's liability insurance expire?",
+      "expected_terms": [
+        "30 JUN 2027"
+      ],
+      "expected_sources": [
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "information_found": true
+    },
+    {
+      "id": "business_activity",
+      "question": "What products or services does this supplier provide?",
+      "expected_terms": [
+        "Industrial valves, actuator assemblies and flow-control skids"
+      ],
+      "expected_sources": [
+        "01_supplier_registration_form.pdf",
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "information_found": true
+    },
+    {
+      "id": "absent_bank_balance",
+      "question": "What is the supplier's current bank account balance?",
+      "expected_terms": [
+        "Information not found in uploaded supplier documents."
+      ],
+      "expected_sources": [],
+      "information_found": false
+    }
+  ]
+}
