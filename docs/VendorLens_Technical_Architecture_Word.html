@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>VendorLens Supplier Onboarding — Technical Architecture</title>
+  <style>
+    @page { size: A4; margin: 0; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #e8eef5; color: #203247; font-family: Arial, Helvetica, sans-serif; font-size: 9.4pt; line-height: 1.28; }
+    .page { width: 210mm; min-height: 297mm; margin: 8mm auto; padding: 13mm 15mm 12mm; background: white; box-shadow: 0 4mm 12mm rgba(23,50,77,.14); page-break-after: always; }
+    .page:last-child { page-break-after: auto; }
+    h1 { color: #17324d; font-size: 24pt; line-height: 1.05; margin: 0 0 4mm; }
+    h2 { color: #17324d; font-size: 15pt; margin: 0 0 2.5mm; padding-bottom: 1.5mm; border-bottom: 1.5pt solid #2f6fed; }
+    h3 { color: #17324d; font-size: 11.2pt; margin: 3mm 0 1.2mm; }
+    p { margin: 0 0 2.2mm; }
+    ul, ol { margin: 1.4mm 0 2.2mm 5mm; padding-left: 4mm; }
+    li { margin-bottom: 0.8mm; }
+    .eyebrow { color: #2f6fed; font-size: 9pt; font-weight: bold; letter-spacing: 1.2pt; margin-bottom: 3mm; }
+    .subtitle { color: #51657b; font-size: 12pt; line-height: 1.32; margin-bottom: 4mm; }
+    .meta { width: 100%; border-collapse: collapse; margin: 3mm 0 4mm; }
+    .meta td { padding: 1.5mm 2mm; border-top: 0.7pt solid #d7e0ea; }
+    .meta td:first-child { width: 31%; color: #65758b; font-weight: bold; }
+    .callout { background: #eef3ff; border-left: 4pt solid #2f6fed; padding: 2.8mm 3.5mm; margin: 3mm 0; }
+    .callout.teal { background: #eaf8f7; border-left-color: #10a6a6; }
+    .callout.amber { background: #fff7e5; border-left-color: #f59e0b; }
+    .diagram { width: 100%; height: auto; display: block; margin: 2.5mm auto 2mm; border-radius: 3mm; }
+    table.data { width: 100%; border-collapse: collapse; margin: 2mm 0 3mm; font-size: 8.6pt; }
+    table.data th { background: #17324d; color: white; text-align: left; padding: 2mm; border: 0.6pt solid #17324d; }
+    table.data td { vertical-align: top; padding: 1.8mm 2mm; border: 0.6pt solid #cfd9e5; }
+    table.data tr:nth-child(even) td { background: #f6f8fb; }
+    .grid { width: 100%; border-collapse: separate; border-spacing: 2.5mm; margin: 1mm -2.5mm 2mm; }
+    .grid td { width: 50%; vertical-align: top; background: #f6f8fb; border: 0.7pt solid #d5dfeb; padding: 2.8mm; }
+    .grid strong { color: #17324d; }
+    .number { display: inline-block; background: #2f6fed; color: white; font-weight: bold; width: 5.5mm; height: 5.5mm; text-align: center; border-radius: 50%; margin-right: 1.5mm; }
+    .flow { display: flex; flex-wrap: wrap; align-items: center; gap: 1.5mm; margin: 3mm 0 4mm; padding: 2.5mm; background: #f6f8fb; border: 0.7pt solid #d5dfeb; border-radius: 2.5mm; }
+    .flow-step { flex: 1 1 38mm; min-height: 12mm; display: flex; align-items: center; padding: 1.7mm 2mm; background: white; border: 0.7pt solid #cfd9e5; border-radius: 2mm; color: #17324d; font-weight: bold; }
+    .flow-arrow { color: #2f6fed; font-size: 14pt; font-weight: bold; }
+    .code { font-family: "Courier New", monospace; font-size: 8.3pt; color: #17324d; }
+    .footer { margin-top: 3mm; padding-top: 1.5mm; border-top: 0.7pt solid #cfd9e5; color: #718096; font-size: 7.8pt; text-align: right; }
+    .no-break { page-break-inside: avoid; }
+    @media print {
+      body { background: white; }
+      .page { margin: 0; box-shadow: none; }
+    }
+    @media screen and (max-width: 820px) {
+      .page { width: 100%; min-height: 0; margin: 0 0 5mm; padding: 8mm 6mm; }
+      .flow-arrow { display: none; }
+      .grid, .grid tbody, .grid tr, .grid td { display: block; width: 100%; }
+      .grid td { margin-bottom: 2mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <section class="page">
+    <div class="eyebrow">VENDORLENS · TECHNICAL WORKING DOCUMENT</div>
+    <h1>Supplier Onboarding<br>Technical Architecture</h1>
+    <div class="subtitle">Implementation-level view of the application architecture, persistence model, document pipeline, and supplier-scoped retrieval-augmented generation.</div>
+
+    <table class="meta">
+      <tr><td>Implementation snapshot</td><td>10 September 2026</td></tr>
+      <tr><td>Application profile</td><td>AI-assisted onboarding demonstration with deterministic compliance and human approval</td></tr>
+      <tr><td>Primary stack</td><td>React, TypeScript, Material UI, FastAPI, SQLAlchemy, PostgreSQL, ChromaDB</td></tr>
+      <tr><td>AI routing</td><td>OpenRouter when configured; Azure OpenAI as configuration fallback</td></tr>
+    </table>
+
+    <h2>1. Architecture at a glance</h2>
+    <p>VendorLens manages a supplier from initial case creation through document intake, AI-assisted review, deterministic compliance, and a final human decision. The browser never calls an AI provider directly. FastAPI owns validation, redaction, AI orchestration, retrieval isolation, compliance, and audit recording.</p>
+
+    <div class="flow" aria-label="End-to-end supplier onboarding flow">
+      <div class="flow-step"><span class="number">1</span>Create supplier case</div><div class="flow-arrow">→</div>
+      <div class="flow-step"><span class="number">2</span>Upload 3 documents</div><div class="flow-arrow">→</div>
+      <div class="flow-step"><span class="number">3</span>Extract and redact</div><div class="flow-arrow">→</div>
+      <div class="flow-step"><span class="number">4</span>AI fields + RAG index</div><div class="flow-arrow">→</div>
+      <div class="flow-step"><span class="number">5</span>Human review</div><div class="flow-arrow">→</div>
+      <div class="flow-step"><span class="number">6</span>Compliance checks</div><div class="flow-arrow">→</div>
+      <div class="flow-step"><span class="number">7</span>Approve / reject</div><div class="flow-arrow">→</div>
+      <div class="flow-step"><span class="number">8</span>Mock ERP + audit</div>
+    </div>
+
+    <img class="diagram system" src="assets/vendorlens-system-architecture.png" alt="VendorLens system and data architecture">
+
+    <div class="callout teal"><strong>Design principle.</strong> AI produces extracted candidates and grounded answers; it does not approve suppliers. Every accepted answer must cite retrieved evidence, and every approval must pass deterministic checks plus explicit reviewer confirmation.</div>
+
+    <table class="grid">
+      <tr>
+        <td><strong>Presentation layer</strong><br>React SPA built with TypeScript, Vite, and Material UI. Nginx serves the production bundle and proxies same-origin <span class="code">/api</span> calls.</td>
+        <td><strong>Application layer</strong><br>FastAPI/Uvicorn REST service with Pydantic contracts, SQLAlchemy persistence, document processing, AI orchestration, and review rules.</td>
+      </tr>
+    </table>
+    <div class="footer">VendorLens Supplier Onboarding · Technical Architecture · Page 1 of 4</div>
+  </section>
+
+  <section class="page">
+    <h2>2. Workflow and data storage</h2>
+
+    <h3>Implemented onboarding sequence</h3>
+    <ol>
+      <li>Create a supplier case using legal name, country, and optional contact email.</li>
+      <li>Upload exactly one registration, tax, and insurance document. Supported formats are selectable-text PDF and UTF-8 text, with a default 10 MB maximum.</li>
+      <li>Extract source text synchronously and retain explicit <span class="code">[Page N]</span> markers.</li>
+      <li>Redact detected PII, extract structured fields, select canonical cross-document values, and construct a vector index.</li>
+      <li>Review or correct fields, ask cited supplier-specific questions, and run six deterministic compliance rules.</li>
+      <li>Approve only when every rule passes, or reject with an auditable reason. Approval creates a deterministic mock ERP reference.</li>
+    </ol>
+
+    <h3>Persistence boundaries</h3>
+    <table class="data">
+      <tr><th>Store</th><th>Role</th><th>Content retained</th><th>Container persistence</th></tr>
+      <tr><td><strong>PostgreSQL</strong></td><td>Authoritative workflow database</td><td>Suppliers, statuses, document metadata, raw and redacted extracted text, canonical fields, AI-run metadata, compliance results, decisions, ERP references, and audit events</td><td><span class="code">postgres_data</span></td></tr>
+      <tr><td><strong>Local filesystem</strong></td><td>Original source documents</td><td>PDF/TXT binaries under generated UUID storage names; sanitized original names remain metadata</td><td><span class="code">uploads_data</span></td></tr>
+      <tr><td><strong>ChromaDB</strong></td><td>Rebuildable semantic index</td><td>Redacted chunk text, embedding vectors, supplier ID, document ID, filename, page, chunk index, and token count</td><td><span class="code">chroma_data</span></td></tr>
+      <tr><td><strong>AI provider</strong></td><td>Request-time inference</td><td>Receives redacted document text, redacted questions, and selected redacted evidence; it is not the application system of record</td><td>Provider-managed request processing</td></tr>
+    </table>
+
+    <div class="callout"><strong>Source-of-truth rule.</strong> PostgreSQL owns business state. ChromaDB can be reconstructed from supplier documents and is never treated as the authoritative record. Reprocessing replaces derived fields and vectors; document deletion clears stale derived data.</div>
+
+    <h3>Document extraction and privacy boundary</h3>
+    <p>PDF text is extracted with PyMuPDF; text files are decoded as UTF-8. Image-only or unreadable PDFs fail visibly because OCR is not implemented. Before AI calls, regular-expression rules replace detected GSTIN, PAN, CIN, email, phone, and bank-account values with stable typed placeholders such as <span class="code">[EMAIL_1]</span>. Repeated values reuse the same placeholder.</p>
+    <p>The redacted form is used for structured extraction, embeddings, and grounded Q&amp;A. After validated structured extraction, placeholders may be restored before canonical fields are saved to PostgreSQL for reviewer use. Raw extracted text also remains in PostgreSQL, so database access must be treated as sensitive.</p>
+
+    <h3>Canonical structured fields</h3>
+    <p>The extraction model returns a schema-validated document type plus field name, value, page, and confidence at temperature zero. Null-like values are removed. Values below 0.75 confidence, classification mismatches, or invalid page references require review. Repeated fields are ranked by authoritative source—tax documents for tax identifiers and insurance documents for insurer/expiry data. Conflicts keep the preferred value but force human review.</p>
+
+    <div class="footer">VendorLens Supplier Onboarding · Technical Architecture · Page 2 of 4</div>
+  </section>
+
+  <section class="page">
+    <h2>3. Retrieval-augmented generation (RAG)</h2>
+    <p>The RAG design has two controlled phases: index construction when all three supplier documents are processed, and supplier-scoped retrieval when a question is asked.</p>
+
+    <img class="diagram rag" src="assets/vendorlens-rag-pipeline.png" alt="VendorLens RAG indexing and question pipeline">
+
+    <h3>Chunking methodology</h3>
+    <table class="data">
+      <tr><th>Parameter</th><th>Implemented behavior</th><th>Reason</th></tr>
+      <tr><td><strong>Segmentation</strong></td><td>Split first on <span class="code">[Page N]</span>; chunks never cross pages</td><td>Preserves unambiguous page citations</td></tr>
+      <tr><td><strong>Tokenizer</strong></td><td><span class="code">tiktoken.encoding_for_model()</span>; fallback to <span class="code">cl100k_base</span></td><td>Model-aligned, deterministic token counts</td></tr>
+      <tr><td><strong>Window</strong></td><td>Maximum 500 tokens</td><td>Balances local context with retrieval precision</td></tr>
+      <tr><td><strong>Overlap</strong></td><td>75 tokens; 425-token stride</td><td>Retains context around window boundaries</td></tr>
+      <tr><td><strong>Metadata</strong></td><td>Supplier, document, filename, page, chunk index, token count</td><td>Isolation, traceability, and citation mapping</td></tr>
+    </table>
+
+    <h3>Retrieval and answer acceptance</h3>
+    <p>The redacted question is embedded using the same embedding model family as indexed chunks. Chroma queries the <span class="code">supplier_chunks_v1</span> HNSW cosine collection with a mandatory exact <span class="code">supplier_id</span> metadata filter. Only the nearest four results are requested, and results with cosine distance greater than 0.72 are discarded.</p>
+    <p>Eligible evidence is sent to the answer model as short labels such as <span class="code">chunk_1</span>, with source filename and page. The model returns a structured answer, an <span class="code">information_found</span> flag, and cited labels. The backend accepts the answer only when the flag is true and at least one label exists in the retrieved set. Otherwise, it returns the fixed safe response: <em>“Information not found in uploaded supplier documents.”</em></p>
+
+    <div class="callout teal"><strong>Isolation and grounding.</strong> Filtering occurs inside the vector query before ranking results are consumed. Valid model labels are mapped back to the real filename, page, excerpt, and internal chunk ID. This prevents cross-supplier retrieval and rejects uncited model answers at the application boundary.</div>
+
+    <div class="footer">VendorLens Supplier Onboarding · Technical Architecture · Page 3 of 4</div>
+  </section>
+
+  <section class="page">
+    <h2>4. Controls, operation, and technical boundaries</h2>
+
+    <h3>Deterministic approval controls</h3>
+    <table class="data">
+      <tr><th>Rule</th><th>Purpose</th><th>Blocking behavior</th></tr>
+      <tr><td><span class="code">document_completeness</span></td><td>Registration, tax, and insurance documents must all be ready</td><td>Missing/failed category blocks approval</td></tr>
+      <tr><td><span class="code">insurance_expiry</span></td><td>Expiry must parse and be later than the current date</td><td>Missing, invalid, or expired coverage blocks approval</td></tr>
+      <tr><td><span class="code">contact_email</span></td><td>Reviewed contact email must be syntactically valid</td><td>Invalid or missing value blocks approval</td></tr>
+      <tr><td><span class="code">supplier_name_match</span></td><td>Canonical name must be represented across uploaded evidence</td><td>Mismatch requires review</td></tr>
+      <tr><td><span class="code">redaction_boundary</span></td><td>Every document must have redacted text and summary</td><td>Unprocessed boundary blocks approval</td></tr>
+      <tr><td><span class="code">field_review</span></td><td>No canonical field may retain <span class="code">needs_review</span></td><td>Reviewer confirmation/correction required</td></tr>
+    </table>
+
+    <h3>Key runtime configuration</h3>
+    <table class="grid">
+      <tr>
+        <td><strong>AI routing</strong><br>OpenRouter takes priority when its key is non-empty; otherwise Azure OpenAI is used. There is no silent provider failover after a request failure.</td>
+        <td><strong>Default models</strong><br><span class="code">gpt-4o-mini</span> family for extraction and answers; <span class="code">text-embedding-3-small</span> family for embeddings.</td>
+      </tr>
+      <tr>
+        <td><strong>RAG controls</strong><br><span class="code">CHUNK_SIZE_TOKENS=500</span><br><span class="code">CHUNK_OVERLAP_TOKENS=75</span><br><span class="code">RAG_TOP_K=4</span><br><span class="code">RAG_MAX_DISTANCE=0.72</span></td>
+        <td><strong>Deployment</strong><br>Docker Compose runs PostgreSQL 18, FastAPI/Uvicorn, and React/Nginx. Alembic migrations execute before the backend starts.</td>
+      </tr>
+    </table>
+
+    <h3>Observability and evaluation</h3>
+    <p>Prometheus records bounded-label HTTP, dependency, AI latency/token, processing, retrieval, compliance, and decision metrics. Langfuse tracing is optional and metadata-only by default; content capture requires an explicit setting. Promptfoo plus controlled multi-supplier document packs evaluate extraction, citation accuracy, guarded not-found behavior, latency, and supplier isolation.</p>
+
+    <h3>Current implementation boundaries</h3>
+    <ul>
+      <li>Synchronous processing is designed for demonstration-scale workloads, not a distributed job architecture.</li>
+      <li>OCR, scanned-document support, malware scanning, and managed object storage are not implemented.</li>
+      <li>The ERP boundary is a deterministic local mock rather than a production integration.</li>
+      <li>Production authentication, authorization, and tenant isolation are not present.</li>
+      <li>Embedded ChromaDB and local uploads suit a single application instance; horizontal scaling needs externalized storage and coordinated indexing.</li>
+      <li>Human review remains mandatory: semantic retrieval and citation gates reduce unsupported answers but do not eliminate model interpretation errors.</li>
+    </ul>
+
+    <!-- <div class="callout amber"><strong>Recommended production evolution.</strong> Add identity and role-based access, encrypted object storage, OCR and malware scanning, asynchronous processing, managed vector infrastructure, retention policies, backup/restore controls, and a real ERP adapter with idempotency and reconciliation.</div> -->
+
+    <h3>Implementation references</h3>
+    <p class="code">backend/app/services/{chunking.py,retrieval.py,processing.py,redaction.py}<br>backend/app/{models.py,vector_store.py,config.py} · compose.yaml · frontend/src/api/client.ts</p>
+
+    <div class="footer">VendorLens Supplier Onboarding · Technical Architecture · Page 4 of 4</div>
+  </section>
+
+</body>
+</html>

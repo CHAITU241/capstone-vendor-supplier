@@ -22,7 +22,8 @@ Langfuse tracing is passive; no separate local server is required.
 2. From the directory containing `promptfooconfig.yaml`, run:
 
    ```powershell
-   npx promptfoo eval -c promptfooconfig.yaml
+    PROMPTFOO_BASE_URL=http://localhost:8000 npx promptfoo@latest eval -c promptfooconfig.yaml --no-cache -o results/latest.json
+    
    npx promptfoo view
    ```
 
