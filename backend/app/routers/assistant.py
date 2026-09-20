@@ -9,6 +9,7 @@ from app.schemas import (
     GeneralAssistantRun,
 )
 from app.services.openai_service import AIConfigurationError, get_openai_service
+from app.services.assistant_scope import is_onboarding_question
 from app.services.policy_retrieval import policy_context_for, supplier_facing_answer
 from app.services.redaction import redact_pii
 
@@ -23,6 +24,17 @@ def chat(payload: GeneralAssistantRequest, settings: Settings = Depends(get_sett
     total_characters = sum(len(message.content) for message in payload.messages)
     if total_characters > 10000:
         raise HTTPException(status_code=422, detail="The conversation is too long. Start a new chat.")
+
+    question = payload.messages[-1].content
+    previous_questions = [message.content for message in payload.messages[:-1] if message.role == "user"]
+    if not is_onboarding_question(question, previous_questions):
+        return GeneralAssistantResponse(
+            answer="I can help with supplier onboarding, required documents, and using this portal. What would you like to know about those?",
+            run=GeneralAssistantRun(
+                model="scope-check", prompt_version=settings.assistant_prompt_version,
+                input_tokens=0, output_tokens=0, latency_ms=0, redaction_counts={},
+            ),
+        )
 
     try:
         ai = get_openai_service()

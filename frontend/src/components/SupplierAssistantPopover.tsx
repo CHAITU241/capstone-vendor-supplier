@@ -6,7 +6,7 @@ import { Alert, Box, Button, Chip, CircularProgress, Drawer, Fab, IconButton, St
 import { useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { api } from '../api/client'
+import { api, ApiError } from '../api/client'
 import type { GeneralAssistantMessage } from '../api/types'
 
 const welcomeMessage: GeneralAssistantMessage = {
@@ -19,6 +19,22 @@ const quickGuides = [
   { label: 'Can I save and return?', answer: 'Yes. Create a supplier account with your email and password. Each completed step and uploaded document is saved to your account. Sign in with the same email to continue.' },
   { label: 'What happens next?', answer: 'After the requested files are uploaded, submit your application. A reviewer checks their contents and will tell you if anything needs correction.' },
 ]
+
+function recentConversation(messages: GeneralAssistantMessage[]): GeneralAssistantMessage[] {
+  const recent = messages.slice(-12)
+  while (recent.length > 1 && recent.reduce((total, message) => total + message.content.length, 0) > 10000) recent.shift()
+  return recent
+}
+
+function assistantErrorMessage(error: unknown): string {
+  if (error instanceof ApiError) {
+    if (error.status === 502) return 'The assistant could not get an answer right now. Please try again.'
+    if (error.status === 503) return 'The assistant is temporarily unavailable. Please try again later.'
+    if (error.status === 422) return 'This chat could not be sent. Start a new chat and try again.'
+    return error.message
+  }
+  return 'Cannot reach the portal server right now. Please try again when it is running.'
+}
 
 export function SupplierAssistantPopover() {
   const [open, setOpen] = useState(false)
@@ -36,10 +52,12 @@ export function SupplierAssistantPopover() {
     setAsking(true)
     setError('')
     try {
-      const result = await api.askGeneralAssistant(nextMessages.slice(-12))
+      const result = await api.askGeneralAssistant(recentConversation(nextMessages))
       setMessages((current) => [...current, { role: 'assistant', content: result.answer }])
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'The assistant could not answer right now.')
+      setMessages(messages)
+      setQuestion(trimmedQuestion)
+      setError(assistantErrorMessage(requestError))
     } finally { setAsking(false) }
   }
 
@@ -84,12 +102,12 @@ export function SupplierAssistantPopover() {
             <Stack direction="row" useFlexGap flexWrap="wrap" gap={1} sx={{ mt: 1 }}>
               {quickGuides.map((guide) => <Chip key={guide.label} label={guide.label} clickable variant="outlined" color="primary" onClick={() => setMessages((current) => [...current, { role: 'user', content: guide.label }, { role: 'assistant', content: guide.answer }])} />)}
             </Stack></Box>}
-          {error && <Alert severity="info" sx={{ mt: 2 }}>{error} Quick answers above work without an AI key; open questions need a configured OpenRouter provider.</Alert>}
+          {error && <Alert severity="info" sx={{ mt: 2 }}>{error}</Alert>}
         </Box>
 
         <Box sx={{ p: 2.5, borderTop: '1px solid', borderColor: 'divider', bgcolor: 'white' }}>
           <Stack component="form" direction="row" spacing={1} onSubmit={(event) => { event.preventDefault(); void handleSubmit() }}>
-            <TextField fullWidth size="small" placeholder="Ask about onboarding..." aria-label="Ask the assistant" value={question} onChange={(event) => setQuestion(event.target.value)} disabled={asking} />
+            <TextField fullWidth size="small" placeholder="Ask about onboarding..." aria-label="Ask the assistant" value={question} onChange={(event) => setQuestion(event.target.value)} slotProps={{ htmlInput: { maxLength: 2000 } }} disabled={asking} />
             <Button type="submit" variant="contained" aria-label="Send question" disabled={asking || question.trim().length < 3} sx={{ minWidth: 44, px: 1.5 }}><SendRoundedIcon fontSize="small" /></Button>
           </Stack>
           <Typography display="block" variant="caption" color="text.secondary" sx={{ mt: 1 }}>This guide can explain requirements but cannot inspect your uploads or application result.</Typography>

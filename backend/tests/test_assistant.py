@@ -95,6 +95,39 @@ def test_assistant_returns_document_names_when_model_returns_internal_ids(monkey
     assert "BASE-001" not in result.answer
 
 
+def test_assistant_refuses_off_topic_question_without_calling_model(monkeypatch) -> None:
+    monkeypatch.setattr("app.routers.assistant.get_openai_service", lambda: pytest.fail("AI should not be called"))
+    payload = GeneralAssistantRequest(
+        messages=[
+            GeneralAssistantMessage(role="user", content="What evidence does a cybersecurity supplier need?"),
+            GeneralAssistantMessage(role="assistant", content="Prepare your registration and tax evidence."),
+            GeneralAssistantMessage(role="user", content="Who is the president of India?"),
+        ]
+    )
+
+    result = chat(payload, Settings())
+
+    assert "supplier onboarding" in result.answer
+    assert result.run.input_tokens == 0
+
+
+def test_assistant_accepts_long_prior_answer_in_conversation(monkeypatch) -> None:
+    class FakeAssistant:
+        def answer_general_question(self, messages, policy_context="") -> ModelResult[GeneralAssistantAnswer]:
+            return ModelResult(value=GeneralAssistantAnswer(answer="Use the current certificate."), input_tokens=1, output_tokens=1)
+
+    monkeypatch.setattr("app.routers.assistant.get_openai_service", lambda: FakeAssistant())
+    payload = GeneralAssistantRequest(
+        messages=[
+            GeneralAssistantMessage(role="user", content="What evidence does a cybersecurity supplier need?"),
+            GeneralAssistantMessage(role="assistant", content="Details: " + "x" * 2500),
+            GeneralAssistantMessage(role="user", content="What about the insurance certificate?"),
+        ]
+    )
+
+    assert chat(payload, Settings()).answer == "Use the current certificate."
+
+
 def test_assistant_rejects_an_oversized_conversation(monkeypatch) -> None:
     monkeypatch.setattr("app.routers.assistant.get_openai_service", lambda: pytest.fail("AI should not be called"))
     payload = GeneralAssistantRequest(
