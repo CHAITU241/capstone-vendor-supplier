@@ -4,6 +4,8 @@ import SendRoundedIcon from '@mui/icons-material/SendRounded'
 import SupportAgentRoundedIcon from '@mui/icons-material/SupportAgentRounded'
 import { Alert, Box, Button, Chip, CircularProgress, Drawer, Fab, IconButton, Stack, TextField, Typography } from '@mui/material'
 import { useState } from 'react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { api } from '../api/client'
 import type { GeneralAssistantMessage } from '../api/types'
 
@@ -52,7 +54,7 @@ export function SupplierAssistantPopover() {
       sx={{ position: 'fixed', right: { xs: 16, sm: 24 }, bottom: { xs: 16, sm: 24 }, zIndex: (theme) => theme.zIndex.fab, gap: 1, px: 2.5, boxShadow: 4 }}>
       <SupportAgentRoundedIcon /> Ask VendorLens
     </Fab>}
-    <Drawer anchor="right" open={open} onClose={() => setOpen(false)} PaperProps={{ sx: { width: { xs: '100%', sm: 430 }, maxWidth: '100vw', bgcolor: '#FAFBFF' } }}>
+    <Drawer anchor="right" open={open} onClose={() => setOpen(false)} PaperProps={{ sx: { width: { xs: '100%', sm: 480 }, maxWidth: '100vw', bgcolor: '#FAFBFF' } }}>
       <Stack sx={{ height: '100%' }}>
         <Stack direction="row" alignItems="center" spacing={1.5} sx={{ px: 2.5, py: 2, bgcolor: 'white', borderBottom: '1px solid', borderColor: 'divider' }}>
           <Box sx={{ width: 42, height: 42, display: 'grid', placeItems: 'center', bgcolor: '#EDE9FE', color: 'tertiary.main', borderRadius: 2 }}><SupportAgentRoundedIcon /></Box>
@@ -63,8 +65,18 @@ export function SupplierAssistantPopover() {
 
         <Box sx={{ flex: 1, overflowY: 'auto', p: 2.5 }}>
           <Stack spacing={2}>
-            {messages.map((message, index) => <Box key={index} sx={{ alignSelf: message.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '92%', p: 1.75, borderRadius: 2.5, bgcolor: message.role === 'user' ? 'primary.main' : 'white', color: message.role === 'user' ? 'white' : 'text.primary', boxShadow: '0 3px 14px rgba(15, 23, 42, 0.08)' }}>
-              <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{message.content}</Typography>
+            {messages.map((message, index) => <Box key={index} sx={{ alignSelf: message.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: message.role === 'user' ? '92%' : '100%', p: 1.75, borderRadius: 2.5, bgcolor: message.role === 'user' ? 'primary.main' : 'white', color: message.role === 'user' ? 'white' : 'text.primary', boxShadow: '0 3px 14px rgba(15, 23, 42, 0.08)' }}>
+              {message.role === 'assistant' ? <Box sx={{ fontSize: '0.875rem', lineHeight: 1.65, overflowWrap: 'anywhere',
+                '& p': { m: 0, mb: 1.25 }, '& p:last-child': { mb: 0 },
+                '& ol, & ul': { mt: 1, mb: 1.5, pl: 2.75 }, '& ol:last-child, & ul:last-child': { mb: 0 },
+                '& li': { pl: 0.5, mb: 1.25 }, '& li:last-child': { mb: 0 },
+                '& li::marker': { color: 'primary.main', fontWeight: 700 },
+                '& li > p': { mb: 0.5 }, '& li > ul, & li > ol': { mt: 0.5, mb: 0 },
+                '& strong': { fontWeight: 750 }, '& a': { color: 'primary.main' },
+                '& h1, & h2, & h3': { fontSize: '1rem', lineHeight: 1.4, mt: 1.5, mb: 0.75 },
+                '& h1:first-child, & h2:first-child, & h3:first-child': { mt: 0 },
+              }}><ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown></Box>
+                : <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{message.content}</Typography>}
             </Box>)}
             {asking && <CircularProgress size={20} />}
           </Stack>
