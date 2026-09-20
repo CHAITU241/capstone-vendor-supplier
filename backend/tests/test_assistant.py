@@ -43,7 +43,7 @@ def test_assistant_passes_only_conversation_messages_to_ai(monkeypatch) -> None:
 
     assert result.answer.startswith("Prepare the documents")
     assert captured == [message.model_dump() for message in payload.messages]
-    assert "Synthetic buyer policy v1.1" in contexts[0]
+    assert "India-based incorporated suppliers" in contexts[0]
     assert result.run.model == "gpt-test"
     assert result.run.input_tokens == 11
     assert result.run.output_tokens == 7
@@ -72,6 +72,27 @@ def test_assistant_redacts_pii_before_ai(monkeypatch) -> None:
     assert "supplier@example.com" not in captured[0]["content"]
     assert captured[0]["content"] == "Email me at [EMAIL_1]"
     assert result.run.redaction_counts == {"EMAIL": 1}
+
+
+def test_assistant_returns_document_names_when_model_returns_internal_ids(monkeypatch) -> None:
+    class FakeAssistant:
+        def answer_general_question(self, messages, policy_context="") -> ModelResult[GeneralAssistantAnswer]:
+            return ModelResult(
+                value=GeneralAssistantAnswer(answer="BASE-001, SEC-001, INS-CYB-001"),
+                input_tokens=1,
+                output_tokens=1,
+            )
+
+    monkeypatch.setattr("app.routers.assistant.get_openai_service", lambda: FakeAssistant())
+    payload = GeneralAssistantRequest(
+        messages=[GeneralAssistantMessage(role="user", content="What evidence does a cybersecurity supplier need?")]
+    )
+
+    result = chat(payload, Settings())
+
+    assert "Business registration certificate" in result.answer
+    assert "Insurer-issued cyber liability insurance certificate" in result.answer
+    assert "BASE-001" not in result.answer
 
 
 def test_assistant_rejects_an_oversized_conversation(monkeypatch) -> None:

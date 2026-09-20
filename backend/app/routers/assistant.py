@@ -9,7 +9,7 @@ from app.schemas import (
     GeneralAssistantRun,
 )
 from app.services.openai_service import AIConfigurationError, get_openai_service
-from app.services.policy_retrieval import policy_context_for
+from app.services.policy_retrieval import policy_context_for, supplier_facing_answer
 from app.services.redaction import redact_pii
 
 router = APIRouter(prefix="/assistant", tags=["assistant"])
@@ -43,7 +43,7 @@ def chat(payload: GeneralAssistantRequest, settings: Settings = Depends(get_sett
         raise HTTPException(status_code=502, detail="The supplier assistant could not answer this question.") from exc
 
     return GeneralAssistantResponse(
-        answer=result.value.answer,
+        answer=supplier_facing_answer(payload.messages[-1].content, result.value.answer),
         run=GeneralAssistantRun(
             model=settings.active_answer_model,
             prompt_version=settings.assistant_prompt_version,

@@ -2,7 +2,7 @@
 
 from app.models import DocumentType, Supplier
 from app.services.document_policy import checklist_for, load_policy
-from app.services.policy_retrieval import policy_context_for
+from app.services.policy_retrieval import policy_context_for, supplier_facing_answer
 
 
 def test_all_24_codes_have_exact_baseline_and_mapped_additions():
@@ -32,3 +32,27 @@ def test_policy_assistant_retrieves_actual_source_for_requirement():
     context = policy_context_for("What is INS-CYB-001 cyber liability coverage?")
     assert "INS-CYB-001" in context
     assert "03_Evidence_and_Validation_Standards.pdf" in context or "04_TECH_Category_Policy.pdf" in context
+
+
+def test_cybersecurity_question_includes_plain_evidence_guidance():
+    context = policy_context_for("What evidence does a cybersecurity supplier need?")
+    assert "Business registration certificate" in context
+    assert "Buyer security questionnaire" in context
+    assert "Insurer-issued cyber liability insurance certificate" in context
+
+
+def test_supplier_answer_recovers_from_model_listing_internal_ids():
+    answer = supplier_facing_answer(
+        "What evidence does a cybersecurity supplier need?",
+        "1. BASE-001 2. BASE-002 3. INS-CYB-001",
+    )
+    assert "Business registration certificate" in answer
+    assert "Buyer security questionnaire" in answer
+    assert "Insurer-issued cyber liability insurance certificate" in answer
+    assert "BASE-001" not in answer
+    assert "INS-CYB-001" not in answer
+
+
+def test_supplier_answer_replaces_internal_id_in_general_guidance():
+    answer = supplier_facing_answer("How do I prove my tax status?", "Upload evidence for BASE-002.")
+    assert answer == "Upload evidence for Tax registration or accepted tax status."
