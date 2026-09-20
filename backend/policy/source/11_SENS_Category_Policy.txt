@@ -1,0 +1,277 @@
+ Financial and Sensitive Data Services Supplier
+ Policy
+ Synthetic buyer policy corpus | Version 1.1 | 19 September 2026 | SENS category applicability
+
+
+ This category policy covers financial and sensitive data services suppliers whose primary contracted
+ deliverable falls in one of the three codes below. Services involving financial transactions, insurance
+ intermediation, or operational processing of sensitive information. Each inherits BASE-001 through
+ BASE-003. The subcategory-specific IDs and acceptance checks are set out here and under those same
+ IDs in Evidence and Validation Standards.
+
+
+ SENS-01 Supplier journeys
+
+   Primary code           Subcategory                             Additional IDs
+
+
+                                                                  CONF-001, SEC-001, PRIV-001, CONT-001,
+   SENS-PAY               Payments Banking and Fintech
+                                                                  CRED-001, INS-CYB-001, PAY-001
+
+
+   SENS-INS               Insurance and Brokerage                 CONF-001, PRIV-001, CRED-001, INS-PI-001
+
+
+                          Data Processing BPO and Identity        CONF-001, SEC-001, PRIV-001, CONT-001,
+   SENS-DAT
+                          Services                                INS-CYB-001
+
+
+
+ SENS-02 Common baseline
+ Every supplier in this category must submit BASE-001 business registration evidence, BASE-002 tax
+ registration or accepted tax status evidence, and BASE-003 bank account verification evidence. The
+ exact fields, alternatives and checks are in Evidence and Validation Standards sections BASE-001 to
+ BASE-003.
+
+
+ SENS-PAY Payments Banking and Fintech
+ Processing payments or providing banking, payment, or financial transaction services. Examples:
+ Payment gateways, payment processors, banking services, and corporate card providers.
+
+ Category boundary. Financial advice without payment processing belongs in PROF-LFA. A generic
+ expense software subscription belongs in TECH-SW.
+
+ In addition to the three baseline documents, submit the following evidence. The evidence standard
+ named by each ID supplies its fields and exact pass criteria.
+
+ CONF-001 Confidentiality undertaking
+ Why and what to submit. Set confidentiality duties for work involving company information. Buyer standard
+ confidentiality undertaking signed by both parties.
+
+ Required content. Supplier legal name; buyer name; signatory names; both signatures; execution date.
+
+ CONF-001.R1 The supplier name matches BASE-001 and both parties have signed.
+
+ CONF-001.R2 The execution date is on or before the evaluation date and within the previous 365 calendar days.
+
+
+
+
+Synthetic onboarding policy | Version 1.1                                                                    Page 1
+ SEC-001 Information security assessment
+ Why and what to submit. Establish minimum controls for technology or sensitive-data services. Buyer security
+ questionnaire, signed within 180 calendar days.
+
+ Required content. Supplier legal name; service scope; security contact; privileged-account MFA; encryption at rest;
+ encryption in transit; incident notice commitment; signature and date.
+
+ SEC-001.R1 All three control answers (MFA and both encryption measures) are Yes.
+
+ SEC-001.R2 The committed incident notice interval is at most 48 hours and the signed date is within 180 calendar
+ days.
+
+ PRIV-001 Personal data handling assessment
+ Why and what to submit. Make personal-data use and deletion commitments explicit. Buyer privacy questionnaire,
+ signed within 180 calendar days.
+
+ Required content. Supplier legal name; whether personal data is processed; purpose; data categories; processing
+ locations; subprocessors; retention after service end; deletion interval; signature and date.
+
+ PRIV-001.R1 Every field is answered; “None” is allowed for categories and subprocessors, and “Not applicable” is
+ allowed for locations, retention and deletion only when the supplier states it processes no personal data.
+
+ PRIV-001.R2 If personal data is processed, retention after service end is at most 24 months and deletion on buyer
+ request is within 30 calendar days.
+
+ CONT-001 Service continuity
+ Why and what to submit. Demonstrate a practical service recovery plan. Signed continuity and recovery summary
+ reviewed within 180 calendar days.
+
+ Required content. Supplier legal name; covered service; recovery owner; recovery time objective (RTO); recovery
+ point objective (RPO); last exercise date; review date.
+
+ CONT-001.R1 RTO is at most 72 hours and RPO is at most 24 hours.
+
+ CONT-001.R2 The last exercise is within 365 calendar days and the plan review is within 180 calendar days.
+
+ CRED-001 Professional or service authorization
+ Why and what to submit. Show authorization relevant to the contracted specialist service. Relevant provider
+ credential, professional registration or service authorization.
+
+ Required content. Supplier or named responsible professional; issuer; credential number; authorized service scope;
+ issue date; expiry date.
+
+ CRED-001.R1 The authorization scope covers the selected service and the named entity or professional is linked to
+ this supplier.
+
+ CRED-001.R2 The issue date is on or before evaluation and the expiry is at least 30 calendar days later.
+
+ INS-CYB-001 Cyber liability coverage
+ Why and what to submit. Provide cover for a cyber incident involving the contracted service. Insurer-issued cyber
+ liability insurance certificate.
+
+ Required content. Policyholder legal name; insurer; policy number; cyber coverage amount in INR; effective date;
+ expiry date.
+
+ INS-CYB-001.R1 The policyholder matches BASE-001, the cover explicitly includes cyber liability and coverage is at
+ least ₹5 crore.
+
+ INS-CYB-001.R2 The policy is effective on the evaluation date and expires at least 30 calendar days later.
+
+
+
+
+Synthetic onboarding policy | Version 1.1                                                                      Page 2
+ PAY-001 Payment service controls
+ Why and what to submit. Document controls for payment-service operations. Signed payment controls declaration
+ dated within 180 calendar days.
+
+ Required content. Supplier legal name; transaction scope; dual authorization; reconciliation frequency; dispute
+ contact; dispute escalation interval; signature and date.
+
+ PAY-001.R1 Dual authorization is Yes and transactions are reconciled at least daily.
+
+ PAY-001.R2 A dispute contact is named and escalation is committed within 48 hours.
+
+
+ SENS-INS Insurance and Brokerage
+ Providing insurance coverage or arranging and brokering insurance products. Examples: Insurers,
+ insurance brokers, and risk placement intermediaries.
+
+ Category boundary. Legal or financial advice without an insurance product belongs in PROF-LFA.
+
+ In addition to the three baseline documents, submit the following evidence. The evidence standard
+ named by each ID supplies its fields and exact pass criteria.
+
+ CONF-001 Confidentiality undertaking
+ Why and what to submit. Set confidentiality duties for work involving company information. Buyer standard
+ confidentiality undertaking signed by both parties.
+
+ Required content. Supplier legal name; buyer name; signatory names; both signatures; execution date.
+
+ CONF-001.R1 The supplier name matches BASE-001 and both parties have signed.
+
+ CONF-001.R2 The execution date is on or before the evaluation date and within the previous 365 calendar days.
+
+ PRIV-001 Personal data handling assessment
+ Why and what to submit. Make personal-data use and deletion commitments explicit. Buyer privacy questionnaire,
+ signed within 180 calendar days.
+
+ Required content. Supplier legal name; whether personal data is processed; purpose; data categories; processing
+ locations; subprocessors; retention after service end; deletion interval; signature and date.
+
+ PRIV-001.R1 Every field is answered; “None” is allowed for categories and subprocessors, and “Not applicable” is
+ allowed for locations, retention and deletion only when the supplier states it processes no personal data.
+
+ PRIV-001.R2 If personal data is processed, retention after service end is at most 24 months and deletion on buyer
+ request is within 30 calendar days.
+
+ CRED-001 Professional or service authorization
+ Why and what to submit. Show authorization relevant to the contracted specialist service. Relevant provider
+ credential, professional registration or service authorization.
+
+ Required content. Supplier or named responsible professional; issuer; credential number; authorized service scope;
+ issue date; expiry date.
+
+ CRED-001.R1 The authorization scope covers the selected service and the named entity or professional is linked to
+ this supplier.
+
+ CRED-001.R2 The issue date is on or before evaluation and the expiry is at least 30 calendar days later.
+
+
+
+
+Synthetic onboarding policy | Version 1.1                                                                      Page 3
+ INS-PI-001 Professional indemnity coverage
+ Why and what to submit. Provide cover for errors in professional services. Insurer-issued professional indemnity
+ insurance certificate.
+
+ Required content. Policyholder legal name; insurer; policy number; professional indemnity amount in INR; effective
+ date; expiry date.
+
+ INS-PI-001.R1 The policyholder matches BASE-001, the cover names professional indemnity and coverage is at
+ least ₹1 crore.
+
+ INS-PI-001.R2 The policy is effective on the evaluation date and expires at least 30 calendar days later.
+
+
+ SENS-DAT Data Processing BPO and Identity Services
+ Operating processes on behalf of the company that handle employee, customer, or identity information.
+ Examples: Payroll processing, background verification, identity verification, customer support
+ outsourcing, and document processing.
+
+ Category boundary. Selling a generic software tool without operating the data process belongs in
+ TECH-SW. Supplying contract workers to perform work belongs in WORK-STA.
+
+ In addition to the three baseline documents, submit the following evidence. The evidence standard
+ named by each ID supplies its fields and exact pass criteria.
+
+ CONF-001 Confidentiality undertaking
+ Why and what to submit. Set confidentiality duties for work involving company information. Buyer standard
+ confidentiality undertaking signed by both parties.
+
+ Required content. Supplier legal name; buyer name; signatory names; both signatures; execution date.
+
+ CONF-001.R1 The supplier name matches BASE-001 and both parties have signed.
+
+ CONF-001.R2 The execution date is on or before the evaluation date and within the previous 365 calendar days.
+
+ SEC-001 Information security assessment
+ Why and what to submit. Establish minimum controls for technology or sensitive-data services. Buyer security
+ questionnaire, signed within 180 calendar days.
+
+ Required content. Supplier legal name; service scope; security contact; privileged-account MFA; encryption at rest;
+ encryption in transit; incident notice commitment; signature and date.
+
+ SEC-001.R1 All three control answers (MFA and both encryption measures) are Yes.
+
+ SEC-001.R2 The committed incident notice interval is at most 48 hours and the signed date is within 180 calendar
+ days.
+
+ PRIV-001 Personal data handling assessment
+ Why and what to submit. Make personal-data use and deletion commitments explicit. Buyer privacy questionnaire,
+ signed within 180 calendar days.
+
+ Required content. Supplier legal name; whether personal data is processed; purpose; data categories; processing
+ locations; subprocessors; retention after service end; deletion interval; signature and date.
+
+ PRIV-001.R1 Every field is answered; “None” is allowed for categories and subprocessors, and “Not applicable” is
+ allowed for locations, retention and deletion only when the supplier states it processes no personal data.
+
+ PRIV-001.R2 If personal data is processed, retention after service end is at most 24 months and deletion on buyer
+ request is within 30 calendar days.
+
+
+
+
+Synthetic onboarding policy | Version 1.1                                                                      Page 4
+ CONT-001 Service continuity
+ Why and what to submit. Demonstrate a practical service recovery plan. Signed continuity and recovery summary
+ reviewed within 180 calendar days.
+
+ Required content. Supplier legal name; covered service; recovery owner; recovery time objective (RTO); recovery
+ point objective (RPO); last exercise date; review date.
+
+ CONT-001.R1 RTO is at most 72 hours and RPO is at most 24 hours.
+
+ CONT-001.R2 The last exercise is within 365 calendar days and the plan review is within 180 calendar days.
+
+ INS-CYB-001 Cyber liability coverage
+ Why and what to submit. Provide cover for a cyber incident involving the contracted service. Insurer-issued cyber
+ liability insurance certificate.
+
+ Required content. Policyholder legal name; insurer; policy number; cyber coverage amount in INR; effective date;
+ expiry date.
+
+ INS-CYB-001.R1 The policyholder matches BASE-001, the cover explicitly includes cyber liability and coverage is at
+ least ₹5 crore.
+
+ INS-CYB-001.R2 The policy is effective on the evaluation date and expires at least 30 calendar days later.
+
+
+
+
+Synthetic onboarding policy | Version 1.1                                                                      Page 5
+

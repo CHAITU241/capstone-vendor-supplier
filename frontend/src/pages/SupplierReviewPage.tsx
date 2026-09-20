@@ -110,8 +110,9 @@ export function SupplierReviewPage() {
     && requiredDocuments.every((item) => supplier?.documents.some((document) => document.document_type === item.document_type && document.processing_status === 'ready'))
   const latestProcessingRun = supplier?.ai_runs.find((run) => run.run_type === 'processing')
   const finalized = supplier?.status === 'approved' || supplier?.status === 'rejected'
-  const approvalReady = supplier?.compliance_results.length === Object.keys(ruleLabels).length
+  const approvalReady = Boolean(supplier && supplier.compliance_results.length >= Object.keys(ruleLabels).length
     && supplier.compliance_results.every((result) => result.status === 'pass')
+  )
 
   function fieldReviewMessage(field: ExtractedField, sourceDocument: SupplierDocument | undefined): string {
     const conflictDetails = Array.isArray(latestProcessingRun?.details.field_conflict_details)
@@ -300,7 +301,7 @@ export function SupplierReviewPage() {
       </Stack>
       {error && <Alert severity="error" onClose={() => setError('')}>{error}</Alert>}
       {notice && <Alert severity="success" onClose={() => setNotice('')}>{notice}</Alert>}
-      <Alert severity="info">Checklist {supplier.requirements.version}: {supplier.requirements.reason}{supplier.requirements.status === 'illustrative_demo' && ' This is an illustrative demo rule, pending the actual policy.'}</Alert>
+      <Alert severity="info">Checklist {supplier.requirements.version}: {supplier.requirements.reason}{supplier.requirements.status === 'synthetic_demo_policy' && ' Uploaded files require human verification against the numbered evidence checks; automated approval is blocked.'}</Alert>
       {finalized && (
         <Alert severity={supplier.status === 'approved' ? 'success' : 'error'}>
           {supplier.status === 'approved'
@@ -324,7 +325,7 @@ export function SupplierReviewPage() {
                     <DescriptionRoundedIcon color="primary" />
                     <Box sx={{ minWidth: 0 }}>
                       <Typography noWrap fontWeight={650}>{document.filename}</Typography>
-                      <Typography variant="caption" color="text.secondary">{documentLabels[document.document_type]} / {document.page_count} page(s)</Typography>
+                      <Typography variant="caption" color="text.secondary">{requiredDocuments.find((item) => item.document_type === document.document_type)?.label ?? documentLabels[document.document_type] ?? document.document_type} / {document.page_count} page(s)</Typography>
                       {document.error_message && <Typography variant="caption" color="error" display="block">{document.error_message}</Typography>}
                     </Box>
                   </Stack>

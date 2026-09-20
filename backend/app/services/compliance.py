@@ -15,7 +15,7 @@ from app.models import (
     ProcessingStatus,
     Supplier,
 )
-from app.services.document_policy import required_types_for
+from app.services.document_policy import checklist_for, required_types_for
 
 RULE_ORDER = (
     "document_completeness",
@@ -235,7 +235,7 @@ def evaluate_compliance(
         evidence={"unresolved_fields": unresolved_fields},
     )
 
-    return [
+    outcomes = [
         completeness,
         insurance_expiry,
         contact_email,
@@ -243,6 +243,25 @@ def evaluate_compliance(
         redaction_boundary,
         field_review,
     ]
+    checklist = checklist_for(supplier)
+    if checklist.status == "synthetic_demo_policy":
+        # Presence and text extraction do not establish that the 22 policy rules passed.
+        # Keep approvals blocked until numbered checks are actually implemented or reviewed.
+        for item in checklist.documents:
+            document = next((d for d in supplier.documents if d.document_type == item.document_type), None)
+            ready = document is not None and document.processing_status == ProcessingStatus.READY
+            outcomes.append(RuleOutcome(
+                rule_code=f"{item.requirement_id}.REVIEW" if ready else f"{item.requirement_id}.DOC_MISSING",
+                status=ComplianceStatus.NEEDS_REVIEW if ready else ComplianceStatus.FAIL,
+                message=(
+                    f"{item.requirement_id}: evidence uploaded; a reviewer must verify the required fields and both numbered checks."
+                    if ready else f"{item.requirement_id}: required evidence is missing or unreadable."
+                ),
+                evidence={"requirement_id": item.requirement_id, "source": item.source,
+                          "document_id": str(document.id) if document else None,
+                          "required_fields": item.required_fields, "checks": item.checks},
+            ))
+    return outcomes
 
 
 def persist_compliance_results(

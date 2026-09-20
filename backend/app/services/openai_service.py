@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 from app.config import Settings, get_settings
 from app.metrics import observe_ai_call
 from app.models import DocumentType
+from app.services.document_policy import BASE_TYPES, load_policy
 from app.services.tracing import get_langfuse_tracer
 
 
@@ -91,6 +92,13 @@ class OpenAIService:
         redacted_text: str,
     ) -> ModelResult[DocumentExtraction]:
         prompt = _read_prompt("extraction_v3.txt")
+        requirement_id = next((code for code, kind in BASE_TYPES.items() if kind == expected_type), expected_type.value)
+        definition = load_policy().requirements.get(requirement_id)
+        if definition:
+            prompt += (f"\nExpected policy item: {requirement_id} ({definition.label})."
+                       f" Accepted evidence: {definition.accepted_evidence}"
+                       f" Required fields: {definition.required_fields}"
+                       " Extract only the supported general fields; this does not validate the policy checks.")
         input_metadata = {
             "document_type": expected_type.value,
             "filename": filename,
@@ -225,8 +233,9 @@ class OpenAIService:
     def answer_general_question(
         self,
         messages: list[dict[str, str]],
+        policy_context: str = "",
     ) -> ModelResult[GeneralAssistantAnswer]:
-        prompt = _read_prompt("supplier_assistant_v2.txt")
+        prompt = _read_prompt("supplier_assistant_v2.txt") + "\n\nRETRIEVED POLICY EXCERPTS:\n" + policy_context
         input_metadata = {
             "message_count": len(messages),
             "message_lengths": [len(message["content"]) for message in messages],

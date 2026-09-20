@@ -1,0 +1,143 @@
+ Workforce and People Services Supplier Policy
+ Synthetic buyer policy corpus | Version 1.1 | 19 September 2026 | WORK category applicability
+
+
+ This category policy covers workforce and people services suppliers whose primary contracted
+ deliverable falls in one of the three codes below. Services that source workers, supply people to perform
+ work, or deliver learning. Each inherits BASE-001 through BASE-003. The subcategory-specific IDs and
+ acceptance checks are set out here and under those same IDs in Evidence and Validation Standards.
+
+
+ WORK-01 Supplier journeys
+
+   Primary code           Subcategory                            Additional IDs
+
+
+   WORK-REC               Recruitment                            CONF-001, PRIV-001
+
+
+   WORK-STA               Temporary and Contract Staffing        CONF-001, PEOP-001, PEOP-002
+
+
+   WORK-LND               Training and Learning                  TRAIN-001
+
+
+
+ WORK-02 Common baseline
+ Every supplier in this category must submit BASE-001 business registration evidence, BASE-002 tax
+ registration or accepted tax status evidence, and BASE-003 bank account verification evidence. The
+ exact fields, alternatives and checks are in Evidence and Validation Standards sections BASE-001 to
+ BASE-003.
+
+
+ WORK-REC Recruitment
+ Finding and presenting candidates for roles filled directly by the company. Examples: Recruitment
+ agencies, candidate sourcing, and executive search.
+
+ Category boundary. Supplying workers employed or engaged by the supplier to perform company
+ work belongs in WORK-STA.
+
+ In addition to the three baseline documents, submit the following evidence. The evidence standard
+ named by each ID supplies its fields and exact pass criteria.
+
+ CONF-001 Confidentiality undertaking
+ Why and what to submit. Set confidentiality duties for work involving company information. Buyer standard
+ confidentiality undertaking signed by both parties.
+
+ Required content. Supplier legal name; buyer name; signatory names; both signatures; execution date.
+
+ CONF-001.R1 The supplier name matches BASE-001 and both parties have signed.
+
+ CONF-001.R2 The execution date is on or before the evaluation date and within the previous 365 calendar days.
+
+
+
+
+Synthetic onboarding policy | Version 1.1                                                                    Page 1
+ PRIV-001 Personal data handling assessment
+ Why and what to submit. Make personal-data use and deletion commitments explicit. Buyer privacy questionnaire,
+ signed within 180 calendar days.
+
+ Required content. Supplier legal name; whether personal data is processed; purpose; data categories; processing
+ locations; subprocessors; retention after service end; deletion interval; signature and date.
+
+ PRIV-001.R1 Every field is answered; “None” is allowed for categories and subprocessors, and “Not applicable” is
+ allowed for locations, retention and deletion only when the supplier states it processes no personal data.
+
+ PRIV-001.R2 If personal data is processed, retention after service end is at most 24 months and deletion on buyer
+ request is within 30 calendar days.
+
+
+ WORK-STA Temporary and Contract Staffing
+ Supplying personnel who perform work for the company under a staffing or contingent workforce
+ arrangement. Examples: Temporary workers, outsourced personnel, and contract resources.
+
+ Category boundary. Candidate search alone belongs in WORK-REC. A specialist consulting firm
+ delivering a defined advisory output belongs in PROF-CONS.
+
+ In addition to the three baseline documents, submit the following evidence. The evidence standard
+ named by each ID supplies its fields and exact pass criteria.
+
+ CONF-001 Confidentiality undertaking
+ Why and what to submit. Set confidentiality duties for work involving company information. Buyer standard
+ confidentiality undertaking signed by both parties.
+
+ Required content. Supplier legal name; buyer name; signatory names; both signatures; execution date.
+
+ CONF-001.R1 The supplier name matches BASE-001 and both parties have signed.
+
+ CONF-001.R2 The execution date is on or before the evaluation date and within the previous 365 calendar days.
+
+ PEOP-001 Workforce compliance
+ Why and what to submit. Confirm that supplier-provided workers have accountable employment controls. Signed
+ workforce compliance declaration dated within 180 calendar days.
+
+ Required content. Supplier legal name; worker engagement model; worker records maintained; wage and contract
+ compliance attestation; workforce contact; signature and date.
+
+ PEOP-001.R1 Both the worker-record and wage/contract compliance attestations are Yes.
+
+ PEOP-001.R2 A workforce contact is supplied and the declaration is signed within 180 calendar days.
+
+ PEOP-002 Worker screening
+ Why and what to submit. Ensure assigned workers are screened before receiving access. Signed worker screening
+ process declaration dated within 180 calendar days.
+
+ Required content. Supplier legal name; identity check; consent procedure; background check; coverage of
+ assigned workers; access timing; signature and date.
+
+ PEOP-002.R1 Identity, consent and background checks are each attested Yes for 100% of assigned workers.
+
+ PEOP-002.R2 The declaration commits to complete the checks before a worker receives access.
+
+
+
+
+Synthetic onboarding policy | Version 1.1                                                                      Page 2
+ WORK-LND Training and Learning
+ Delivering training, workshops, qualifications, or learning services. Examples: Corporate trainers,
+ certification providers, workshops, and learning services.
+
+ Category boundary. A standalone learning software subscription belongs in TECH-SW when software is
+ the contracted deliverable.
+
+ In addition to the three baseline documents, submit the following evidence. The evidence standard
+ named by each ID supplies its fields and exact pass criteria.
+
+ TRAIN-001 Training provider qualifications
+ Why and what to submit. Establish that the trainers can deliver the contracted instruction. Provider qualification
+ pack with trainer roster, course outline, and trainer credential or experience record.
+
+ Required content. Supplier legal name; trainer names; course topics; credential number/issuer/expiry or dated
+ experience history; provider contact.
+
+ TRAIN-001.R1 Each named lead trainer has a current topic-relevant credential OR a dated record of at least 24
+ months of relevant delivery experience.
+
+ TRAIN-001.R2 The course outline covers the contracted training topics and a provider contact is named.
+
+
+
+
+Synthetic onboarding policy | Version 1.1                                                                        Page 3
+

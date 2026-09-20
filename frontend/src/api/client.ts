@@ -7,6 +7,7 @@ import type {
   GeneralAssistantResponse,
   ProcessSupplierResponse,
   PortalSession,
+  PolicyCatalog,
   SupplierApplication,
   SupplierCreate,
   SupplierDetail,
@@ -55,7 +56,8 @@ export const api = {
   session: () => request<PortalSession>('/portal/auth/session'),
   logout: () => request<void>('/portal/auth/logout', { method: 'POST' }),
   getApplication: () => request<SupplierApplication>('/portal/application'),
-  saveApplication: (payload: { category: string; subcategory: string; name?: string; country?: string; contact_email?: string }) =>
+  getPolicy: () => request<PolicyCatalog>('/portal/policy'),
+  saveApplication: (payload: { category: string; subcategory: string; name?: string; country?: string; contact_email?: string; tax_reference?: string; bank_account_number?: string; bank_ifsc?: string }) =>
     request<SupplierApplication>('/portal/application', {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
     }),

@@ -9,6 +9,7 @@ from app.schemas import (
     GeneralAssistantRun,
 )
 from app.services.openai_service import AIConfigurationError, get_openai_service
+from app.services.policy_retrieval import policy_context_for
 from app.services.redaction import redact_pii
 
 router = APIRouter(prefix="/assistant", tags=["assistant"])
@@ -37,9 +38,7 @@ def chat(payload: GeneralAssistantRequest, settings: Settings = Depends(get_sett
             sanitized_messages.append({"role": message.role, "content": redaction.text})
             for category, count in redaction.counts.items():
                 redaction_counts[category] = redaction_counts.get(category, 0) + count
-        result = ai.answer_general_question(
-            sanitized_messages
-        )
+        result = ai.answer_general_question(sanitized_messages, policy_context_for(payload.messages[-1].content))
     except Exception as exc:
         raise HTTPException(status_code=502, detail="The supplier assistant could not answer this question.") from exc
 

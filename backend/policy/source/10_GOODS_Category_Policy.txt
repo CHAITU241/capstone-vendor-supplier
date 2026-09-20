@@ -1,0 +1,99 @@
+ Goods and Equipment Supplier Policy
+ Synthetic buyer policy corpus | Version 1.1 | 19 September 2026 | GOODS category applicability
+
+
+ This category policy covers goods and equipment suppliers whose primary contracted deliverable falls in
+ one of the three codes below. Purchase of physical products where a service is not the main contracted
+ deliverable. Each inherits BASE-001 through BASE-003. The subcategory-specific IDs and acceptance
+ checks are set out here and under those same IDs in Evidence and Validation Standards.
+
+
+ GOODS-01 Supplier journeys
+
+   Primary code           Subcategory                            Additional IDs
+
+
+   GOODS-OFF              Office and General Supplies            None
+
+
+   GOODS-ITE              IT AV and Electronic Equipment         PROD-001
+
+
+                          Industrial Electrical and Safety
+   GOODS-IND                                                     PROD-001
+                          Equipment
+
+
+
+ GOODS-02 Common baseline
+ Every supplier in this category must submit BASE-001 business registration evidence, BASE-002 tax
+ registration or accepted tax status evidence, and BASE-003 bank account verification evidence. The
+ exact fields, alternatives and checks are in Evidence and Validation Standards sections BASE-001 to
+ BASE-003.
+
+
+ GOODS-OFF Office and General Supplies
+ Routine office products and general nontechnical supplies. Examples: Stationery, office furniture, printing
+ supplies, and general consumables.
+
+ Category boundary. Food and pantry consumables belong in FOOD-PAN. IT hardware belongs in
+ GOODS-ITE.
+
+ No additional requirement ID applies. The three baseline documents are the complete V1 checklist for
+ this primary subcategory.
+
+
+ GOODS-ITE IT AV and Electronic Equipment
+ Physical computing, audiovisual, networking, or other electronic equipment. Examples: Laptops,
+ monitors, conferencing equipment, and network hardware.
+
+ Category boundary. Managed operation of the equipment belongs in TECH-ITM when it is the main
+ service. Cybersecurity products supplied as a security solution belong in TECH-CYB.
+
+ In addition to the three baseline documents, submit the following evidence. The evidence standard
+ named by each ID supplies its fields and exact pass criteria.
+
+
+
+
+Synthetic onboarding policy | Version 1.1                                                              Page 1
+ PROD-001 Equipment conformity and warranty
+ Why and what to submit. Record supplied equipment specifications, conformity and support. Manufacturer
+ specification/conformity sheet and supplier warranty statement.
+
+ Required content. Supplier legal name; manufacturer; model or SKU; conformity statement; warranty duration;
+ warranty start event; support contact.
+
+ PROD-001.R1 The model/SKU in the evidence matches the model/SKU offered; a manufacturer conformity
+ statement is present.
+
+ PROD-001.R2 Warranty is at least 12 months starting at delivery and a support contact is named.
+
+
+ GOODS-IND Industrial Electrical and Safety Equipment
+ Industrial, electrical, mechanical, or personal safety products supplied as goods. Examples: Machinery,
+ electrical components, PPE, and industrial tools.
+
+ Category boundary. Installation or construction as the main deliverable belongs in FAC-CON. Routine
+ maintenance services belong in FAC-MNT.
+
+ In addition to the three baseline documents, submit the following evidence. The evidence standard
+ named by each ID supplies its fields and exact pass criteria.
+
+ PROD-001 Equipment conformity and warranty
+ Why and what to submit. Record supplied equipment specifications, conformity and support. Manufacturer
+ specification/conformity sheet and supplier warranty statement.
+
+ Required content. Supplier legal name; manufacturer; model or SKU; conformity statement; warranty duration;
+ warranty start event; support contact.
+
+ PROD-001.R1 The model/SKU in the evidence matches the model/SKU offered; a manufacturer conformity
+ statement is present.
+
+ PROD-001.R2 Warranty is at least 12 months starting at delivery and a support contact is named.
+
+
+
+
+Synthetic onboarding policy | Version 1.1                                                                  Page 2
+

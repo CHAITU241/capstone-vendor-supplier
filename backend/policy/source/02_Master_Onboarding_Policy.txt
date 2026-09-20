@@ -1,0 +1,111 @@
+ Master Supplier Onboarding Policy
+ Synthetic buyer policy corpus | Version 1.1 | 19 September 2026 | Process and decision policy
+
+
+ This policy governs the synthetic buyer’s supplier onboarding journey. It defines when the portal asks for
+ evidence, how it presents validation findings, and what the knowledge assistant may explain. It applies to
+ every India-based incorporated supplier in this capstone. It does not claim to implement an actual
+ statutory process.
+
+
+ M-01 Policy sources and precedence
+
+   Source                                   Authority
+
+
+   Supplier Category Guide                  Meaning and selection of the 24 subcategory codes.
+
+
+                                            Exact baseline plus additional requirement IDs applicable to each selected
+   Category Policies TECH through SENS
+                                            code.
+
+
+                                            Accepted evidence, required fields, thresholds and numbered checks for
+   Evidence and Validation Standards
+                                            each requirement ID.
+
+
+   Supplier Help and Remediation Guide      Explanations and examples only; it cannot change another source.
+
+ All PDFs implement Supplier Requirements Universe V1, frozen version 1.1, and Supplier Taxonomy V1. If
+ a copied summary conflicts with the named requirement specification, hold the decision for review and
+ correct the source set before further testing. A later revision requires a new version and change log.
+
+
+ M-02 Classification and applicability
+ The supplier selects one primary subcategory using the Category Guide. The onboarding team confirms a
+ mixed or unclear selection. Every selected code inherits BASE-001 business registration, BASE-002 tax
+ registration or accepted tax status, and BASE-003 bank account verification. Add exactly the requirement
+ IDs listed in that code’s category policy. V1 has no spend bands, additional risk attributes or automatic
+ stacking of multiple categories.
+
+ Supplier contact information, legal name, tax reference, payment details and chosen code are portal
+ fields. The three BASE requirements require supporting evidence. When a supplier changes its contracted
+ service, reassess classification and the resulting checklist.
+
+
+ M-03 Evidence intake
+ Accept legible PDF, PNG and JPG evidence in English. Where the specification calls for a signed buyer
+ form, require the supplier signatory and date. Use the evaluation date in India Standard Time. All
+ intervals use calendar days and values equal to a minimum or maximum threshold pass. Only the
+ document alternatives written under the requirement ID are accepted.
+
+ Compare named supplier, policyholder and beneficiary legal entities with the BASE-001 registered legal
+ name after ignoring case, punctuation and repeated spaces. A different entity fails; a possible alias or
+ subsidiary goes to manual review. The demo does not contact real registries, banks or insurers.
+ Contradictory or unreadable evidence goes to review.
+
+
+
+Synthetic onboarding policy | Version 1.1                                                                         Page 1
+ M-04 Validation results
+
+   Finding                             Result and next action
+
+
+   Missing document                    <ID>.DOC_MISSING; ACTION_REQUIRED; upload the named evidence.
+
+
+   Missing required field              <ID>.FIELD_MISSING.<FIELD>; ACTION_REQUIRED; submit corrected evidence.
+
+
+                                       <ID>.R1 or <ID>.R2; REJECTED at the final submission gate; cite observed and
+   Objective failed check
+                                       required values.
+
+
+   Unclear or conflicting evidence     <ID>.REVIEW; MANUAL_REVIEW if there is no other objective failure.
+
+
+   All checks pass                     READY_FOR_APPROVAL; an authorized process outside the RAG handles approval.
+
+ Show all applicable findings. When several states coexist, prioritize REJECTED, then MANUAL_REVIEW,
+ then ACTION_REQUIRED. The portal records supplier ID, submission version, primary code, requirement
+ ID, check code, observed value, expected value and evidence reference. A correction is a new
+ submission version evaluated against its evaluation date.
+
+
+ M-05 Correction and exceptions
+ The supplier can correct missing or failed evidence and submit a new packet. REJECTED identifies the
+ failed submission, not a permanent ban. No automatic waivers and no post-approval document deferrals
+ exist in V1. A review request cannot itself make a failed mandatory rule pass. The project has no
+ published fixed onboarding-time promise; progress depends on complete, clear evidence and review.
+
+
+ M-06 Knowledge assistant boundary
+ The assistant can suggest a category, list requirements for a confirmed code, explain document content,
+ answer policy questions and explain actual validation results. It must cite the relevant Category Guide
+ code, category-policy code, Evidence Standards requirement ID or master-policy section. It must not
+ classify autonomously, extract or verify an upload, execute a rule, issue a decision, approve an exception
+ or invent an undocumented requirement.
+
+ For “Why was I rejected?”, use the actual structured decision event and retrieve the matching Evidence
+ Standards check. Without a decision event, say that the individual outcome cannot be determined.
+ Questions outside supplier onboarding should receive a brief scope response.
+
+
+
+
+Synthetic onboarding policy | Version 1.1                                                                        Page 2
+

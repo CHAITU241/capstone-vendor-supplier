@@ -33,6 +33,26 @@ class DocumentType(str, enum.Enum):
     REGISTRATION = "registration"
     TAX = "tax"
     INSURANCE = "insurance"
+    BANK = "bank"
+    CONF_001 = "CONF-001"
+    SEC_001 = "SEC-001"
+    PRIV_001 = "PRIV-001"
+    CONT_001 = "CONT-001"
+    INS_CYB_001 = "INS-CYB-001"
+    INS_PI_001 = "INS-PI-001"
+    CRED_001 = "CRED-001"
+    PEOP_001 = "PEOP-001"
+    PEOP_002 = "PEOP-002"
+    SITE_001 = "SITE-001"
+    SITE_002 = "SITE-002"
+    FOOD_001 = "FOOD-001"
+    FOOD_002 = "FOOD-002"
+    EVENT_001 = "EVENT-001"
+    TRANS_001 = "TRANS-001"
+    STORE_001 = "STORE-001"
+    PROD_001 = "PROD-001"
+    PAY_001 = "PAY-001"
+    TRAIN_001 = "TRAIN-001"
 
 
 class ProcessingStatus(str, enum.Enum):
@@ -65,6 +85,9 @@ class Supplier(Base):
     name: Mapped[str] = mapped_column(String(200), index=True)
     country: Mapped[str | None] = mapped_column(String(100), nullable=True)
     contact_email: Mapped[str | None] = mapped_column(String(320), nullable=True)
+    tax_reference: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    bank_account_number: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    bank_ifsc: Mapped[str | None] = mapped_column(String(20), nullable=True)
     category: Mapped[str | None] = mapped_column(String(100), nullable=True)
     subcategory: Mapped[str | None] = mapped_column(String(100), nullable=True)
     account_id: Mapped[uuid.UUID | None] = mapped_column(

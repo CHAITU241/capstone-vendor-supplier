@@ -1,0 +1,121 @@
+ Logistics and Supply Chain Supplier Policy
+ Synthetic buyer policy corpus | Version 1.1 | 19 September 2026 | LOG category applicability
+
+
+ This category policy covers logistics and supply chain suppliers whose primary contracted deliverable
+ falls in one of the three codes below. Movement, storage, or fulfilment of goods and parcels. Each inherits
+ BASE-001 through BASE-003. The subcategory-specific IDs and acceptance checks are set out here and
+ under those same IDs in Evidence and Validation Standards.
+
+
+ LOG-01 Supplier journeys
+
+   Primary code           Subcategory                               Additional IDs
+
+
+   LOG-COU                Courier and Last Mile Delivery            TRANS-001
+
+
+   LOG-FRT                Freight and Transportation                TRANS-001
+
+
+   LOG-WH                 Warehousing and Third Party Logistics     STORE-001, CONT-001
+
+
+
+ LOG-02 Common baseline
+ Every supplier in this category must submit BASE-001 business registration evidence, BASE-002 tax
+ registration or accepted tax status evidence, and BASE-003 bank account verification evidence. The
+ exact fields, alternatives and checks are in Evidence and Validation Standards sections BASE-001 to
+ BASE-003.
+
+
+ LOG-COU Courier and Last Mile Delivery
+ Local parcel, document, or final-mile delivery services. Examples: Document couriers, parcel delivery,
+ and local delivery networks.
+
+ Category boundary. Freight haulage as the main service belongs in LOG-FRT. Storage and fulfilment
+ belong in LOG-WH.
+
+ In addition to the three baseline documents, submit the following evidence. The evidence standard
+ named by each ID supplies its fields and exact pass criteria.
+
+ TRANS-001 Transport and cargo protection
+ Why and what to submit. Protect goods in the supplier’s custody during transport. Cargo/transit insurance
+ certificate and signed custody-control declaration.
+
+ Required content. Supplier legal name; insurer; policy number; cargo cover in INR; policy effective and expiry
+ dates; tracking method; custody owner; loss notice interval; declaration date.
+
+ TRANS-001.R1 Cover applies to goods in transit and is at least ₹50 lakh; a tracking method and custody owner are
+ identified.
+
+ TRANS-001.R2 The policy is effective with at least 30 calendar days remaining; loss notification is within 24 hours
+ and the declaration is within 180 calendar days.
+
+
+
+
+Synthetic onboarding policy | Version 1.1                                                                         Page 1
+ LOG-FRT Freight and Transportation
+ Commercial movement of goods over longer routes or with freight operations. Examples: Trucking,
+ freight movement, and interstate transportation.
+
+ Category boundary. Local parcel delivery belongs in LOG-COU. Managed inventory storage belongs in
+ LOG-WH.
+
+ In addition to the three baseline documents, submit the following evidence. The evidence standard
+ named by each ID supplies its fields and exact pass criteria.
+
+ TRANS-001 Transport and cargo protection
+ Why and what to submit. Protect goods in the supplier’s custody during transport. Cargo/transit insurance
+ certificate and signed custody-control declaration.
+
+ Required content. Supplier legal name; insurer; policy number; cargo cover in INR; policy effective and expiry
+ dates; tracking method; custody owner; loss notice interval; declaration date.
+
+ TRANS-001.R1 Cover applies to goods in transit and is at least ₹50 lakh; a tracking method and custody owner are
+ identified.
+
+ TRANS-001.R2 The policy is effective with at least 30 calendar days remaining; loss notification is within 24 hours
+ and the declaration is within 180 calendar days.
+
+
+ LOG-WH Warehousing and Third Party Logistics
+ Storage, fulfilment, or managed inventory handling for company goods. Examples: Warehouses,
+ fulfilment providers, and third party logistics operators.
+
+ Category boundary. Transport only belongs in LOG-FRT or LOG-COU according to the service.
+ Supplying warehouse equipment alone belongs in GOODS-IND.
+
+ In addition to the three baseline documents, submit the following evidence. The evidence standard
+ named by each ID supplies its fields and exact pass criteria.
+
+ STORE-001 Warehouse controls
+ Why and what to submit. Account for inventory held at supplier facilities. Signed warehouse site and
+ inventory-control summary reviewed within 180 calendar days.
+
+ Required content. Supplier legal name; warehouse location; access logging; inventory reconciliation interval; loss
+ escalation interval; control owner; review date.
+
+ STORE-001.R1 Access is logged and inventory reconciliation occurs at least every 30 calendar days.
+
+ STORE-001.R2 Loss is escalated within 24 hours, a control owner is named and the summary is reviewed within 180
+ calendar days.
+
+ CONT-001 Service continuity
+ Why and what to submit. Demonstrate a practical service recovery plan. Signed continuity and recovery summary
+ reviewed within 180 calendar days.
+
+ Required content. Supplier legal name; covered service; recovery owner; recovery time objective (RTO); recovery
+ point objective (RPO); last exercise date; review date.
+
+ CONT-001.R1 RTO is at most 72 hours and RPO is at most 24 hours.
+
+ CONT-001.R2 The last exercise is within 365 calendar days and the plan review is within 180 calendar days.
+
+
+
+
+Synthetic onboarding policy | Version 1.1                                                                         Page 2
+

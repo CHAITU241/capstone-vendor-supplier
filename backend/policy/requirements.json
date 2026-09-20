@@ -1,27 +1,602 @@
 {
-  "version": "demo-2026-09-v1",
-  "status": "illustrative_demo",
-  "documents": {
-    "registration": {
+  "version": "synthetic-v1.1",
+  "status": "synthetic_demo_policy",
+  "scope": "Synthetic India-based incorporated suppliers. One primary subcategory; no spend bands or stacked categories.",
+  "baseline": [
+    "BASE-001",
+    "BASE-002",
+    "BASE-003"
+  ],
+  "requirements": {
+    "BASE-001": {
       "label": "Business registration",
-      "why": "Identify the legal business and its registered name."
+      "why": "Identify the contracting legal entity.",
+      "accepted_evidence": "Business registration certificate or current company registry extract.",
+      "required_fields": "Legal name; registration number; issuing registry; registration date; status.",
+      "checks": [
+        "The registered legal name matches the portal name under the name rule.",
+        "Registration date is on or before the evaluation date and status is Active."
+      ],
+      "source": "03_Evidence_and_Validation_Standards.pdf §BASE-001"
     },
-    "tax": {
-      "label": "Tax registration",
-      "why": "Confirm the business tax registration details."
+    "BASE-002": {
+      "label": "Tax registration or accepted tax status",
+      "why": "Record the supplier tax identity and declared registration status.",
+      "accepted_evidence": "PAN/tax registration notice; if GST status is not registered, add a signed tax status declaration.",
+      "required_fields": "Legal name; PAN/tax reference; GST status (registered or not registered); GSTIN when registered; declaration date and signatory when not registered.",
+      "checks": [
+        "The tax legal name matches BASE-001 and the PAN/tax reference matches the portal entry.",
+        "A registered supplier supplies a GSTIN; a supplier marked not registered supplies a declaration signed within 180 calendar days."
+      ],
+      "source": "03_Evidence_and_Validation_Standards.pdf §BASE-002"
     },
-    "insurance": {
-      "label": "Insurance certificate",
-      "why": "Let a reviewer inspect the coverage and expiry date."
+    "BASE-003": {
+      "label": "Bank account verification",
+      "why": "Confirm the account nominated for payment.",
+      "accepted_evidence": "Bank-issued account letter or bank statement dated within 90 calendar days.",
+      "required_fields": "Beneficiary legal name; bank name; full account number; IFSC; document date.",
+      "checks": [
+        "The beneficiary name matches BASE-001 and the account number and IFSC exactly match the portal payment fields.",
+        "The document date is no more than 90 calendar days before the evaluation date."
+      ],
+      "source": "03_Evidence_and_Validation_Standards.pdf §BASE-003"
+    },
+    "CONF-001": {
+      "label": "Confidentiality undertaking",
+      "why": "Set confidentiality duties for work involving company information.",
+      "accepted_evidence": "Buyer standard confidentiality undertaking signed by both parties.",
+      "required_fields": "Supplier legal name; buyer name; signatory names; both signatures; execution date.",
+      "checks": [
+        "The supplier name matches BASE-001 and both parties have signed.",
+        "The execution date is on or before the evaluation date and within the previous 365 calendar days."
+      ],
+      "source": "03_Evidence_and_Validation_Standards.pdf §CONF-001"
+    },
+    "SEC-001": {
+      "label": "Information security assessment",
+      "why": "Establish minimum controls for technology or sensitive-data services.",
+      "accepted_evidence": "Buyer security questionnaire, signed within 180 calendar days.",
+      "required_fields": "Supplier legal name; service scope; security contact; privileged-account MFA; encryption at rest; encryption in transit; incident notice commitment; signature and date.",
+      "checks": [
+        "All three control answers (MFA and both encryption measures) are Yes.",
+        "The committed incident notice interval is at most 48 hours and the signed date is within 180 calendar days."
+      ],
+      "source": "03_Evidence_and_Validation_Standards.pdf §SEC-001"
+    },
+    "PRIV-001": {
+      "label": "Personal data handling assessment",
+      "why": "Make personal-data use and deletion commitments explicit.",
+      "accepted_evidence": "Buyer privacy questionnaire, signed within 180 calendar days.",
+      "required_fields": "Supplier legal name; whether personal data is processed; purpose; data categories; processing locations; subprocessors; retention after service end; deletion interval; signature and date.",
+      "checks": [
+        "Every field is answered; “None” is allowed for categories and subprocessors, and “Not applicable” is allowed for locations, retention and deletion only when the supplier states it processes no personal data.",
+        "If personal data is processed, retention after service end is at most 24 months and deletion on buyer request is within 30 calendar days."
+      ],
+      "source": "03_Evidence_and_Validation_Standards.pdf §PRIV-001"
+    },
+    "CONT-001": {
+      "label": "Service continuity",
+      "why": "Demonstrate a practical service recovery plan.",
+      "accepted_evidence": "Signed continuity and recovery summary reviewed within 180 calendar days.",
+      "required_fields": "Supplier legal name; covered service; recovery owner; recovery time objective (RTO); recovery point objective (RPO); last exercise date; review date.",
+      "checks": [
+        "RTO is at most 72 hours and RPO is at most 24 hours.",
+        "The last exercise is within 365 calendar days and the plan review is within 180 calendar days."
+      ],
+      "source": "03_Evidence_and_Validation_Standards.pdf §CONT-001"
+    },
+    "INS-CYB-001": {
+      "label": "Cyber liability coverage",
+      "why": "Provide cover for a cyber incident involving the contracted service.",
+      "accepted_evidence": "Insurer-issued cyber liability insurance certificate.",
+      "required_fields": "Policyholder legal name; insurer; policy number; cyber coverage amount in INR; effective date; expiry date.",
+      "checks": [
+        "The policyholder matches BASE-001, the cover explicitly includes cyber liability and coverage is at least ₹5 crore.",
+        "The policy is effective on the evaluation date and expires at least 30 calendar days later."
+      ],
+      "source": "03_Evidence_and_Validation_Standards.pdf §INS-CYB-001"
+    },
+    "INS-PI-001": {
+      "label": "Professional indemnity coverage",
+      "why": "Provide cover for errors in professional services.",
+      "accepted_evidence": "Insurer-issued professional indemnity insurance certificate.",
+      "required_fields": "Policyholder legal name; insurer; policy number; professional indemnity amount in INR; effective date; expiry date.",
+      "checks": [
+        "The policyholder matches BASE-001, the cover names professional indemnity and coverage is at least ₹1 crore.",
+        "The policy is effective on the evaluation date and expires at least 30 calendar days later."
+      ],
+      "source": "03_Evidence_and_Validation_Standards.pdf §INS-PI-001"
+    },
+    "CRED-001": {
+      "label": "Professional or service authorization",
+      "why": "Show authorization relevant to the contracted specialist service.",
+      "accepted_evidence": "Relevant provider credential, professional registration or service authorization.",
+      "required_fields": "Supplier or named responsible professional; issuer; credential number; authorized service scope; issue date; expiry date.",
+      "checks": [
+        "The authorization scope covers the selected service and the named entity or professional is linked to this supplier.",
+        "The issue date is on or before evaluation and the expiry is at least 30 calendar days later."
+      ],
+      "source": "03_Evidence_and_Validation_Standards.pdf §CRED-001"
+    },
+    "PEOP-001": {
+      "label": "Workforce compliance",
+      "why": "Confirm that supplier-provided workers have accountable employment controls.",
+      "accepted_evidence": "Signed workforce compliance declaration dated within 180 calendar days.",
+      "required_fields": "Supplier legal name; worker engagement model; worker records maintained; wage and contract compliance attestation; workforce contact; signature and date.",
+      "checks": [
+        "Both the worker-record and wage/contract compliance attestations are Yes.",
+        "A workforce contact is supplied and the declaration is signed within 180 calendar days."
+      ],
+      "source": "03_Evidence_and_Validation_Standards.pdf §PEOP-001"
+    },
+    "PEOP-002": {
+      "label": "Worker screening",
+      "why": "Ensure assigned workers are screened before receiving access.",
+      "accepted_evidence": "Signed worker screening process declaration dated within 180 calendar days.",
+      "required_fields": "Supplier legal name; identity check; consent procedure; background check; coverage of assigned workers; access timing; signature and date.",
+      "checks": [
+        "Identity, consent and background checks are each attested Yes for 100% of assigned workers.",
+        "The declaration commits to complete the checks before a worker receives access."
+      ],
+      "source": "03_Evidence_and_Validation_Standards.pdf §PEOP-002"
+    },
+    "SITE-001": {
+      "label": "On site safety",
+      "why": "Control safety risks in work performed on site.",
+      "accepted_evidence": "Signed site safety plan or method statement reviewed within 180 calendar days.",
+      "required_fields": "Supplier legal name; service scope; hazards; control measures; emergency lead; PPE commitment; incident notice interval; review date.",
+      "checks": [
+        "The plan lists hazards, controls and an emergency lead, and PPE is committed where the plan identifies a PPE need.",
+        "Incident notice is within 24 hours and the plan review is within 180 calendar days."
+      ],
+      "source": "03_Evidence_and_Validation_Standards.pdf §SITE-001"
+    },
+    "SITE-002": {
+      "label": "Physical security authorization",
+      "why": "Show authority to provide physical guarding and control site access.",
+      "accepted_evidence": "Physical guarding authorization and supplier guard-training declaration.",
+      "required_fields": "Supplier legal name; issuer; authorization number; guarding scope; effective and expiry dates; trained-guard attestation; declaration date.",
+      "checks": [
+        "The authorization scope includes physical guarding and the supplier attests that assigned guards are trained.",
+        "Authorization is effective and has at least 30 calendar days remaining; the declaration is within 180 calendar days."
+      ],
+      "source": "03_Evidence_and_Validation_Standards.pdf §SITE-002"
+    },
+    "FOOD-001": {
+      "label": "Food supply controls",
+      "why": "Maintain basic control and traceability of supplied food products.",
+      "accepted_evidence": "Signed food sourcing and handling declaration dated within 180 calendar days.",
+      "required_fields": "Supplier legal name; product types; source and batch traceability; storage method; recall contact; recall notice interval; signature and date.",
+      "checks": [
+        "Source/batch traceability and documented storage methods are affirmed.",
+        "A recall contact is named and the commitment to notify the buyer is within 24 hours."
+      ],
+      "source": "03_Evidence_and_Validation_Standards.pdf §FOOD-001"
+    },
+    "FOOD-002": {
+      "label": "Prepared meal controls",
+      "why": "Add hygiene controls for preparing or serving meals.",
+      "accepted_evidence": "Food hygiene certificate for the service site and signed food safety plan.",
+      "required_fields": "Supplier legal name; site; certificate issuer, number and expiry; allergen controls; temperature controls; food-handler training date; plan review date.",
+      "checks": [
+        "The certificate identifies the service site and has at least 30 calendar days remaining; both allergen and temperature controls are documented.",
+        "Handler training took place within 365 calendar days and the safety plan was reviewed within 180 calendar days."
+      ],
+      "source": "03_Evidence_and_Validation_Standards.pdf §FOOD-002"
+    },
+    "EVENT-001": {
+      "label": "Event operations",
+      "why": "Establish how events are delivered safely.",
+      "accepted_evidence": "Signed generic event safety and delivery plan reviewed within 180 calendar days.",
+      "required_fields": "Supplier legal name; typical event scope; maximum planned attendance; evacuation arrangements; first-aid lead; incident notice interval; review date.",
+      "checks": [
+        "The plan includes maximum attendance, evacuation arrangements and a first-aid lead.",
+        "Incident notification is within 24 hours and the review date is within 180 calendar days."
+      ],
+      "source": "03_Evidence_and_Validation_Standards.pdf §EVENT-001"
+    },
+    "TRANS-001": {
+      "label": "Transport and cargo protection",
+      "why": "Protect goods in the supplier’s custody during transport.",
+      "accepted_evidence": "Cargo/transit insurance certificate and signed custody-control declaration.",
+      "required_fields": "Supplier legal name; insurer; policy number; cargo cover in INR; policy effective and expiry dates; tracking method; custody owner; loss notice interval; declaration date.",
+      "checks": [
+        "Cover applies to goods in transit and is at least ₹50 lakh; a tracking method and custody owner are identified.",
+        "The policy is effective with at least 30 calendar days remaining; loss notification is within 24 hours and the declaration is within 180 calendar days."
+      ],
+      "source": "03_Evidence_and_Validation_Standards.pdf §TRANS-001"
+    },
+    "STORE-001": {
+      "label": "Warehouse controls",
+      "why": "Account for inventory held at supplier facilities.",
+      "accepted_evidence": "Signed warehouse site and inventory-control summary reviewed within 180 calendar days.",
+      "required_fields": "Supplier legal name; warehouse location; access logging; inventory reconciliation interval; loss escalation interval; control owner; review date.",
+      "checks": [
+        "Access is logged and inventory reconciliation occurs at least every 30 calendar days.",
+        "Loss is escalated within 24 hours, a control owner is named and the summary is reviewed within 180 calendar days."
+      ],
+      "source": "03_Evidence_and_Validation_Standards.pdf §STORE-001"
+    },
+    "PROD-001": {
+      "label": "Equipment conformity and warranty",
+      "why": "Record supplied equipment specifications, conformity and support.",
+      "accepted_evidence": "Manufacturer specification/conformity sheet and supplier warranty statement.",
+      "required_fields": "Supplier legal name; manufacturer; model or SKU; conformity statement; warranty duration; warranty start event; support contact.",
+      "checks": [
+        "The model/SKU in the evidence matches the model/SKU offered; a manufacturer conformity statement is present.",
+        "Warranty is at least 12 months starting at delivery and a support contact is named."
+      ],
+      "source": "03_Evidence_and_Validation_Standards.pdf §PROD-001"
+    },
+    "PAY-001": {
+      "label": "Payment service controls",
+      "why": "Document controls for payment-service operations.",
+      "accepted_evidence": "Signed payment controls declaration dated within 180 calendar days.",
+      "required_fields": "Supplier legal name; transaction scope; dual authorization; reconciliation frequency; dispute contact; dispute escalation interval; signature and date.",
+      "checks": [
+        "Dual authorization is Yes and transactions are reconciled at least daily.",
+        "A dispute contact is named and escalation is committed within 48 hours."
+      ],
+      "source": "03_Evidence_and_Validation_Standards.pdf §PAY-001"
+    },
+    "TRAIN-001": {
+      "label": "Training provider qualifications",
+      "why": "Establish that the trainers can deliver the contracted instruction.",
+      "accepted_evidence": "Provider qualification pack with trainer roster, course outline, and trainer credential or experience record.",
+      "required_fields": "Supplier legal name; trainer names; course topics; credential number/issuer/expiry or dated experience history; provider contact.",
+      "checks": [
+        "Each named lead trainer has a current topic-relevant credential OR a dated record of at least 24 months of relevant delivery experience.",
+        "The course outline covers the contracted training topics and a provider contact is named."
+      ],
+      "source": "03_Evidence_and_Validation_Standards.pdf §TRAIN-001"
     }
   },
-  "default_required": ["registration", "tax", "insurance"],
-  "rules": [
+  "categories": [
     {
-      "when": { "category": "Technology & IT", "subcategory": "Software & SaaS" },
-      "required": ["registration", "tax"],
-      "reason": "Illustrative demo rule for Software & SaaS. Replace this with your actual policy decision."
+      "code": "TECH",
+      "label": "Technology and Digital Services",
+      "subcategories": [
+        {
+          "code": "TECH-SW",
+          "label": "SaaS and Cloud Software",
+          "requirements": [
+            "CONF-001",
+            "SEC-001",
+            "PRIV-001",
+            "CONT-001"
+          ],
+          "source": "04_TECH_Category_Policy.pdf §TECH-01",
+          "definition": "Hosted business applications supplied for the company to use.",
+          "examples": "HR, CRM, expense, collaboration, or project management software.",
+          "boundary": "Security tools whose primary function is to protect or test systems belong in TECH-CYB. Infrastructure operated on the company’s behalf belongs in TECH-ITM."
+        },
+        {
+          "code": "TECH-CYB",
+          "label": "Cybersecurity",
+          "requirements": [
+            "CONF-001",
+            "SEC-001",
+            "PRIV-001",
+            "CONT-001",
+            "INS-CYB-001"
+          ],
+          "source": "04_TECH_Category_Policy.pdf §TECH-01",
+          "definition": "Products or services primarily used to protect, monitor, assess, or control information systems.",
+          "examples": "Antivirus and endpoint protection, SOC services, penetration testing, vulnerability management, and identity or access management.",
+          "boundary": "General cloud business software belongs in TECH-SW. Selling network hardware without an operating service belongs in GOODS-ITE."
+        },
+        {
+          "code": "TECH-ITM",
+          "label": "Managed IT and Infrastructure Services",
+          "requirements": [
+            "CONF-001",
+            "SEC-001",
+            "PRIV-001",
+            "CONT-001"
+          ],
+          "source": "04_TECH_Category_Policy.pdf §TECH-01",
+          "definition": "Ongoing management, support, or operation of company systems, devices, networks, or infrastructure.",
+          "examples": "Managed networks, cloud infrastructure support, IT help desks, and managed workplace services.",
+          "boundary": "A one-time sale of laptops or networking equipment belongs in GOODS-ITE. A standalone security monitoring service belongs in TECH-CYB."
+        }
+      ]
+    },
+    {
+      "code": "PROF",
+      "label": "Professional and Advisory Services",
+      "subcategories": [
+        {
+          "code": "PROF-CONS",
+          "label": "Business and Technical Consulting",
+          "requirements": [
+            "CONF-001",
+            "INS-PI-001"
+          ],
+          "source": "05_PROF_Category_Policy.pdf §PROF-01",
+          "definition": "Advisory or implementation work on strategy, operations, technology, or engineering.",
+          "examples": "Management consulting, engineering advisory, strategy, and technical implementation consulting.",
+          "boundary": "Ongoing operation of company IT belongs in TECH-ITM. Legal, tax, accounting, or audit work belongs in PROF-LFA."
+        },
+        {
+          "code": "PROF-LFA",
+          "label": "Legal Finance and Audit",
+          "requirements": [
+            "CONF-001",
+            "PRIV-001",
+            "CRED-001",
+            "INS-PI-001"
+          ],
+          "source": "05_PROF_Category_Policy.pdf §PROF-01",
+          "definition": "Regulated or specialist advice concerning law, tax, accounting, audit, or corporate finance.",
+          "examples": "Law firms, tax advisers, auditors, accounting firms, and financial advisers.",
+          "boundary": "A supplier processing company payments as a service belongs in SENS-PAY; an insurance broker belongs in SENS-INS."
+        },
+        {
+          "code": "PROF-MKT",
+          "label": "Marketing Creative and Research",
+          "requirements": [
+            "CONF-001"
+          ],
+          "source": "05_PROF_Category_Policy.pdf §PROF-01",
+          "definition": "Creative, communications, advertising, or market insight services.",
+          "examples": "Advertising agencies, graphic design, branding, content production, and market research.",
+          "boundary": "A provider whose primary deliverable is an event or venue belongs in FOOD-EVT. A general-purpose marketing software subscription belongs in TECH-SW."
+        }
+      ]
+    },
+    {
+      "code": "WORK",
+      "label": "Workforce and People Services",
+      "subcategories": [
+        {
+          "code": "WORK-REC",
+          "label": "Recruitment",
+          "requirements": [
+            "CONF-001",
+            "PRIV-001"
+          ],
+          "source": "06_WORK_Category_Policy.pdf §WORK-01",
+          "definition": "Finding and presenting candidates for roles filled directly by the company.",
+          "examples": "Recruitment agencies, candidate sourcing, and executive search.",
+          "boundary": "Supplying workers employed or engaged by the supplier to perform company work belongs in WORK-STA."
+        },
+        {
+          "code": "WORK-STA",
+          "label": "Temporary and Contract Staffing",
+          "requirements": [
+            "CONF-001",
+            "PEOP-001",
+            "PEOP-002"
+          ],
+          "source": "06_WORK_Category_Policy.pdf §WORK-01",
+          "definition": "Supplying personnel who perform work for the company under a staffing or contingent workforce arrangement.",
+          "examples": "Temporary workers, outsourced personnel, and contract resources.",
+          "boundary": "Candidate search alone belongs in WORK-REC. A specialist consulting firm delivering a defined advisory output belongs in PROF-CONS."
+        },
+        {
+          "code": "WORK-LND",
+          "label": "Training and Learning",
+          "requirements": [
+            "TRAIN-001"
+          ],
+          "source": "06_WORK_Category_Policy.pdf §WORK-01",
+          "definition": "Delivering training, workshops, qualifications, or learning services.",
+          "examples": "Corporate trainers, certification providers, workshops, and learning services.",
+          "boundary": "A standalone learning software subscription belongs in TECH-SW when software is the contracted deliverable."
+        }
+      ]
+    },
+    {
+      "code": "FAC",
+      "label": "Facilities and On Site Services",
+      "subcategories": [
+        {
+          "code": "FAC-MNT",
+          "label": "Cleaning Housekeeping and Maintenance",
+          "requirements": [
+            "PEOP-001",
+            "SITE-001"
+          ],
+          "source": "07_FAC_Category_Policy.pdf §FAC-01",
+          "definition": "Routine cleaning, upkeep, and maintenance of premises or installed facilities.",
+          "examples": "Office cleaning, housekeeping, HVAC servicing, plumbing, and routine electrical maintenance.",
+          "boundary": "Major construction or fit-out work belongs in FAC-CON. Guarding and site security belong in FAC-SEC."
+        },
+        {
+          "code": "FAC-SEC",
+          "label": "Physical Security",
+          "requirements": [
+            "PEOP-001",
+            "PEOP-002",
+            "SITE-002"
+          ],
+          "source": "07_FAC_Category_Policy.pdf §FAC-01",
+          "definition": "Personnel or services whose primary purpose is to protect premises and control physical access.",
+          "examples": "Security guards, reception security, access control personnel, and site patrols.",
+          "boundary": "Cybersecurity monitoring belongs in TECH-CYB. Installation of security equipment as a goods purchase may belong in GOODS-ITE or GOODS-IND, according to the main deliverable."
+        },
+        {
+          "code": "FAC-CON",
+          "label": "Construction Fit Out and Repair",
+          "requirements": [
+            "PEOP-001",
+            "SITE-001"
+          ],
+          "source": "07_FAC_Category_Policy.pdf §FAC-01",
+          "definition": "Project-based construction, renovation, fit-out, or substantial repair at company premises.",
+          "examples": "Office fit-outs, civil work, major electrical installations, and renovation contractors.",
+          "boundary": "Routine maintenance belongs in FAC-MNT. Supply of building materials without construction services belongs in GOODS-IND."
+        }
+      ]
+    },
+    {
+      "code": "FOOD",
+      "label": "Food Pantry and Hospitality",
+      "subcategories": [
+        {
+          "code": "FOOD-PAN",
+          "label": "Pantry Coffee and Packaged Consumables",
+          "requirements": [
+            "FOOD-001"
+          ],
+          "source": "08_FOOD_Category_Policy.pdf §FOOD-01",
+          "definition": "Supply of packaged food, drinks, and pantry items without operating a meal service.",
+          "examples": "Coffee beans, tea, packaged snacks, beverages, and pantry stock.",
+          "boundary": "Preparing or serving meals for the company belongs in FOOD-CAT. General office stationery belongs in GOODS-OFF."
+        },
+        {
+          "code": "FOOD-CAT",
+          "label": "Catering and Meal Services",
+          "requirements": [
+            "FOOD-001",
+            "FOOD-002"
+          ],
+          "source": "08_FOOD_Category_Policy.pdf §FOOD-01",
+          "definition": "Preparation, delivery, or operation of prepared meals or food service.",
+          "examples": "Corporate catering, cafeteria operation, and prepared meal supply.",
+          "boundary": "Sealed coffee or snack supply without meal preparation belongs in FOOD-PAN. Event planning with food as one component belongs in FOOD-EVT when the event is the main contract."
+        },
+        {
+          "code": "FOOD-EVT",
+          "label": "Events and Hospitality",
+          "requirements": [
+            "EVENT-001"
+          ],
+          "source": "08_FOOD_Category_Policy.pdf §FOOD-01",
+          "definition": "Planning or providing events, venues, conferences, or hospitality services.",
+          "examples": "Conference organisers, event management, venue services, and corporate hospitality.",
+          "boundary": "A contract solely to prepare and serve meals belongs in FOOD-CAT. Creative campaign work without event delivery belongs in PROF-MKT."
+        }
+      ]
+    },
+    {
+      "code": "LOG",
+      "label": "Logistics and Supply Chain",
+      "subcategories": [
+        {
+          "code": "LOG-COU",
+          "label": "Courier and Last Mile Delivery",
+          "requirements": [
+            "TRANS-001"
+          ],
+          "source": "09_LOG_Category_Policy.pdf §LOG-01",
+          "definition": "Local parcel, document, or final-mile delivery services.",
+          "examples": "Document couriers, parcel delivery, and local delivery networks.",
+          "boundary": "Freight haulage as the main service belongs in LOG-FRT. Storage and fulfilment belong in LOG-WH."
+        },
+        {
+          "code": "LOG-FRT",
+          "label": "Freight and Transportation",
+          "requirements": [
+            "TRANS-001"
+          ],
+          "source": "09_LOG_Category_Policy.pdf §LOG-01",
+          "definition": "Commercial movement of goods over longer routes or with freight operations.",
+          "examples": "Trucking, freight movement, and interstate transportation.",
+          "boundary": "Local parcel delivery belongs in LOG-COU. Managed inventory storage belongs in LOG-WH."
+        },
+        {
+          "code": "LOG-WH",
+          "label": "Warehousing and Third Party Logistics",
+          "requirements": [
+            "STORE-001",
+            "CONT-001"
+          ],
+          "source": "09_LOG_Category_Policy.pdf §LOG-01",
+          "definition": "Storage, fulfilment, or managed inventory handling for company goods.",
+          "examples": "Warehouses, fulfilment providers, and third party logistics operators.",
+          "boundary": "Transport only belongs in LOG-FRT or LOG-COU according to the service. Supplying warehouse equipment alone belongs in GOODS-IND."
+        }
+      ]
+    },
+    {
+      "code": "GOODS",
+      "label": "Goods and Equipment",
+      "subcategories": [
+        {
+          "code": "GOODS-OFF",
+          "label": "Office and General Supplies",
+          "requirements": [],
+          "source": "10_GOODS_Category_Policy.pdf §GOODS-01",
+          "definition": "Routine office products and general nontechnical supplies.",
+          "examples": "Stationery, office furniture, printing supplies, and general consumables.",
+          "boundary": "Food and pantry consumables belong in FOOD-PAN. IT hardware belongs in GOODS-ITE."
+        },
+        {
+          "code": "GOODS-ITE",
+          "label": "IT AV and Electronic Equipment",
+          "requirements": [
+            "PROD-001"
+          ],
+          "source": "10_GOODS_Category_Policy.pdf §GOODS-01",
+          "definition": "Physical computing, audiovisual, networking, or other electronic equipment.",
+          "examples": "Laptops, monitors, conferencing equipment, and network hardware.",
+          "boundary": "Managed operation of the equipment belongs in TECH-ITM when it is the main service. Cybersecurity products supplied as a security solution belong in TECH-CYB."
+        },
+        {
+          "code": "GOODS-IND",
+          "label": "Industrial Electrical and Safety Equipment",
+          "requirements": [
+            "PROD-001"
+          ],
+          "source": "10_GOODS_Category_Policy.pdf §GOODS-01",
+          "definition": "Industrial, electrical, mechanical, or personal safety products supplied as goods.",
+          "examples": "Machinery, electrical components, PPE, and industrial tools.",
+          "boundary": "Installation or construction as the main deliverable belongs in FAC-CON. Routine maintenance services belong in FAC-MNT."
+        }
+      ]
+    },
+    {
+      "code": "SENS",
+      "label": "Financial and Sensitive Data Services",
+      "subcategories": [
+        {
+          "code": "SENS-PAY",
+          "label": "Payments Banking and Fintech",
+          "requirements": [
+            "CONF-001",
+            "SEC-001",
+            "PRIV-001",
+            "CONT-001",
+            "CRED-001",
+            "INS-CYB-001",
+            "PAY-001"
+          ],
+          "source": "11_SENS_Category_Policy.pdf §SENS-01",
+          "definition": "Processing payments or providing banking, payment, or financial transaction services.",
+          "examples": "Payment gateways, payment processors, banking services, and corporate card providers.",
+          "boundary": "Financial advice without payment processing belongs in PROF-LFA. A generic expense software subscription belongs in TECH-SW."
+        },
+        {
+          "code": "SENS-INS",
+          "label": "Insurance and Brokerage",
+          "requirements": [
+            "CONF-001",
+            "PRIV-001",
+            "CRED-001",
+            "INS-PI-001"
+          ],
+          "source": "11_SENS_Category_Policy.pdf §SENS-01",
+          "definition": "Providing insurance coverage or arranging and brokering insurance products.",
+          "examples": "Insurers, insurance brokers, and risk placement intermediaries.",
+          "boundary": "Legal or financial advice without an insurance product belongs in PROF-LFA."
+        },
+        {
+          "code": "SENS-DAT",
+          "label": "Data Processing BPO and Identity Services",
+          "requirements": [
+            "CONF-001",
+            "SEC-001",
+            "PRIV-001",
+            "CONT-001",
+            "INS-CYB-001"
+          ],
+          "source": "11_SENS_Category_Policy.pdf §SENS-01",
+          "definition": "Operating processes on behalf of the company that handle employee, customer, or identity information.",
+          "examples": "Payroll processing, background verification, identity verification, customer support outsourcing, and document processing.",
+          "boundary": "Selling a generic software tool without operating the data process belongs in TECH-SW. Supplying contract workers to perform work belongs in WORK-STA."
+        }
+      ]
     }
-  ],
-  "default_reason": "Illustrative demo checklist. Replace it with your actual onboarding policy."
+  ]
 }

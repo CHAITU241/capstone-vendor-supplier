@@ -14,7 +14,7 @@ from app.database import get_db
 from app.models import Document, DocumentType, PortalAccount, PortalSession, ProcessingStatus, Supplier, SupplierStatus
 from app.routers.documents import delete_document, upload_document
 from app.schemas import DocumentRead
-from app.services.document_policy import Checklist, checklist_for, required_types_for
+from app.services.document_policy import Checklist, Policy, checklist_for, load_policy, required_types_for, subcategory_for
 from app.services.portal_auth import (
     create_session, current_session, hash_password, require_supplier, verify_password,
 )
@@ -39,6 +39,9 @@ class ApplicationUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=2, max_length=200)
     country: str | None = Field(default=None, min_length=2, max_length=100)
     contact_email: EmailStr | None = None
+    tax_reference: str | None = Field(default=None, max_length=100)
+    bank_account_number: str | None = Field(default=None, max_length=100)
+    bank_ifsc: str | None = Field(default=None, max_length=20)
 
 
 class ApplicationRead(BaseModel):
@@ -48,6 +51,9 @@ class ApplicationRead(BaseModel):
     name: str
     country: str | None
     contact_email: str | None
+    tax_reference: str | None
+    bank_account_number: str | None
+    bank_ifsc: str | None
     submitted_at: datetime | None
     status: SupplierStatus
     documents: list[DocumentRead]
@@ -66,6 +72,8 @@ def application_response(db: Session, supplier: Supplier) -> ApplicationRead:
     return ApplicationRead(
         id=supplier.id, category=supplier.category, subcategory=supplier.subcategory,
         name=supplier.name, country=supplier.country, contact_email=supplier.contact_email,
+        tax_reference=supplier.tax_reference, bank_account_number=supplier.bank_account_number,
+        bank_ifsc=supplier.bank_ifsc,
         submitted_at=supplier.submitted_at, status=supplier.status,
         documents=[DocumentRead.model_validate(item) for item in documents],
         requirements=checklist_for(supplier),
@@ -122,11 +130,21 @@ def read_application(session: PortalSession = Depends(require_supplier), db: Ses
     return application_response(db, get_application(db, session))
 
 
+@router.get("/policy", response_model=Policy)
+def policy_catalog() -> Policy:
+    """Public taxonomy and evidence guidance; no supplier data or AI provider needed."""
+    return load_policy()
+
+
 @router.patch("/application", response_model=ApplicationRead)
 def save_application(payload: ApplicationUpdate, session: PortalSession = Depends(require_supplier), db: Session = Depends(get_db)) -> ApplicationRead:
     supplier = get_application(db, session)
     if supplier.submitted_at or supplier.status in {SupplierStatus.APPROVED, SupplierStatus.REJECTED}:
         raise HTTPException(status_code=409, detail="This application has already been submitted.")
+    if not subcategory_for(payload.category, payload.subcategory):
+        raise HTTPException(status_code=422, detail="Choose a primary category and subcategory from the policy list.")
+    if payload.country is not None and payload.country.strip() != "India":
+        raise HTTPException(status_code=422, detail="The synthetic v1.1 policy only covers India-based suppliers.")
     supplier.category = payload.category.strip()
     supplier.subcategory = payload.subcategory.strip()
     if payload.name is not None:
@@ -135,6 +153,10 @@ def save_application(payload: ApplicationUpdate, session: PortalSession = Depend
         supplier.country = payload.country.strip()
     if payload.contact_email is not None:
         supplier.contact_email = str(payload.contact_email)
+    for field in ("tax_reference", "bank_account_number", "bank_ifsc"):
+        value = getattr(payload, field)
+        if value is not None:
+            setattr(supplier, field, value.strip())
     db.commit()
     db.refresh(supplier)
     return application_response(db, supplier)
@@ -143,8 +165,10 @@ def save_application(payload: ApplicationUpdate, session: PortalSession = Depend
 @router.post("/application/submit", response_model=ApplicationRead)
 def submit_application(session: PortalSession = Depends(require_supplier), db: Session = Depends(get_db)) -> ApplicationRead:
     supplier = get_application(db, session)
-    if not supplier.category or not supplier.subcategory or supplier.name == "New application" or not supplier.country:
-        raise HTTPException(status_code=422, detail="Choose a category and complete your business details first.")
+    if not subcategory_for(supplier.category or "", supplier.subcategory or "") or supplier.name == "New application" or supplier.country != "India":
+        raise HTTPException(status_code=422, detail="Choose a policy category and complete your India-based business details first.")
+    if not all((supplier.contact_email, supplier.tax_reference, supplier.bank_account_number, supplier.bank_ifsc)):
+        raise HTTPException(status_code=422, detail="Contact email, tax reference, bank account number and IFSC are required portal fields.")
     required = required_types_for(supplier)
     uploaded = set(db.scalars(select(Document.document_type).where(
         Document.supplier_id == supplier.id,

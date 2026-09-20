@@ -1,5 +1,5 @@
 export type SupplierStatus = 'new' | 'processing' | 'needs_review' | 'approved' | 'rejected'
-export type DocumentType = 'registration' | 'tax' | 'insurance'
+export type DocumentType = string
 export type ProcessingStatus = 'processing' | 'ready' | 'failed'
 export type AiRunType = 'processing' | 'question'
 export type AiRunStatus = 'processing' | 'succeeded' | 'failed'
@@ -9,7 +9,15 @@ export interface DocumentChecklist {
   version: string
   status: string
   reason: string
-  documents: Array<{ document_type: DocumentType; label: string; why: string }>
+  documents: Array<{ document_type: DocumentType; requirement_id: string; label: string; why: string; accepted_evidence: string; required_fields: string; checks: string[]; source: string }>
+}
+
+export interface PolicyCatalog {
+  version: string
+  status: string
+  scope: string
+  baseline: string[]
+  categories: Array<{ code: string; label: string; subcategories: Array<{ code: string; label: string; definition: string; examples: string; boundary: string; requirements: string[]; source: string }> }>
 }
 
 export interface SupplierCreate {
@@ -48,6 +56,9 @@ export interface SupplierApplication {
   name: string
   country: string | null
   contact_email: string | null
+  tax_reference: string | null
+  bank_account_number: string | null
+  bank_ifsc: string | null
   submitted_at: string | null
   status: SupplierStatus
   documents: SupplierDocument[]

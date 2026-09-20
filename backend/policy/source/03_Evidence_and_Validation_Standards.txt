@@ -1,0 +1,327 @@
+ Evidence and Validation Standards
+ Synthetic buyer policy corpus | Version 1.1 | 19 September 2026 | Authoritative requirement specifications
+
+
+ This is the authoritative evidence and validation policy for Supplier Requirements Universe V1 version
+ 1.1. It defines 22 reusable requirement records. Applicability is defined by the eight category policies.
+ Each requirement below is a direct citation target identified by its ID.
+
+
+ EV-01 Interpretation and result codes
+ The fictional buyer is based in India and contracts with India-based incorporated entities. INR amounts
+ are internal demo thresholds. Evaluate dates in IST; time spans are calendar days and boundary equality
+ passes. Issue, signing, review and declaration dates cannot be in the future. Expiry dates may be future.
+ Names are compared with the BASE-001 legal entity after ignoring case, punctuation and repeated
+ spaces.
+
+ A required document or field that is absent has code <ID>.DOC_MISSING or
+ <ID>.FIELD_MISSING.<FIELD>. A failed objective check has code <ID>.R1 or <ID>.R2, matching the
+ numbered statements below. Illegible, contradictory or plausibly aliased evidence has code
+ <ID>.REVIEW. Record observed and required values and an evidence reference. See Master Policy M-04
+ for packet outcomes.
+
+ Only explicit accepted alternatives are permitted. For a signed buyer form, include a supplier signatory
+ and date. An item without a specified expiry field is not rejected merely for lacking an expiry. No external
+ live verification is performed in the demo.
+
+ BASE-001 Business registration
+ Why required. Identify the contracting legal entity.
+
+ Accepted evidence. Business registration certificate or current company registry extract.
+
+ Required fields. Legal name; registration number; issuing registry; registration date; status.
+
+ BASE-001.R1 The registered legal name matches the portal name under the name rule.
+
+ BASE-001.R2 Registration date is on or before the evaluation date and status is Active.
+
+ BASE-002 Tax registration or accepted tax status
+ Why required. Record the supplier tax identity and declared registration status.
+
+ Accepted evidence. PAN/tax registration notice; if GST status is not registered, add a signed tax status declaration.
+
+ Required fields. Legal name; PAN/tax reference; GST status (registered or not registered); GSTIN when registered;
+ declaration date and signatory when not registered.
+
+ BASE-002.R1 The tax legal name matches BASE-001 and the PAN/tax reference matches the portal entry.
+
+ BASE-002.R2 A registered supplier supplies a GSTIN; a supplier marked not registered supplies a declaration signed
+ within 180 calendar days.
+
+
+
+
+Synthetic onboarding policy | Version 1.1                                                                        Page 1
+ BASE-003 Bank account verification
+ Why required. Confirm the account nominated for payment.
+
+ Accepted evidence. Bank-issued account letter or bank statement dated within 90 calendar days.
+
+ Required fields. Beneficiary legal name; bank name; full account number; IFSC; document date.
+
+ BASE-003.R1 The beneficiary name matches BASE-001 and the account number and IFSC exactly match the portal
+ payment fields.
+
+ BASE-003.R2 The document date is no more than 90 calendar days before the evaluation date.
+
+ CONF-001 Confidentiality undertaking
+ Why required. Set confidentiality duties for work involving company information.
+
+ Accepted evidence. Buyer standard confidentiality undertaking signed by both parties.
+
+ Required fields. Supplier legal name; buyer name; signatory names; both signatures; execution date.
+
+ CONF-001.R1 The supplier name matches BASE-001 and both parties have signed.
+
+ CONF-001.R2 The execution date is on or before the evaluation date and within the previous 365 calendar days.
+
+ SEC-001 Information security assessment
+ Why required. Establish minimum controls for technology or sensitive-data services.
+
+ Accepted evidence. Buyer security questionnaire, signed within 180 calendar days.
+
+ Required fields. Supplier legal name; service scope; security contact; privileged-account MFA; encryption at rest;
+ encryption in transit; incident notice commitment; signature and date.
+
+ SEC-001.R1 All three control answers (MFA and both encryption measures) are Yes.
+
+ SEC-001.R2 The committed incident notice interval is at most 48 hours and the signed date is within 180 calendar
+ days.
+
+ PRIV-001 Personal data handling assessment
+ Why required. Make personal-data use and deletion commitments explicit.
+
+ Accepted evidence. Buyer privacy questionnaire, signed within 180 calendar days.
+
+ Required fields. Supplier legal name; whether personal data is processed; purpose; data categories; processing
+ locations; subprocessors; retention after service end; deletion interval; signature and date.
+
+ PRIV-001.R1 Every field is answered; “None” is allowed for categories and subprocessors, and “Not applicable” is
+ allowed for locations, retention and deletion only when the supplier states it processes no personal data.
+
+ PRIV-001.R2 If personal data is processed, retention after service end is at most 24 months and deletion on buyer
+ request is within 30 calendar days.
+
+ CONT-001 Service continuity
+ Why required. Demonstrate a practical service recovery plan.
+
+ Accepted evidence. Signed continuity and recovery summary reviewed within 180 calendar days.
+
+ Required fields. Supplier legal name; covered service; recovery owner; recovery time objective (RTO); recovery
+ point objective (RPO); last exercise date; review date.
+
+ CONT-001.R1 RTO is at most 72 hours and RPO is at most 24 hours.
+
+ CONT-001.R2 The last exercise is within 365 calendar days and the plan review is within 180 calendar days.
+
+
+
+
+Synthetic onboarding policy | Version 1.1                                                                       Page 2
+ INS-CYB-001 Cyber liability coverage
+ Why required. Provide cover for a cyber incident involving the contracted service.
+
+ Accepted evidence. Insurer-issued cyber liability insurance certificate.
+
+ Required fields. Policyholder legal name; insurer; policy number; cyber coverage amount in INR; effective date;
+ expiry date.
+
+ INS-CYB-001.R1 The policyholder matches BASE-001, the cover explicitly includes cyber liability and coverage is at
+ least ₹5 crore.
+
+ INS-CYB-001.R2 The policy is effective on the evaluation date and expires at least 30 calendar days later.
+
+ INS-PI-001 Professional indemnity coverage
+ Why required. Provide cover for errors in professional services.
+
+ Accepted evidence. Insurer-issued professional indemnity insurance certificate.
+
+ Required fields. Policyholder legal name; insurer; policy number; professional indemnity amount in INR; effective
+ date; expiry date.
+
+ INS-PI-001.R1 The policyholder matches BASE-001, the cover names professional indemnity and coverage is at
+ least ₹1 crore.
+
+ INS-PI-001.R2 The policy is effective on the evaluation date and expires at least 30 calendar days later.
+
+ CRED-001 Professional or service authorization
+ Why required. Show authorization relevant to the contracted specialist service.
+
+ Accepted evidence. Relevant provider credential, professional registration or service authorization.
+
+ Required fields. Supplier or named responsible professional; issuer; credential number; authorized service scope;
+ issue date; expiry date.
+
+ CRED-001.R1 The authorization scope covers the selected service and the named entity or professional is linked to
+ this supplier.
+
+ CRED-001.R2 The issue date is on or before evaluation and the expiry is at least 30 calendar days later.
+
+ PEOP-001 Workforce compliance
+ Why required. Confirm that supplier-provided workers have accountable employment controls.
+
+ Accepted evidence. Signed workforce compliance declaration dated within 180 calendar days.
+
+ Required fields. Supplier legal name; worker engagement model; worker records maintained; wage and contract
+ compliance attestation; workforce contact; signature and date.
+
+ PEOP-001.R1 Both the worker-record and wage/contract compliance attestations are Yes.
+
+ PEOP-001.R2 A workforce contact is supplied and the declaration is signed within 180 calendar days.
+
+ PEOP-002 Worker screening
+ Why required. Ensure assigned workers are screened before receiving access.
+
+ Accepted evidence. Signed worker screening process declaration dated within 180 calendar days.
+
+ Required fields. Supplier legal name; identity check; consent procedure; background check; coverage of assigned
+ workers; access timing; signature and date.
+
+ PEOP-002.R1 Identity, consent and background checks are each attested Yes for 100% of assigned workers.
+
+ PEOP-002.R2 The declaration commits to complete the checks before a worker receives access.
+
+
+
+
+Synthetic onboarding policy | Version 1.1                                                                      Page 3
+ SITE-001 On site safety
+ Why required. Control safety risks in work performed on site.
+
+ Accepted evidence. Signed site safety plan or method statement reviewed within 180 calendar days.
+
+ Required fields. Supplier legal name; service scope; hazards; control measures; emergency lead; PPE commitment;
+ incident notice interval; review date.
+
+ SITE-001.R1 The plan lists hazards, controls and an emergency lead, and PPE is committed where the plan identifies
+ a PPE need.
+
+ SITE-001.R2 Incident notice is within 24 hours and the plan review is within 180 calendar days.
+
+ SITE-002 Physical security authorization
+ Why required. Show authority to provide physical guarding and control site access.
+
+ Accepted evidence. Physical guarding authorization and supplier guard-training declaration.
+
+ Required fields. Supplier legal name; issuer; authorization number; guarding scope; effective and expiry dates;
+ trained-guard attestation; declaration date.
+
+ SITE-002.R1 The authorization scope includes physical guarding and the supplier attests that assigned guards are
+ trained.
+
+ SITE-002.R2 Authorization is effective and has at least 30 calendar days remaining; the declaration is within 180
+ calendar days.
+
+ FOOD-001 Food supply controls
+ Why required. Maintain basic control and traceability of supplied food products.
+
+ Accepted evidence. Signed food sourcing and handling declaration dated within 180 calendar days.
+
+ Required fields. Supplier legal name; product types; source and batch traceability; storage method; recall contact;
+ recall notice interval; signature and date.
+
+ FOOD-001.R1 Source/batch traceability and documented storage methods are affirmed.
+
+ FOOD-001.R2 A recall contact is named and the commitment to notify the buyer is within 24 hours.
+
+ FOOD-002 Prepared meal controls
+ Why required. Add hygiene controls for preparing or serving meals.
+
+ Accepted evidence. Food hygiene certificate for the service site and signed food safety plan.
+
+ Required fields. Supplier legal name; site; certificate issuer, number and expiry; allergen controls; temperature
+ controls; food-handler training date; plan review date.
+
+ FOOD-002.R1 The certificate identifies the service site and has at least 30 calendar days remaining; both allergen
+ and temperature controls are documented.
+
+ FOOD-002.R2 Handler training took place within 365 calendar days and the safety plan was reviewed within 180
+ calendar days.
+
+ EVENT-001 Event operations
+ Why required. Establish how events are delivered safely.
+
+ Accepted evidence. Signed generic event safety and delivery plan reviewed within 180 calendar days.
+
+ Required fields. Supplier legal name; typical event scope; maximum planned attendance; evacuation
+ arrangements; first-aid lead; incident notice interval; review date.
+
+ EVENT-001.R1 The plan includes maximum attendance, evacuation arrangements and a first-aid lead.
+
+ EVENT-001.R2 Incident notification is within 24 hours and the review date is within 180 calendar days.
+
+
+
+
+Synthetic onboarding policy | Version 1.1                                                                        Page 4
+ TRANS-001 Transport and cargo protection
+ Why required. Protect goods in the supplier’s custody during transport.
+
+ Accepted evidence. Cargo/transit insurance certificate and signed custody-control declaration.
+
+ Required fields. Supplier legal name; insurer; policy number; cargo cover in INR; policy effective and expiry dates;
+ tracking method; custody owner; loss notice interval; declaration date.
+
+ TRANS-001.R1 Cover applies to goods in transit and is at least ₹50 lakh; a tracking method and custody owner are
+ identified.
+
+ TRANS-001.R2 The policy is effective with at least 30 calendar days remaining; loss notification is within 24 hours
+ and the declaration is within 180 calendar days.
+
+ STORE-001 Warehouse controls
+ Why required. Account for inventory held at supplier facilities.
+
+ Accepted evidence. Signed warehouse site and inventory-control summary reviewed within 180 calendar days.
+
+ Required fields. Supplier legal name; warehouse location; access logging; inventory reconciliation interval; loss
+ escalation interval; control owner; review date.
+
+ STORE-001.R1 Access is logged and inventory reconciliation occurs at least every 30 calendar days.
+
+ STORE-001.R2 Loss is escalated within 24 hours, a control owner is named and the summary is reviewed within 180
+ calendar days.
+
+ PROD-001 Equipment conformity and warranty
+ Why required. Record supplied equipment specifications, conformity and support.
+
+ Accepted evidence. Manufacturer specification/conformity sheet and supplier warranty statement.
+
+ Required fields. Supplier legal name; manufacturer; model or SKU; conformity statement; warranty duration;
+ warranty start event; support contact.
+
+ PROD-001.R1 The model/SKU in the evidence matches the model/SKU offered; a manufacturer conformity
+ statement is present.
+
+ PROD-001.R2 Warranty is at least 12 months starting at delivery and a support contact is named.
+
+ PAY-001 Payment service controls
+ Why required. Document controls for payment-service operations.
+
+ Accepted evidence. Signed payment controls declaration dated within 180 calendar days.
+
+ Required fields. Supplier legal name; transaction scope; dual authorization; reconciliation frequency; dispute
+ contact; dispute escalation interval; signature and date.
+
+ PAY-001.R1 Dual authorization is Yes and transactions are reconciled at least daily.
+
+ PAY-001.R2 A dispute contact is named and escalation is committed within 48 hours.
+
+ TRAIN-001 Training provider qualifications
+ Why required. Establish that the trainers can deliver the contracted instruction.
+
+ Accepted evidence. Provider qualification pack with trainer roster, course outline, and trainer credential or
+ experience record.
+
+ Required fields. Supplier legal name; trainer names; course topics; credential number/issuer/expiry or dated
+ experience history; provider contact.
+
+ TRAIN-001.R1 Each named lead trainer has a current topic-relevant credential OR a dated record of at least 24
+ months of relevant delivery experience.
+
+ TRAIN-001.R2 The course outline covers the contracted training topics and a provider contact is named.
+
+
+
+
+Synthetic onboarding policy | Version 1.1                                                                         Page 5
+

@@ -1,4 +1,4 @@
-"""Versioned, deterministic demo document checklist; no AI calls are involved."""
+"""Deterministic applicability from the frozen synthetic policy v1.1 corpus."""
 
 from functools import lru_cache
 from pathlib import Path
@@ -8,38 +8,56 @@ from pydantic import BaseModel, Field
 from app.models import DocumentType, Supplier
 
 POLICY_FILE = Path(__file__).resolve().parents[2] / "policy" / "requirements.json"
+BASE_TYPES = {
+    "BASE-001": DocumentType.REGISTRATION,
+    "BASE-002": DocumentType.TAX,
+    "BASE-003": DocumentType.BANK,
+}
 
 
-class DocumentDefinition(BaseModel):
+class Requirement(BaseModel):
     label: str
     why: str
+    accepted_evidence: str
+    required_fields: str
+    checks: list[str] = Field(min_length=2, max_length=2)
+    source: str
 
 
-class Condition(BaseModel):
-    category: str | None = None
-    subcategory: str | None = None
-    country: str | None = None
+class Subcategory(BaseModel):
+    code: str
+    label: str
+    definition: str
+    examples: str
+    boundary: str
+    requirements: list[str]
+    source: str
 
 
-class Rule(BaseModel):
-    when: Condition
-    required: list[DocumentType] = Field(min_length=1)
-    reason: str
+class Category(BaseModel):
+    code: str
+    label: str
+    subcategories: list[Subcategory]
 
 
 class Policy(BaseModel):
     version: str
     status: str
-    documents: dict[DocumentType, DocumentDefinition]
-    default_required: list[DocumentType] = Field(min_length=1)
-    default_reason: str
-    rules: list[Rule]
+    scope: str
+    baseline: list[str]
+    requirements: dict[str, Requirement]
+    categories: list[Category]
 
 
 class RequiredDocument(BaseModel):
     document_type: DocumentType
+    requirement_id: str = ""  # Existing submitted snapshots predate the policy corpus.
     label: str
     why: str
+    accepted_evidence: str = ""
+    required_fields: str = ""
+    checks: list[str] = Field(default_factory=list)
+    source: str = ""
 
 
 class Checklist(BaseModel):
@@ -52,30 +70,62 @@ class Checklist(BaseModel):
 @lru_cache(maxsize=1)
 def load_policy() -> Policy:
     policy = Policy.model_validate_json(POLICY_FILE.read_text(encoding="utf-8"))
-    for required in [policy.default_required, *(rule.required for rule in policy.rules)]:
-        if len(required) != len(set(required)) or any(kind not in policy.documents for kind in required):
-            raise ValueError("Policy has duplicate or undefined document types.")
+    codes = [item.code for category in policy.categories for item in category.subcategories]
+    if len(policy.requirements) != 22 or len(codes) != 24 or len(codes) != len(set(codes)):
+        raise ValueError("The synthetic policy must contain 22 IDs and 24 unique subcategories.")
+    if len({category.code for category in policy.categories}) != 8:
+        raise ValueError("The synthetic policy must contain eight unique categories.")
+    if policy.baseline != ["BASE-001", "BASE-002", "BASE-003"]:
+        raise ValueError("The baseline requirements do not match policy v1.1.")
+    for category in policy.categories:
+        for subcategory in category.subcategories:
+            if not subcategory.code.startswith(f"{category.code}-"):
+                raise ValueError(f"Subcategory {subcategory.code} has the wrong category.")
+            required = policy.baseline + subcategory.requirements
+            if len(required) != len(set(required)) or any(code not in policy.requirements for code in required):
+                raise ValueError(f"Duplicate or undefined requirement for {subcategory.code}.")
+            for code in required:
+                if code not in BASE_TYPES:
+                    DocumentType(code)  # Every requested item must be uploadable.
     return policy
 
 
-def _matches(condition: Condition, supplier: Supplier) -> bool:
-    return all(
-        expected is None or (getattr(supplier, field) or "").casefold().strip() == expected.casefold().strip()
-        for field, expected in condition.model_dump().items()
-    )
+def category_for(code: str) -> Category | None:
+    return next((item for item in load_policy().categories if item.code == code), None)
+
+
+def subcategory_for(category_code: str, subcategory_code: str) -> Subcategory | None:
+    category = category_for(category_code)
+    return next((item for item in category.subcategories if item.code == subcategory_code), None) if category else None
 
 
 def checklist_for(supplier: Supplier) -> Checklist:
     if supplier.submitted_at is not None and supplier.requirements_snapshot:
         return Checklist.model_validate(supplier.requirements_snapshot)
+    if supplier.submitted_at is not None and not supplier.requirements_snapshot:
+        # Reviewer-created cases before the supplier portal did not store a checklist.
+        return Checklist(version="legacy-demo", status="legacy_demo",
+                         reason="This case predates policy v1.1 and retains its original three-document checklist.",
+                         documents=[RequiredDocument(document_type=kind, label=label, why="Legacy demo evidence")
+                                    for kind, label in ((DocumentType.REGISTRATION, "Business registration"),
+                                                        (DocumentType.TAX, "Tax registration"),
+                                                        (DocumentType.INSURANCE, "Insurance certificate"))])
     policy = load_policy()
-    match = next((rule for rule in policy.rules if _matches(rule.when, supplier)), None)
-    selected = match.required if match else policy.default_required
+    subcategory = subcategory_for(supplier.category or "", supplier.subcategory or "")
+    if not subcategory:
+        return Checklist(version=policy.version, status="classification_required",
+                         reason="Choose one primary subcategory from the synthetic policy before uploading.", documents=[])
+    documents = []
+    for code in policy.baseline + subcategory.requirements:
+        definition = policy.requirements[code]
+        documents.append(RequiredDocument(
+            document_type=BASE_TYPES[code] if code in BASE_TYPES else DocumentType(code),
+            requirement_id=code, **definition.model_dump(),
+        ))
     return Checklist(
-        version=policy.version,
-        status=policy.status,
-        reason=match.reason if match else policy.default_reason,
-        documents=[RequiredDocument(document_type=kind, **policy.documents[kind].model_dump()) for kind in selected],
+        version=policy.version, status=policy.status,
+        reason=f"One primary subcategory: {subcategory.code}. Three baseline items plus the additional IDs in {subcategory.source}.",
+        documents=documents,
     )
 
 

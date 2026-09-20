@@ -1,0 +1,102 @@
+ Supplier Help and Remediation Guide
+ Synthetic buyer policy corpus | Version 1.1 | 19 September 2026 | Explanatory policy Q&A
+
+
+ This guide explains the frozen synthetic policies in supplier language. It is an explanatory source, not a
+ new requirement catalogue. For exact applicability, fields and thresholds, use the Supplier Category
+ Guide, the eight category policies and Evidence and Validation Standards version 1.1.
+
+
+ HELP-00 Using the guide
+ When the assistant explains an individual missing item or rejection, the portal must supply an actual
+ structured validation or decision event. The answer then cites the relevant requirement ID and numbered
+ check. The examples below are generic and do not assert the state of any real supplier.
+
+ HELP-01 How do I choose a category?
+ Use the Supplier Category Guide to find the single primary deliverable in your contract. The assistant can
+ suggest a code and cite the definition, but your selection or the onboarding team’s confirmation
+ determines the code. For mixed work with no clear primary deliverable, contact the onboarding team for
+ classification.
+
+ HELP-02 What documents do all suppliers submit?
+ BASE-001 business registration, BASE-002 tax identity/status evidence and BASE-003 bank account
+ evidence apply to all 24 subcategories. Your primary code adds exactly the IDs in its category policy; see
+ Evidence and Validation Standards for each document’s fields and tests.
+
+ HELP-03 Do I need the same documents as another supplier?
+ Possibly not. GOODS-OFF has only the baseline, FOOD-PAN adds FOOD-001, FOOD-CAT adds FOOD-001
+ and FOOD-002, and TECH-CYB adds CONF-001, SEC-001, PRIV-001, CONT-001 and INS-CYB-001. The
+ confirmed primary subcategory controls the checklist.
+
+ HELP-04 Why do you need cyber insurance?
+ For TECH-CYB, SENS-PAY and SENS-DAT, INS-CYB-001 supplies cover for a cyber incident involving the
+ contracted service. The certificate must name the registered policyholder, cover cyber liability for at
+ least ₹5 crore, be effective, and retain at least 30 calendar days on the evaluation date. Other codes do
+ not inherit this requirement unless explicitly mapped.
+
+ HELP-05 What belongs in an insurance certificate?
+ See Evidence and Validation Standards §INS-CYB-001 or §INS-PI-001. Both require the policyholder legal
+ name, insurer, policy number, specified coverage amount, effective date and expiry date. Cyber cover is
+ at least ₹5 crore; professional indemnity cover is at least ₹1 crore. Each needs at least 30 calendar days
+ remaining.
+
+ HELP-06 Can I submit missing documents after approval?
+ No post-approval deferrals exist in V1. Missing mandatory evidence produces ACTION_REQUIRED. Submit
+ the document before the packet can reach READY_FOR_APPROVAL.
+
+
+
+
+Synthetic onboarding policy | Version 1.1                                                                  Page 1
+ HELP-07 My document was received. Why is it still incomplete?
+ A required field may be missing. The portal should provide <ID>.FIELD_MISSING.<FIELD> and identify
+ the document and field. Upload corrected evidence; the assistant may explain why the field is required
+ using the matching policy section.
+
+ HELP-08 Why was my application rejected?
+ A specific failed objective check in the submitted packet produces REJECTED at the final submission gate.
+ The explanation must use your actual decision event, observed value, expected value and <ID>.R1 or
+ <ID>.R2. Without that event, the assistant cannot know your individual reason.
+
+ HELP-09 Can I fix a rejection?
+ Yes. A rejected submission is not a permanent supplier ban. Correct the failed evidence and submit a
+ new packet version, which is evaluated on its own date. Example: cyber cover of ₹2 crore fails
+ INS-CYB-001.R1 against the ₹5 crore minimum; a corrected certificate can be submitted.
+
+ HELP-10 Why is my case under manual review?
+ Unclear, contradictory or unreadable evidence, including a possible legal-name alias, produces
+ <ID>.REVIEW when no objective failure has already determined REJECTED. The onboarding team
+ examines it. The assistant should identify the uncertainty without pretending it has verified the
+ document.
+
+ HELP-11 Can the assistant waive a rule?
+ No. There are no automatic waivers or post-approval deferrals in V1. A manual review request does not
+ automatically turn failed evidence into a pass. A future exception would need a new policy version.
+
+ HELP-12 How long does onboarding take?
+ V1 contains no fixed processing-time promise. A complete, readable packet can reach
+ READY_FOR_APPROVAL after the specified checks; ambiguous evidence may require onboarding-team
+ review. The assistant should not invent a duration.
+
+ HELP-13 Can I skip the privacy questionnaire if I process no personal data?
+ No, where PRIV-001 is mapped to your primary code, the questionnaire is still required. State that no
+ personal data is processed, answer its fields, and use the documented None or Not applicable responses
+ only where Evidence and Validation Standards §PRIV-001 permits them.
+
+ HELP-14 Is READY_FOR_APPROVAL an approval?
+ No. It means every applicable requirement in the submission passed the V1 checks. Supplier approval
+ occurs in a separate authorized process; the RAG assistant cannot grant it.
+
+
+ HELP-15 Example responses
+ Missing field example. “We received your cyber liability certificate, but the expiry date is absent.
+ INS-CYB-001 requires an expiry date to check that at least 30 calendar days remain. Please upload a
+ certificate showing that date.”
+
+ Failed amount example. “Your submission version failed INS-CYB-001.R1: the certificate shows ₹2
+ crore of cyber cover and this policy requires at least ₹5 crore. Submit an updated certificate with the
+ required cover for a new evaluation.”
+
+
+Synthetic onboarding policy | Version 1.1                                                                  Page 2
+

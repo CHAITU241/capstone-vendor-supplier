@@ -1,5 +1,5 @@
 import uuid
-from datetime import date
+from datetime import date, datetime, timezone
 
 from app.models import (
     ComplianceStatus,
@@ -58,6 +58,12 @@ def ready_supplier() -> Supplier:
         name=SUPPLIER_NAME,
         country="India",
         contact_email="reviewer@example.com",
+        submitted_at=datetime.now(timezone.utc),
+        requirements_snapshot={
+            "version": "legacy-demo", "status": "illustrative_demo", "reason": "Historical snapshot",
+            "documents": [{"document_type": kind, "label": kind.title(), "why": "Legacy demo"}
+                          for kind in ("registration", "tax", "insurance")],
+        },
     )
     registration = document(DocumentType.REGISTRATION)
     tax = document(DocumentType.TAX)
@@ -104,8 +110,7 @@ def test_expired_insurance_blocks_approval() -> None:
 
 def test_insurance_check_is_not_applicable_when_checklist_omits_it() -> None:
     supplier = ready_supplier()
-    supplier.category = "Technology & IT"
-    supplier.subcategory = "Software & SaaS"
+    supplier.requirements_snapshot["documents"] = supplier.requirements_snapshot["documents"][:2]
     supplier.documents = supplier.documents[:2]
     supplier.extracted_fields = [
         item for item in supplier.extracted_fields if item.field_name != "insurance_expiry_date"
@@ -116,6 +121,20 @@ def test_insurance_check_is_not_applicable_when_checklist_omits_it() -> None:
     assert outcomes["document_completeness"].status == ComplianceStatus.PASS
     assert outcomes["insurance_expiry"].status == ComplianceStatus.PASS
     assert outcomes["insurance_expiry"].evidence["not_applicable"] is True
+
+
+def test_policy_uploads_are_not_misreported_as_validated() -> None:
+    supplier = ready_supplier()
+    supplier.category = "GOODS"
+    supplier.subcategory = "GOODS-OFF"
+    supplier.submitted_at = None
+    supplier.documents = [document(DocumentType.REGISTRATION), document(DocumentType.TAX), document(DocumentType.BANK)]
+
+    outcomes = outcomes_by_code(supplier)
+
+    assert outcomes["BASE-001.REVIEW"].status == ComplianceStatus.NEEDS_REVIEW
+    assert outcomes["BASE-003.REVIEW"].evidence["source"].endswith("§BASE-003")
+    assert approval_ready(list(outcomes.values())) is False
 
 
 def test_name_mismatch_and_unresolved_field_need_review() -> None:

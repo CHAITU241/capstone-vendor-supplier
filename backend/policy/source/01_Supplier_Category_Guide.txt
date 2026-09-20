@@ -1,0 +1,299 @@
+ Supplier Category Guide
+ Synthetic buyer policy corpus | Version 1.1 | 19 September 2026 | Controlled classification guide
+
+
+ Purpose and authority. This is the PDF edition of Supplier Taxonomy V1. A supplier selects one primary
+ subcategory for the main contracted deliverable. The assistant may suggest a code using this guide; the
+ supplier or onboarding team confirms it. The requirements for the confirmed code come from the
+ category policies and the Evidence and Validation Standards.
+
+
+ TAX-01 Classification rules
+ Primary service. Choose the single subcategory that best describes what the contract supplies. A seller
+ of laptops is GOODS-ITE; ongoing management of the devices is TECH-ITM.
+
+ Mixed or unclear work. If materially different deliverables make the primary code unclear, send the
+ selection to the onboarding team. Do not automatically assign several codes.
+
+ Change in contracted work. Revisit the category when the contracted scope changes; the earlier
+ requirement checklist may no longer apply.
+
+
+ TAX-02 Category register
+
+   Code              Category                                 Subcategory codes
+
+
+   TECH              Technology and Digital Services          TECH-SW, TECH-CYB, TECH-ITM
+
+
+   PROF              Professional and Advisory Services       PROF-CONS, PROF-LFA, PROF-MKT
+
+
+   WORK              Workforce and People Services            WORK-REC, WORK-STA, WORK-LND
+
+
+   FAC               Facilities and On Site Services          FAC-MNT, FAC-SEC, FAC-CON
+
+
+   FOOD              Food Pantry and Hospitality              FOOD-PAN, FOOD-CAT, FOOD-EVT
+
+
+   LOG               Logistics and Supply Chain               LOG-COU, LOG-FRT, LOG-WH
+
+
+   GOODS             Goods and Equipment                      GOODS-OFF, GOODS-ITE, GOODS-IND
+
+
+   SENS              Financial and Sensitive Data Services    SENS-PAY, SENS-INS, SENS-DAT
+
+
+
+ TECH Technology and Digital Services
+ Products or services delivered through software, cybersecurity capabilities, or management of company
+ technology.
+
+
+
+
+Synthetic onboarding policy | Version 1.1                                                            Page 1
+ TECH-SW SaaS and Cloud Software
+ Definition. Hosted business applications supplied for the company to use.
+
+ Examples. HR, CRM, expense, collaboration, or project management software.
+
+ Boundary. Security tools whose primary function is to protect or test systems belong in TECH-CYB. Infrastructure
+ operated on the company’s behalf belongs in TECH-ITM.
+
+ TECH-CYB Cybersecurity
+ Definition. Products or services primarily used to protect, monitor, assess, or control information systems.
+
+ Examples. Antivirus and endpoint protection, SOC services, penetration testing, vulnerability management, and
+ identity or access management.
+
+ Boundary. General cloud business software belongs in TECH-SW. Selling network hardware without an operating
+ service belongs in GOODS-ITE.
+
+ TECH-ITM Managed IT and Infrastructure Services
+ Definition. Ongoing management, support, or operation of company systems, devices, networks, or infrastructure.
+
+ Examples. Managed networks, cloud infrastructure support, IT help desks, and managed workplace services.
+
+ Boundary. A one-time sale of laptops or networking equipment belongs in GOODS-ITE. A standalone security
+ monitoring service belongs in TECH-CYB.
+
+
+ PROF Professional and Advisory Services
+ Specialist advice or project work delivered mainly through professional expertise.
+
+ PROF-CONS Business and Technical Consulting
+ Definition. Advisory or implementation work on strategy, operations, technology, or engineering.
+
+ Examples. Management consulting, engineering advisory, strategy, and technical implementation consulting.
+
+ Boundary. Ongoing operation of company IT belongs in TECH-ITM. Legal, tax, accounting, or audit work belongs in
+ PROF-LFA.
+
+ PROF-LFA Legal Finance and Audit
+ Definition. Regulated or specialist advice concerning law, tax, accounting, audit, or corporate finance.
+
+ Examples. Law firms, tax advisers, auditors, accounting firms, and financial advisers.
+
+ Boundary. A supplier processing company payments as a service belongs in SENS-PAY; an insurance broker belongs
+ in SENS-INS.
+
+ PROF-MKT Marketing Creative and Research
+ Definition. Creative, communications, advertising, or market insight services.
+
+ Examples. Advertising agencies, graphic design, branding, content production, and market research.
+
+ Boundary. A provider whose primary deliverable is an event or venue belongs in FOOD-EVT. A general-purpose
+ marketing software subscription belongs in TECH-SW.
+
+
+ WORK Workforce and People Services
+ Services that source workers, supply people to perform work, or deliver learning.
+
+
+
+
+Synthetic onboarding policy | Version 1.1                                                                       Page 2
+ WORK-REC Recruitment
+ Definition. Finding and presenting candidates for roles filled directly by the company.
+
+ Examples. Recruitment agencies, candidate sourcing, and executive search.
+
+ Boundary. Supplying workers employed or engaged by the supplier to perform company work belongs in WORK-STA.
+
+ WORK-STA Temporary and Contract Staffing
+ Definition. Supplying personnel who perform work for the company under a staffing or contingent workforce
+ arrangement.
+
+ Examples. Temporary workers, outsourced personnel, and contract resources.
+
+ Boundary. Candidate search alone belongs in WORK-REC. A specialist consulting firm delivering a defined advisory
+ output belongs in PROF-CONS.
+
+ WORK-LND Training and Learning
+ Definition. Delivering training, workshops, qualifications, or learning services.
+
+ Examples. Corporate trainers, certification providers, workshops, and learning services.
+
+ Boundary. A standalone learning software subscription belongs in TECH-SW when software is the contracted
+ deliverable.
+
+
+ FAC Facilities and On Site Services
+ Services performed at company premises for site operations, security, or construction.
+
+ FAC-MNT Cleaning Housekeeping and Maintenance
+ Definition. Routine cleaning, upkeep, and maintenance of premises or installed facilities.
+
+ Examples. Office cleaning, housekeeping, HVAC servicing, plumbing, and routine electrical maintenance.
+
+ Boundary. Major construction or fit-out work belongs in FAC-CON. Guarding and site security belong in FAC-SEC.
+
+ FAC-SEC Physical Security
+ Definition. Personnel or services whose primary purpose is to protect premises and control physical access.
+
+ Examples. Security guards, reception security, access control personnel, and site patrols.
+
+ Boundary. Cybersecurity monitoring belongs in TECH-CYB. Installation of security equipment as a goods purchase
+ may belong in GOODS-ITE or GOODS-IND, according to the main deliverable.
+
+ FAC-CON Construction Fit Out and Repair
+ Definition. Project-based construction, renovation, fit-out, or substantial repair at company premises.
+
+ Examples. Office fit-outs, civil work, major electrical installations, and renovation contractors.
+
+ Boundary. Routine maintenance belongs in FAC-MNT. Supply of building materials without construction services
+ belongs in GOODS-IND.
+
+
+ FOOD Food Pantry and Hospitality
+ Food, drink, catering, and hospitality products or services for company use.
+
+
+
+
+Synthetic onboarding policy | Version 1.1                                                                      Page 3
+ FOOD-PAN Pantry Coffee and Packaged Consumables
+ Definition. Supply of packaged food, drinks, and pantry items without operating a meal service.
+
+ Examples. Coffee beans, tea, packaged snacks, beverages, and pantry stock.
+
+ Boundary. Preparing or serving meals for the company belongs in FOOD-CAT. General office stationery belongs in
+ GOODS-OFF.
+
+ FOOD-CAT Catering and Meal Services
+ Definition. Preparation, delivery, or operation of prepared meals or food service.
+
+ Examples. Corporate catering, cafeteria operation, and prepared meal supply.
+
+ Boundary. Sealed coffee or snack supply without meal preparation belongs in FOOD-PAN. Event planning with food
+ as one component belongs in FOOD-EVT when the event is the main contract.
+
+ FOOD-EVT Events and Hospitality
+ Definition. Planning or providing events, venues, conferences, or hospitality services.
+
+ Examples. Conference organisers, event management, venue services, and corporate hospitality.
+
+ Boundary. A contract solely to prepare and serve meals belongs in FOOD-CAT. Creative campaign work without
+ event delivery belongs in PROF-MKT.
+
+
+ LOG Logistics and Supply Chain
+ Movement, storage, or fulfilment of goods and parcels.
+
+ LOG-COU Courier and Last Mile Delivery
+ Definition. Local parcel, document, or final-mile delivery services.
+
+ Examples. Document couriers, parcel delivery, and local delivery networks.
+
+ Boundary. Freight haulage as the main service belongs in LOG-FRT. Storage and fulfilment belong in LOG-WH.
+
+ LOG-FRT Freight and Transportation
+ Definition. Commercial movement of goods over longer routes or with freight operations.
+
+ Examples. Trucking, freight movement, and interstate transportation.
+
+ Boundary. Local parcel delivery belongs in LOG-COU. Managed inventory storage belongs in LOG-WH.
+
+ LOG-WH Warehousing and Third Party Logistics
+ Definition. Storage, fulfilment, or managed inventory handling for company goods.
+
+ Examples. Warehouses, fulfilment providers, and third party logistics operators.
+
+ Boundary. Transport only belongs in LOG-FRT or LOG-COU according to the service. Supplying warehouse
+ equipment alone belongs in GOODS-IND.
+
+
+ GOODS Goods and Equipment
+ Purchase of physical products where a service is not the main contracted deliverable.
+
+ GOODS-OFF Office and General Supplies
+ Definition. Routine office products and general nontechnical supplies.
+
+ Examples. Stationery, office furniture, printing supplies, and general consumables.
+
+ Boundary. Food and pantry consumables belong in FOOD-PAN. IT hardware belongs in GOODS-ITE.
+
+
+
+Synthetic onboarding policy | Version 1.1                                                                     Page 4
+ GOODS-ITE IT AV and Electronic Equipment
+ Definition. Physical computing, audiovisual, networking, or other electronic equipment.
+
+ Examples. Laptops, monitors, conferencing equipment, and network hardware.
+
+ Boundary. Managed operation of the equipment belongs in TECH-ITM when it is the main service. Cybersecurity
+ products supplied as a security solution belong in TECH-CYB.
+
+ GOODS-IND Industrial Electrical and Safety Equipment
+ Definition. Industrial, electrical, mechanical, or personal safety products supplied as goods.
+
+ Examples. Machinery, electrical components, PPE, and industrial tools.
+
+ Boundary. Installation or construction as the main deliverable belongs in FAC-CON. Routine maintenance services
+ belong in FAC-MNT.
+
+
+ SENS Financial and Sensitive Data Services
+ Services involving financial transactions, insurance intermediation, or operational processing of sensitive
+ information.
+
+ SENS-PAY Payments Banking and Fintech
+ Definition. Processing payments or providing banking, payment, or financial transaction services.
+
+ Examples. Payment gateways, payment processors, banking services, and corporate card providers.
+
+ Boundary. Financial advice without payment processing belongs in PROF-LFA. A generic expense software
+ subscription belongs in TECH-SW.
+
+ SENS-INS Insurance and Brokerage
+ Definition. Providing insurance coverage or arranging and brokering insurance products.
+
+ Examples. Insurers, insurance brokers, and risk placement intermediaries.
+
+ Boundary. Legal or financial advice without an insurance product belongs in PROF-LFA.
+
+ SENS-DAT Data Processing BPO and Identity Services
+ Definition. Operating processes on behalf of the company that handle employee, customer, or identity information.
+
+ Examples. Payroll processing, background verification, identity verification, customer support outsourcing, and
+ document processing.
+
+ Boundary. Selling a generic software tool without operating the data process belongs in TECH-SW. Supplying
+ contract workers to perform work belongs in WORK-STA.
+
+
+ TAX-03 Assistant guidance
+ Cite the relevant subcategory definition when recommending a code. Explain a material boundary when
+ two codes could fit. A suggestion is not an approved classification; request onboarding-team confirmation
+ if the primary service cannot be determined.
+
+
+
+
+Synthetic onboarding policy | Version 1.1                                                                          Page 5
+

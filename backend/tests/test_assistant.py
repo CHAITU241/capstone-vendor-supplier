@@ -18,10 +18,12 @@ def test_assistant_requires_a_user_message_at_the_end() -> None:
 
 def test_assistant_passes_only_conversation_messages_to_ai(monkeypatch) -> None:
     captured: list[dict[str, str]] = []
+    contexts: list[str] = []
 
     class FakeAssistant:
-        def answer_general_question(self, messages: list[dict[str, str]]) -> ModelResult[GeneralAssistantAnswer]:
+        def answer_general_question(self, messages: list[dict[str, str]], policy_context: str = "") -> ModelResult[GeneralAssistantAnswer]:
             captured.extend(messages)
+            contexts.append(policy_context)
             return ModelResult(
                 value=GeneralAssistantAnswer(answer="Prepare the documents requested by the buyer."),
                 input_tokens=11,
@@ -41,6 +43,7 @@ def test_assistant_passes_only_conversation_messages_to_ai(monkeypatch) -> None:
 
     assert result.answer.startswith("Prepare the documents")
     assert captured == [message.model_dump() for message in payload.messages]
+    assert "Synthetic buyer policy v1.1" in contexts[0]
     assert result.run.model == "gpt-test"
     assert result.run.input_tokens == 11
     assert result.run.output_tokens == 7
@@ -51,7 +54,7 @@ def test_assistant_redacts_pii_before_ai(monkeypatch) -> None:
     captured: list[dict[str, str]] = []
 
     class FakeAssistant:
-        def answer_general_question(self, messages: list[dict[str, str]]) -> ModelResult[GeneralAssistantAnswer]:
+        def answer_general_question(self, messages: list[dict[str, str]], policy_context: str = "") -> ModelResult[GeneralAssistantAnswer]:
             captured.extend(messages)
             return ModelResult(
                 value=GeneralAssistantAnswer(answer="Use the portal's secure upload flow."),
