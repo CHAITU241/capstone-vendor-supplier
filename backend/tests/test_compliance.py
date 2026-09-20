@@ -102,6 +102,22 @@ def test_expired_insurance_blocks_approval() -> None:
     assert approval_ready(list(outcomes.values())) is False
 
 
+def test_insurance_check_is_not_applicable_when_checklist_omits_it() -> None:
+    supplier = ready_supplier()
+    supplier.category = "Technology & IT"
+    supplier.subcategory = "Software & SaaS"
+    supplier.documents = supplier.documents[:2]
+    supplier.extracted_fields = [
+        item for item in supplier.extracted_fields if item.field_name != "insurance_expiry_date"
+    ]
+
+    outcomes = outcomes_by_code(supplier)
+
+    assert outcomes["document_completeness"].status == ComplianceStatus.PASS
+    assert outcomes["insurance_expiry"].status == ComplianceStatus.PASS
+    assert outcomes["insurance_expiry"].evidence["not_applicable"] is True
+
+
 def test_name_mismatch_and_unresolved_field_need_review() -> None:
     supplier = ready_supplier()
     supplier.documents[-1].extracted_text = "Named supplier: Different Legal Entity"

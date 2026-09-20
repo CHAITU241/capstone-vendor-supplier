@@ -71,6 +71,7 @@ class Supplier(Base):
         ForeignKey("portal_accounts.id"), unique=True, nullable=True
     )
     submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    requirements_snapshot: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     status: Mapped[SupplierStatus] = mapped_column(
         Enum(SupplierStatus, name="supplier_status"),
         default=SupplierStatus.NEW,

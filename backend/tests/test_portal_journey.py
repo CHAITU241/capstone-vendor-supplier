@@ -4,10 +4,12 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
+from uuid import UUID
 
 from app.config import Settings, get_settings
 from app.database import Base, get_db
 from app.main import app
+from app.models import Supplier
 
 
 def test_supplier_can_resume_and_submit_without_ai(tmp_path):
@@ -28,7 +30,7 @@ def test_supplier_can_resume_and_submit_without_ai(tmp_path):
             assert client.get("/api/suppliers", headers=supplier_headers).status_code == 403
 
             saved = client.patch("/api/portal/application", headers=supplier_headers, json={
-                "category": "Technology & IT", "subcategory": "Software & SaaS",
+                "category": "Operations & facilities", "subcategory": "Logistics",
             })
             assert saved.status_code == 200, saved.text
             assert saved.json()["submitted_at"] is None
@@ -37,14 +39,14 @@ def test_supplier_can_resume_and_submit_without_ai(tmp_path):
             login = client.post("/api/portal/auth/login", json={"email": "sample@example.com", "password": "demo-password"})
             assert login.status_code == 200, login.text
             supplier_headers = {"Authorization": f"Bearer {login.json()['token']}"}
-            assert client.get("/api/portal/application", headers=supplier_headers).json()["subcategory"] == "Software & SaaS"
+            assert client.get("/api/portal/application", headers=supplier_headers).json()["subcategory"] == "Logistics"
 
             reviewer = client.post("/api/portal/auth/reviewer-demo")
             reviewer_headers = {"Authorization": f"Bearer {reviewer.json()['token']}"}
             assert client.get("/api/suppliers", headers=reviewer_headers).json() == []
 
             details = client.patch("/api/portal/application", headers=supplier_headers, json={
-                "category": "Technology & IT", "subcategory": "Software & SaaS",
+                "category": "Operations & facilities", "subcategory": "Logistics",
                 "name": "Example Supply Ltd", "country": "India", "contact_email": "sample@example.com",
             })
             assert details.status_code == 200, details.text
@@ -56,10 +58,63 @@ def test_supplier_can_resume_and_submit_without_ai(tmp_path):
             assert submitted.status_code == 200, submitted.text
             assert submitted.json()["submitted_at"] is not None
             cases = client.get("/api/suppliers", headers=reviewer_headers).json()
-            assert len(cases) == 1 and cases[0]["category"] == "Technology & IT"
+            assert len(cases) == 1 and cases[0]["category"] == "Operations & facilities"
             assert client.patch("/api/portal/application", headers=supplier_headers, json={
                 "category": "Goods & materials", "subcategory": "Equipment",
             }).status_code == 409
+    finally:
+        app.dependency_overrides.clear()
+        engine.dispose()
+
+
+def test_checklist_changes_with_profile_and_is_frozen_on_submission(tmp_path):
+    engine = create_engine("sqlite+pysqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
+    Base.metadata.create_all(engine)
+
+    def db_override():
+        with Session(engine) as db:
+            yield db
+
+    app.dependency_overrides[get_db] = db_override
+    app.dependency_overrides[get_settings] = lambda: Settings(upload_dir=tmp_path / "uploads")
+    try:
+        with TestClient(app) as client:
+            signup = client.post("/api/portal/auth/register", json={"email": "software@example.com", "password": "demo-password"})
+            headers = {"Authorization": f"Bearer {signup.json()['token']}"}
+            profile = {"category": "Operations & facilities", "subcategory": "Logistics", "name": "Example Software Ltd", "country": "India"}
+            first = client.patch("/api/portal/application", headers=headers, json=profile)
+            assert [item["document_type"] for item in first.json()["requirements"]["documents"]] == ["registration", "tax", "insurance"]
+            insurance = client.post("/api/portal/application/documents", headers=headers,
+                data={"document_type": "insurance"}, files={"file": ("insurance.txt", b"Example Software Ltd", "text/plain")})
+            assert insurance.status_code == 201, insurance.text
+
+            profile.update(category="Technology & IT", subcategory="Software & SaaS")
+            changed = client.patch("/api/portal/application", headers=headers, json=profile)
+            assert [item["document_type"] for item in changed.json()["requirements"]["documents"]] == ["registration", "tax"]
+            assert client.post("/api/portal/application/documents", headers=headers,
+                data={"document_type": "insurance"}, files={"file": ("another.txt", b"Example", "text/plain")}).status_code == 422
+
+            for kind in ("registration", "tax"):
+                uploaded = client.post("/api/portal/application/documents", headers=headers,
+                    data={"document_type": kind}, files={"file": (f"{kind}.txt", b"Example Software Ltd", "text/plain")})
+                assert uploaded.status_code == 201, uploaded.text
+            assert client.post("/api/portal/application/submit", headers=headers).status_code == 422
+            assert client.delete(f"/api/portal/application/documents/{insurance.json()['id']}", headers=headers).status_code == 204
+            submitted = client.post("/api/portal/application/submit", headers=headers)
+            assert submitted.status_code == 200, submitted.text
+            assert len(submitted.json()["requirements"]["documents"]) == 2
+
+            with Session(engine) as db:
+                supplier = db.get(Supplier, UUID(submitted.json()["id"]))
+                supplier.category = "Operations & facilities"  # Simulate a later policy/profile edit.
+                db.commit()
+
+            reviewer = client.post("/api/portal/auth/reviewer-demo").json()
+            reviewer_headers = {"Authorization": f"Bearer {reviewer['token']}"}
+            detail = client.get(f"/api/suppliers/{submitted.json()['id']}", headers=reviewer_headers)
+            assert len(detail.json()["requirements"]["documents"]) == 2
+            # With two ready documents, AI processing reaches the provider check, not the old three-document gate.
+            assert client.post(f"/api/suppliers/{submitted.json()['id']}/process", headers=reviewer_headers).status_code == 503
     finally:
         app.dependency_overrides.clear()
         engine.dispose()

@@ -99,14 +99,15 @@ export function SupplierReviewPage() {
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
 
-  const uploadedDocumentTypes = new Set(supplier?.documents.map((document) => document.document_type) ?? [])
-  const availableDocumentTypes = (Object.entries(documentLabels) as [DocumentType, string][])
-    .filter(([value]) => !uploadedDocumentTypes.has(value))
+  const requiredDocuments = supplier?.requirements.documents ?? []
+  const availableDocumentTypes = requiredDocuments
+    .filter((item) => !supplier?.documents.some((document) => document.document_type === item.document_type))
+    .map((item) => [item.document_type, item.label] as [DocumentType, string])
   const effectiveDocumentType = availableDocumentTypes.some(([value]) => value === documentType)
     ? documentType
     : availableDocumentTypes[0]?.[0]
-  const allDocumentsReady = uploadedDocumentTypes.size === Object.keys(documentLabels).length
-    && supplier?.documents.every((document) => document.processing_status === 'ready')
+  const allDocumentsReady = requiredDocuments.length > 0
+    && requiredDocuments.every((item) => supplier?.documents.some((document) => document.document_type === item.document_type && document.processing_status === 'ready'))
   const latestProcessingRun = supplier?.ai_runs.find((run) => run.run_type === 'processing')
   const finalized = supplier?.status === 'approved' || supplier?.status === 'rejected'
   const approvalReady = supplier?.compliance_results.length === Object.keys(ruleLabels).length
@@ -299,6 +300,7 @@ export function SupplierReviewPage() {
       </Stack>
       {error && <Alert severity="error" onClose={() => setError('')}>{error}</Alert>}
       {notice && <Alert severity="success" onClose={() => setNotice('')}>{notice}</Alert>}
+      <Alert severity="info">Checklist {supplier.requirements.version}: {supplier.requirements.reason}{supplier.requirements.status === 'illustrative_demo' && ' This is an illustrative demo rule, pending the actual policy.'}</Alert>
       {finalized && (
         <Alert severity={supplier.status === 'approved' ? 'success' : 'error'}>
           {supplier.status === 'approved'
@@ -365,7 +367,7 @@ export function SupplierReviewPage() {
                 </Button>
               </>
             ) : (
-              <Alert severity="success">All three document categories have been uploaded.</Alert>
+              <Alert severity="success">All requested document types have been uploaded.</Alert>
             )}
           </Stack>
         </CardContent></Card>
@@ -396,7 +398,7 @@ export function SupplierReviewPage() {
             {processing ? 'Processing documents...' : supplier.extracted_fields.length ? 'Reprocess documents' : 'Process documents'}
           </Button>
         </Stack>
-        {!allDocumentsReady && <Alert severity="info" sx={{ mt: 2 }}>Upload one ready document in each of the three categories to enable processing.</Alert>}
+        {!allDocumentsReady && <Alert severity="info" sx={{ mt: 2 }}>All documents in this application's checklist must be ready before processing.</Alert>}
       </CardContent></Card>
 
       <Card><CardContent sx={{ p: { xs: 3, md: 4 } }}>
@@ -413,7 +415,7 @@ export function SupplierReviewPage() {
             multiline
             minRows={2}
             label="Question"
-            placeholder="When does the supplier's insurance expire?"
+            placeholder="What do the uploaded documents say about this supplier?"
             value={question}
             onChange={(event) => setQuestion(event.target.value)}
             disabled={asking || supplier.extracted_fields.length === 0}
@@ -452,7 +454,7 @@ export function SupplierReviewPage() {
         <Typography variant="h6">Extracted review fields</Typography>
         <Typography color="text.secondary" variant="body2" sx={{ mb: 2.5 }}>Values include their source page and model confidence for human review.</Typography>
         {supplier.extracted_fields.length === 0 ? (
-          <Alert severity="info">No fields have been extracted. Process the three documents first.</Alert>
+          <Alert severity="info">No fields have been extracted. Process the requested documents first.</Alert>
         ) : (
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' }, gap: 2 }}>
             {supplier.extracted_fields.map((field) => {

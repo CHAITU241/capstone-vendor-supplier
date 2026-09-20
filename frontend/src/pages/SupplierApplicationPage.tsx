@@ -9,7 +9,7 @@ import { useAuth } from '../auth/AuthContext'
 import { categories } from '../config/categories'
 import { countries } from '../config/countries'
 
-const documentLabels: Record<DocumentType, string> = {
+const fallbackLabels: Record<DocumentType, string> = {
   registration: 'Business registration',
   tax: 'Tax registration',
   insurance: 'Insurance certificate',
@@ -67,7 +67,7 @@ export function SupplierApplicationPage() {
       await api.uploadApplicationDocument(type, selected.file)
       setSelected(null)
       setApplication(await api.getApplication())
-      setNotice(`${documentLabels[type]} uploaded.`)
+      setNotice(`${application?.requirements.documents.find((item) => item.document_type === type)?.label ?? fallbackLabels[type]} uploaded.`)
     } catch (err) { setError(err instanceof Error ? err.message : 'Could not upload document.') }
     finally { setBusy(false) }
   }
@@ -95,6 +95,9 @@ export function SupplierApplicationPage() {
   if (!application) return <Alert severity="error">{error}</Alert>
   const submitted = Boolean(application.submitted_at)
   const documents = new Map(application.documents.map((document) => [document.document_type, document]))
+  const required = new Set(application.requirements.documents.map((item) => item.document_type))
+  const extras = application.documents.filter((document) => !required.has(document.document_type))
+  const missing = application.requirements.documents.filter((item) => documents.get(item.document_type)?.processing_status !== 'ready')
 
   return <Stack spacing={3} maxWidth={860} mx="auto">
     <Box><Typography variant="h4">Your supplier application</Typography>
@@ -133,11 +136,12 @@ export function SupplierApplicationPage() {
         <Box><Typography variant="h5">{submitted ? 'Application summary' : '3. Upload your documents'}</Typography>
           <Typography color="text.secondary" sx={{ mt: 0.75 }}>{application.name} · {application.category} / {application.subcategory} · {application.country}</Typography></Box>
         <Divider />
-        <Typography variant="body2" color="text.secondary">For this demo, upload one PDF or text file (up to 10 MB) for each document type. Your files stay attached to this application.</Typography>
-        {(Object.entries(documentLabels) as [DocumentType, string][]).map(([type, label]) => {
+        <Alert severity="info">{application.requirements.status === 'illustrative_demo' ? 'Illustrative demo checklist' : 'Document checklist'} · {application.requirements.version}. {application.requirements.reason}{application.requirements.status === 'illustrative_demo' && ' This is not a verified company policy.'}</Alert>
+        <Typography variant="body2" color="text.secondary">Upload one PDF or text file (up to 10 MB) for each requested document. Your files stay attached to this application.</Typography>
+        {application.requirements.documents.map(({ document_type: type, label, why }) => {
           const document = documents.get(type)
           return <Stack key={type} direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ sm: 'center' }} spacing={1.5} sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
-            <Box><Typography fontWeight={700}>{label}</Typography>
+            <Box><Typography fontWeight={700}>{label}</Typography><Typography variant="caption" color="text.secondary">{why}</Typography>
               <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>{document ? document.filename : selected?.type === type ? selected.file.name : 'Not uploaded yet'}</Typography></Box>
             {document ? <Stack direction="row" alignItems="center" spacing={1}>
               <Chip label={document.processing_status === 'ready' ? 'Uploaded' : document.processing_status} color={document.processing_status === 'ready' ? 'success' : 'warning'} size="small" />
@@ -153,9 +157,14 @@ export function SupplierApplicationPage() {
             </Stack>}
           </Stack>
         })}
+        {extras.length > 0 && <Alert severity="warning">Your details changed, so {extras.length === 1 ? 'a previously uploaded document is' : 'some previously uploaded documents are'} no longer in the checklist. Remove {extras.length === 1 ? 'it' : 'them'} before submitting.</Alert>}
+        {extras.map((document) => <Stack key={document.id} direction="row" justifyContent="space-between" alignItems="center" sx={{ p: 2, border: '1px solid', borderColor: 'warning.main', borderRadius: 2 }}>
+          <Box><Typography fontWeight={700}>{fallbackLabels[document.document_type]} · not requested</Typography><Typography variant="body2">{document.filename}</Typography></Box>
+          {!submitted && <IconButton aria-label={`Remove ${document.filename}`} disabled={busy} onClick={() => void removeDocument(document.id)}><DeleteOutlineRoundedIcon /></IconButton>}
+        </Stack>)}
         {!submitted && <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={1}>
           <Button startIcon={<ArrowBackRoundedIcon />} onClick={() => setStep(1)}>Edit details</Button>
-          <Button variant="contained" size="large" disabled={busy || documents.size !== 3 || application.documents.some((doc) => doc.processing_status !== 'ready')} onClick={() => void submit()}>Submit application for review</Button>
+          <Button variant="contained" size="large" disabled={busy || missing.length > 0 || extras.length > 0} onClick={() => void submit()}>Submit application for review</Button>
         </Stack>}
       </Stack>}
     </CardContent></Card>

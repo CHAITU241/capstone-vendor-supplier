@@ -5,6 +5,13 @@ export type AiRunType = 'processing' | 'question'
 export type AiRunStatus = 'processing' | 'succeeded' | 'failed'
 export type ComplianceStatus = 'pass' | 'fail' | 'needs_review'
 
+export interface DocumentChecklist {
+  version: string
+  status: string
+  reason: string
+  documents: Array<{ document_type: DocumentType; label: string; why: string }>
+}
+
 export interface SupplierCreate {
   name: string
   country: string
@@ -44,6 +51,7 @@ export interface SupplierApplication {
   submitted_at: string | null
   status: SupplierStatus
   documents: SupplierDocument[]
+  requirements: DocumentChecklist
 }
 
 export interface SupplierDocument {
@@ -104,6 +112,7 @@ export interface ComplianceResult {
 }
 
 export interface SupplierDetail extends SupplierSummary {
+  requirements: DocumentChecklist
   documents: SupplierDocument[]
   audit_events: AuditEvent[]
   extracted_fields: ExtractedField[]

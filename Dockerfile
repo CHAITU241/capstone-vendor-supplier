@@ -24,6 +24,7 @@ RUN groupadd --system vendorlens \
 COPY backend/alembic.ini ./alembic.ini
 COPY backend/alembic ./alembic
 COPY backend/app ./app
+COPY backend/policy ./policy
 COPY backend/docker-entrypoint.sh ./docker-entrypoint.sh
 
 RUN mkdir -p /app/uploads /app/data/chroma \

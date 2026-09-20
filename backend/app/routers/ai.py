@@ -2,6 +2,7 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
 from app.services.portal_auth import require_reviewer
+from app.services.document_policy import required_types_for
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
@@ -58,7 +59,7 @@ def process_supplier(
             status_code=409,
             detail="A finalized supplier cannot be reprocessed in this demo workflow.",
         )
-    required_types = set(DocumentType)
+    required_types = required_types_for(supplier)
     ready_types = {
         document.document_type
         for document in supplier.documents

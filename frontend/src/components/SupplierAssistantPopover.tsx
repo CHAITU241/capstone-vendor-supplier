@@ -13,9 +13,9 @@ const welcomeMessage: GeneralAssistantMessage = {
 }
 
 const quickGuides = [
-  { label: 'What do I need?', answer: 'The demo asks for your business category, registered name, country and contact email, then one registration, tax and insurance document. Files can be PDF or plain text, up to 10 MB each.' },
+  { label: 'What do I need?', answer: 'Enter your business category, subcategory, registered name, country and contact email. The document page then shows your checklist and why each document is requested. The current rules are illustrative until your company policy is supplied.' },
   { label: 'Can I save and return?', answer: 'Yes. Create a supplier account with your email and password. Each completed step and uploaded document is saved to your account. Sign in with the same email to continue.' },
-  { label: 'What happens next?', answer: 'After all three documents are uploaded, submit your application. It will then appear in the reviewer workspace for document processing and review.' },
+  { label: 'What happens next?', answer: 'After the requested documents are uploaded, submit your application. It will then appear in the reviewer workspace for document processing and review.' },
 ]
 
 export function SupplierAssistantPopover() {

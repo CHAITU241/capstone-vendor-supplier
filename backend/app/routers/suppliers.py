@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session, selectinload
 from app.database import get_db
 from app.models import AuditEvent, Document, Supplier
 from app.schemas import SupplierCreate, SupplierDetail, SupplierSummary
+from app.services.document_policy import checklist_for
 from app.services.portal_auth import require_reviewer
 
 router = APIRouter(prefix="/suppliers", tags=["suppliers"], dependencies=[Depends(require_reviewer)])
@@ -87,4 +88,5 @@ def get_supplier(supplier_id: uuid.UUID, db: Session = Depends(get_db)) -> Suppl
         extracted_fields=supplier.extracted_fields,
         ai_runs=supplier.ai_runs[:10],
         compliance_results=supplier.compliance_results,
+        requirements=checklist_for(supplier),
     )

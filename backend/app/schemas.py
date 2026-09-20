@@ -12,6 +12,7 @@ from app.models import (
     ProcessingStatus,
     SupplierStatus,
 )
+from app.services.document_policy import Checklist
 
 
 class SupplierCreate(BaseModel):
@@ -107,6 +108,7 @@ class ComplianceResultRead(BaseModel):
 
 
 class SupplierDetail(SupplierSummary):
+    requirements: Checklist
     documents: list[DocumentRead]
     audit_events: list[AuditEventRead]
     extracted_fields: list[ExtractedFieldRead]

@@ -20,6 +20,7 @@ from app.models import (
 )
 from app.schemas import DocumentRead
 from app.services.portal_auth import require_reviewer
+from app.services.document_policy import required_types_for
 from app.services.documents import DocumentExtractionError, extract_document_text
 from app.services.retrieval import delete_supplier_chunks, get_chunk_collection
 
@@ -47,6 +48,8 @@ async def upload_document(
             status_code=409,
             detail="A finalized supplier cannot be changed in this demo workflow.",
         )
+    if document_type not in required_types_for(supplier):
+        raise HTTPException(status_code=422, detail="This document type is not in the selected checklist.")
 
     existing_document = db.scalar(
         select(Document).where(

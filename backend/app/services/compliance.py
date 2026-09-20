@@ -15,6 +15,7 @@ from app.models import (
     ProcessingStatus,
     Supplier,
 )
+from app.services.document_policy import required_types_for
 
 RULE_ORDER = (
     "document_completeness",
@@ -67,7 +68,7 @@ def evaluate_compliance(
     today: date | None = None,
 ) -> list[RuleOutcome]:
     today = today or datetime.now(UTC).date()
-    required_types = set(DocumentType)
+    required_types = required_types_for(supplier)
     ready_types = {
         document.document_type
         for document in supplier.documents
@@ -78,7 +79,7 @@ def evaluate_compliance(
         rule_code="document_completeness",
         status=(ComplianceStatus.PASS if not missing_types else ComplianceStatus.FAIL),
         message=(
-            "All three required document categories are ready."
+            "All required document categories are ready."
             if not missing_types
             else f"Missing ready document categories: {', '.join(missing_types)}."
         ),
@@ -88,9 +89,13 @@ def evaluate_compliance(
         },
     )
 
-    expiry_field = _field_by_name(supplier, "insurance_expiry_date")
+    insurance_required = DocumentType.INSURANCE in required_types
+    expiry_field = _field_by_name(supplier, "insurance_expiry_date") if insurance_required else None
     expiry_date = _parse_date(expiry_field.value) if expiry_field else None
-    if expiry_field is None:
+    if not insurance_required:
+        expiry_status = ComplianceStatus.PASS
+        expiry_message = "Not applicable: insurance is not in this application's required checklist."
+    elif expiry_field is None:
         expiry_status = ComplianceStatus.FAIL
         expiry_message = "Insurance expiry date is missing."
     elif expiry_date is None:
@@ -116,6 +121,7 @@ def evaluate_compliance(
             ),
             "parsed_expiry": expiry_date.isoformat() if expiry_date else None,
             "checked_date": today.isoformat(),
+            "not_applicable": not insurance_required,
         },
     )
 

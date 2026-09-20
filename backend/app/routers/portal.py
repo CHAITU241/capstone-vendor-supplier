@@ -14,6 +14,7 @@ from app.database import get_db
 from app.models import Document, DocumentType, PortalAccount, PortalSession, ProcessingStatus, Supplier, SupplierStatus
 from app.routers.documents import delete_document, upload_document
 from app.schemas import DocumentRead
+from app.services.document_policy import Checklist, checklist_for, required_types_for
 from app.services.portal_auth import (
     create_session, current_session, hash_password, require_supplier, verify_password,
 )
@@ -50,6 +51,7 @@ class ApplicationRead(BaseModel):
     submitted_at: datetime | None
     status: SupplierStatus
     documents: list[DocumentRead]
+    requirements: Checklist
 
 
 def get_application(db: Session, session: PortalSession) -> Supplier:
@@ -66,6 +68,7 @@ def application_response(db: Session, supplier: Supplier) -> ApplicationRead:
         name=supplier.name, country=supplier.country, contact_email=supplier.contact_email,
         submitted_at=supplier.submitted_at, status=supplier.status,
         documents=[DocumentRead.model_validate(item) for item in documents],
+        requirements=checklist_for(supplier),
     )
 
 
@@ -142,13 +145,23 @@ def submit_application(session: PortalSession = Depends(require_supplier), db: S
     supplier = get_application(db, session)
     if not supplier.category or not supplier.subcategory or supplier.name == "New application" or not supplier.country:
         raise HTTPException(status_code=422, detail="Choose a category and complete your business details first.")
+    required = required_types_for(supplier)
     uploaded = set(db.scalars(select(Document.document_type).where(
+        Document.supplier_id == supplier.id,
+    )).all())
+    ready = set(db.scalars(select(Document.document_type).where(
         Document.supplier_id == supplier.id,
         Document.processing_status == ProcessingStatus.READY,
     )).all())
-    if uploaded != set(DocumentType):
-        raise HTTPException(status_code=422, detail="Upload registration, tax and insurance documents before submitting.")
+    if ready != required or uploaded != required:
+        missing = sorted(item.value for item in required - ready)
+        extra = sorted(item.value for item in uploaded - required)
+        raise HTTPException(status_code=422, detail=(
+            f"Remove documents no longer required: {', '.join(extra)}." if extra
+            else f"Upload ready documents for: {', '.join(missing)}."
+        ))
     if supplier.submitted_at is None:
+        supplier.requirements_snapshot = checklist_for(supplier).model_dump(mode="json")
         supplier.submitted_at = datetime.now(timezone.utc)
         db.commit()
         db.refresh(supplier)
@@ -164,6 +177,8 @@ async def upload_application_document(
     supplier = get_application(db, session)
     if supplier.submitted_at or not supplier.category or not supplier.country:
         raise HTTPException(status_code=409, detail="Complete your details before uploading, or this application is already submitted.")
+    if document_type not in required_types_for(supplier):
+        raise HTTPException(status_code=422, detail="This document type is not in your current checklist.")
     return await upload_document(supplier.id, document_type, file, db, settings)
 
 

@@ -1,0 +1,27 @@
+{
+  "version": "demo-2026-09-v1",
+  "status": "illustrative_demo",
+  "documents": {
+    "registration": {
+      "label": "Business registration",
+      "why": "Identify the legal business and its registered name."
+    },
+    "tax": {
+      "label": "Tax registration",
+      "why": "Confirm the business tax registration details."
+    },
+    "insurance": {
+      "label": "Insurance certificate",
+      "why": "Let a reviewer inspect the coverage and expiry date."
+    }
+  },
+  "default_required": ["registration", "tax", "insurance"],
+  "rules": [
+    {
+      "when": { "category": "Technology & IT", "subcategory": "Software & SaaS" },
+      "required": ["registration", "tax"],
+      "reason": "Illustrative demo rule for Software & SaaS. Replace this with your actual policy decision."
+    }
+  ],
+  "default_reason": "Illustrative demo checklist. Replace it with your actual onboarding policy."
+}

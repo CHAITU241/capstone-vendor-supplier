@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     openai_embedding_model: str = "text-embedding-3-small"
     extraction_prompt_version: str = "extraction-v3"
     answer_prompt_version: str = "rag-answer-v3"
-    assistant_prompt_version: str = "supplier-assistant-v1"
+    assistant_prompt_version: str = "supplier-assistant-v2"
     langfuse_enabled: bool = True
     langfuse_public_key: str | None = None
     langfuse_secret_key: SecretStr | None = None

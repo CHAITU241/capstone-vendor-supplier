@@ -226,7 +226,7 @@ class OpenAIService:
         self,
         messages: list[dict[str, str]],
     ) -> ModelResult[GeneralAssistantAnswer]:
-        prompt = _read_prompt("supplier_assistant_v1.txt")
+        prompt = _read_prompt("supplier_assistant_v2.txt")
         input_metadata = {
             "message_count": len(messages),
             "message_lengths": [len(message["content"]) for message in messages],
