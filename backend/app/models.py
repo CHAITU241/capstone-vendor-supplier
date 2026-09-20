@@ -65,6 +65,12 @@ class Supplier(Base):
     name: Mapped[str] = mapped_column(String(200), index=True)
     country: Mapped[str | None] = mapped_column(String(100), nullable=True)
     contact_email: Mapped[str | None] = mapped_column(String(320), nullable=True)
+    category: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    subcategory: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    account_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("portal_accounts.id"), unique=True, nullable=True
+    )
+    submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     status: Mapped[SupplierStatus] = mapped_column(
         Enum(SupplierStatus, name="supplier_status"),
         default=SupplierStatus.NEW,
@@ -97,6 +103,27 @@ class Supplier(Base):
     compliance_results: Mapped[list["ComplianceResult"]] = relationship(
         back_populates="supplier", cascade="all, delete-orphan"
     )
+
+
+class PortalAccount(Base):
+    __tablename__ = "portal_accounts"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    email: Mapped[str] = mapped_column(String(320), unique=True, index=True)
+    password_hash: Mapped[str] = mapped_column(String(256))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class PortalSession(Base):
+    __tablename__ = "portal_sessions"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    role: Mapped[str] = mapped_column(String(20))
+    account_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("portal_accounts.id", ondelete="CASCADE"), nullable=True
+    )
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
 class Document(Base):

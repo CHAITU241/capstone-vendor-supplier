@@ -1,6 +1,7 @@
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
+from app.services.portal_auth import require_reviewer
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
@@ -24,7 +25,7 @@ from app.services.processing import (
 )
 from app.services.retrieval import get_chunk_collection
 
-router = APIRouter(prefix="/suppliers", tags=["ai"])
+router = APIRouter(prefix="/suppliers", tags=["ai"], dependencies=[Depends(require_reviewer)])
 
 
 def _get_supplier_with_documents(db: Session, supplier_id: uuid.UUID) -> Supplier:

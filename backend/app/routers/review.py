@@ -2,6 +2,7 @@ import uuid
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException
+from app.services.portal_auth import require_reviewer
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session, selectinload
 
@@ -30,7 +31,7 @@ from app.services.compliance import (
 )
 from app.services.mock_erp import get_mock_erp_service
 
-router = APIRouter(prefix="/suppliers", tags=["review"])
+router = APIRouter(prefix="/suppliers", tags=["review"], dependencies=[Depends(require_reviewer)])
 
 
 def _get_review_supplier(db: Session, supplier_id: uuid.UUID) -> Supplier:

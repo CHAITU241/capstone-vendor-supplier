@@ -289,11 +289,11 @@ export function SupplierReviewPage() {
 
   return (
     <Stack spacing={3}>
-      <Button component={Link} to="/" startIcon={<ArrowBackRoundedIcon />} sx={{ alignSelf: 'flex-start' }}>Back to dashboard</Button>
+      <Button component={Link} to="/review" startIcon={<ArrowBackRoundedIcon />} sx={{ alignSelf: 'flex-start' }}>Back to reviewer workspace</Button>
       <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={2}>
         <Box>
           <Typography variant="h4">{supplier.name}</Typography>
-          <Typography color="text.secondary">{supplier.country || 'Country not provided'} / {supplier.contact_email || 'No contact email'}</Typography>
+          <Typography color="text.secondary">{supplier.category ? `${supplier.category} / ${supplier.subcategory} · ` : ''}{supplier.country || 'Country not provided'} / {supplier.contact_email || 'No contact email'}</Typography>
         </Box>
         <StatusChip status={supplier.status} />
       </Stack>

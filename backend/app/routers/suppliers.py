@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func, select
@@ -7,8 +8,9 @@ from sqlalchemy.orm import Session, selectinload
 from app.database import get_db
 from app.models import AuditEvent, Document, Supplier
 from app.schemas import SupplierCreate, SupplierDetail, SupplierSummary
+from app.services.portal_auth import require_reviewer
 
-router = APIRouter(prefix="/suppliers", tags=["suppliers"])
+router = APIRouter(prefix="/suppliers", tags=["suppliers"], dependencies=[Depends(require_reviewer)])
 
 
 @router.post("", response_model=SupplierSummary, status_code=status.HTTP_201_CREATED)
@@ -17,6 +19,7 @@ def create_supplier(payload: SupplierCreate, db: Session = Depends(get_db)) -> S
         name=payload.name.strip(),
         country=payload.country.strip() if payload.country else None,
         contact_email=str(payload.contact_email) if payload.contact_email else None,
+        submitted_at=datetime.now(timezone.utc),
     )
     db.add(supplier)
     db.flush()
@@ -39,6 +42,7 @@ def list_suppliers(db: Session = Depends(get_db)) -> list[SupplierSummary]:
     statement = (
         select(Supplier, func.count(Document.id).label("document_count"))
         .outerjoin(Document)
+        .where(Supplier.submitted_at.is_not(None))
         .group_by(Supplier.id)
         .order_by(Supplier.created_at.desc())
     )

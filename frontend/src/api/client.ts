@@ -6,6 +6,8 @@ import type {
   GeneralAssistantMessage,
   GeneralAssistantResponse,
   ProcessSupplierResponse,
+  PortalSession,
+  SupplierApplication,
   SupplierCreate,
   SupplierDetail,
   SupplierDocument,
@@ -22,7 +24,12 @@ export class ApiError extends Error {
 }
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_URL}${path}`, options)
+  const saved = localStorage.getItem('vendorlens.session')
+  let token = ''
+  try { token = saved ? (JSON.parse(saved) as PortalSession).token : '' } catch { /* Ignore stale storage. */ }
+  const headers = new Headers(options?.headers)
+  if (token) headers.set('Authorization', `Bearer ${token}`)
+  const response = await fetch(`${API_URL}${path}`, { ...options, headers })
   if (!response.ok) {
     let message = 'The request could not be completed.'
     try {
@@ -38,6 +45,28 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  register: (email: string, password: string) => request<PortalSession>('/portal/auth/register', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }),
+  }),
+  login: (email: string, password: string) => request<PortalSession>('/portal/auth/login', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }),
+  }),
+  reviewerDemo: () => request<PortalSession>('/portal/auth/reviewer-demo', { method: 'POST' }),
+  session: () => request<PortalSession>('/portal/auth/session'),
+  logout: () => request<void>('/portal/auth/logout', { method: 'POST' }),
+  getApplication: () => request<SupplierApplication>('/portal/application'),
+  saveApplication: (payload: { category: string; subcategory: string; name?: string; country?: string; contact_email?: string }) =>
+    request<SupplierApplication>('/portal/application', {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+    }),
+  submitApplication: () => request<SupplierApplication>('/portal/application/submit', { method: 'POST' }),
+  uploadApplicationDocument: (documentType: DocumentType, file: File) => {
+    const formData = new FormData()
+    formData.append('document_type', documentType)
+    formData.append('file', file)
+    return request<SupplierDocument>('/portal/application/documents', { method: 'POST', body: formData })
+  },
+  deleteApplicationDocument: (id: string) => request<void>(`/portal/application/documents/${id}`, { method: 'DELETE' }),
   listSuppliers: () => request<SupplierSummary[]>('/suppliers'),
   getSupplier: (id: string) => request<SupplierDetail>(`/suppliers/${id}`),
   createSupplier: (payload: SupplierCreate) =>

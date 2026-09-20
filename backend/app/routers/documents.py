@@ -19,10 +19,11 @@ from app.models import (
     SupplierStatus,
 )
 from app.schemas import DocumentRead
+from app.services.portal_auth import require_reviewer
 from app.services.documents import DocumentExtractionError, extract_document_text
 from app.services.retrieval import delete_supplier_chunks, get_chunk_collection
 
-router = APIRouter(prefix="/suppliers", tags=["documents"])
+router = APIRouter(prefix="/suppliers", tags=["documents"], dependencies=[Depends(require_reviewer)])
 ALLOWED_CONTENT_TYPES = {"application/pdf": ".pdf", "text/plain": ".txt"}
 
 

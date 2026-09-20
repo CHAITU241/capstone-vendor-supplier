@@ -1,7 +1,6 @@
-import AddRoundedIcon from '@mui/icons-material/AddRounded'
 import BusinessRoundedIcon from '@mui/icons-material/BusinessRounded'
 import DescriptionRoundedIcon from '@mui/icons-material/DescriptionRounded'
-import { Alert, Box, Button, Card, CardActionArea, CardContent, CircularProgress, Stack, Typography } from '@mui/material'
+import { Alert, Box, Card, CardActionArea, CardContent, CircularProgress, Stack, Typography } from '@mui/material'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api/client'
@@ -24,10 +23,9 @@ export function DashboardPage() {
     <Stack spacing={4}>
       <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ xs: 'flex-start', sm: 'center' }} spacing={2}>
         <Box>
-          <Typography variant="h4">Supplier onboarding</Typography>
-          <Typography color="text.secondary" sx={{ mt: 0.75 }}>Upload, review, and prepare supplier records in one workspace.</Typography>
+          <Typography variant="h4">Reviewer workspace</Typography>
+          <Typography color="text.secondary" sx={{ mt: 0.75 }}>Review submitted supplier applications and their documents.</Typography>
         </Box>
-        <Button component={Link} to="/suppliers/new" variant="contained" startIcon={<AddRoundedIcon />}>Add supplier</Button>
       </Stack>
 
       {error && <Alert severity="error">{error}</Alert>}
@@ -35,20 +33,20 @@ export function DashboardPage() {
       {!loading && !error && suppliers.length === 0 && (
         <Card><CardContent sx={{ py: 7, textAlign: 'center' }}>
           <BusinessRoundedIcon sx={{ fontSize: 48, color: 'primary.main', mb: 1 }} />
-          <Typography variant="h6">No supplier cases yet</Typography>
-          <Typography color="text.secondary" sx={{ mb: 2 }}>Create the first case to begin the intake workflow.</Typography>
-          <Button component={Link} to="/suppliers/new" variant="contained">Create supplier</Button>
+          <Typography variant="h6">No applications submitted yet</Typography>
+          <Typography color="text.secondary">Submitted applications will appear here for review. Supplier drafts stay in the supplier workspace.</Typography>
         </CardContent></Card>
       )}
 
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' }, gap: 2 }}>
         {suppliers.map((supplier) => (
           <Card key={supplier.id}>
-            <CardActionArea component={Link} to={`/suppliers/${supplier.id}`}>
+            <CardActionArea component={Link} to={`/review/suppliers/${supplier.id}`}>
               <CardContent>
                 <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={2}>
                   <Box>
                     <Typography variant="h6">{supplier.name}</Typography>
+                    {supplier.category && <Typography color="primary" variant="body2">{supplier.category} / {supplier.subcategory}</Typography>}
                     <Typography color="text.secondary" variant="body2">{supplier.country || 'Country not provided'}</Typography>
                   </Box>
                   <StatusChip status={supplier.status} />
@@ -65,4 +63,3 @@ export function DashboardPage() {
     </Stack>
   )
 }
-

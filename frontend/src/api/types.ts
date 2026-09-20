@@ -16,6 +16,9 @@ export interface SupplierSummary {
   name: string
   country: string | null
   contact_email: string | null
+  category: string | null
+  subcategory: string | null
+  submitted_at: string | null
   status: SupplierStatus
   created_at: string
   updated_at: string
@@ -23,6 +26,24 @@ export interface SupplierSummary {
   decided_at: string | null
   erp_supplier_id: string | null
   document_count: number
+}
+
+export interface PortalSession {
+  token: string
+  role: 'supplier' | 'reviewer'
+  email: string | null
+}
+
+export interface SupplierApplication {
+  id: string
+  category: string | null
+  subcategory: string | null
+  name: string
+  country: string | null
+  contact_email: string | null
+  submitted_at: string | null
+  status: SupplierStatus
+  documents: SupplierDocument[]
 }
 
 export interface SupplierDocument {

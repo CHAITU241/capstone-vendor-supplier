@@ -1,19 +1,28 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
+import { useAuth } from './auth/AuthContext'
 import { AppShell } from './components/AppShell'
+import { HomePage } from './pages/HomePage'
+import { SupplierLoginPage } from './pages/SupplierLoginPage'
+import { SupplierApplicationPage } from './pages/SupplierApplicationPage'
 import { DashboardPage } from './pages/DashboardPage'
-import { SupplierIntakePage } from './pages/SupplierIntakePage'
 import { SupplierReviewPage } from './pages/SupplierReviewPage'
+
+function RequireRole({ role, children }: { role: 'supplier' | 'reviewer'; children: React.ReactNode }) {
+  const { session } = useAuth()
+  return session?.role === role ? children : <Navigate to={role === 'supplier' ? '/supplier/login' : '/'} replace />
+}
 
 export default function App() {
   return (
     <Routes>
       <Route element={<AppShell />}>
-        <Route index element={<DashboardPage />} />
-        <Route path="suppliers/new" element={<SupplierIntakePage />} />
-        <Route path="suppliers/:supplierId" element={<SupplierReviewPage />} />
+        <Route index element={<HomePage />} />
+        <Route path="supplier/login" element={<SupplierLoginPage />} />
+        <Route path="supplier/application" element={<RequireRole role="supplier"><SupplierApplicationPage /></RequireRole>} />
+        <Route path="review" element={<RequireRole role="reviewer"><DashboardPage /></RequireRole>} />
+        <Route path="review/suppliers/:supplierId" element={<RequireRole role="reviewer"><SupplierReviewPage /></RequireRole>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
   )
 }
-

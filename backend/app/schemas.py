@@ -27,6 +27,9 @@ class SupplierSummary(BaseModel):
     name: str
     country: str | None
     contact_email: EmailStr | None
+    category: str | None
+    subcategory: str | None
+    submitted_at: datetime | None
     status: SupplierStatus
     created_at: datetime
     updated_at: datetime
