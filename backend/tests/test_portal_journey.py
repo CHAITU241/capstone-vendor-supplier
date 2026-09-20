@@ -34,6 +34,10 @@ def test_supplier_can_resume_and_submit_without_ai(tmp_path):
             })
             assert saved.status_code == 200, saved.text
             assert saved.json()["submitted_at"] is None
+            outside_scope = client.patch("/api/portal/application", headers=supplier_headers, json={
+                "category": "GOODS", "subcategory": "GOODS-OFF", "name": "Example Supply Ltd", "country": "France",
+            })
+            assert outside_scope.status_code == 422
             assert client.post("/api/portal/auth/logout", headers=supplier_headers).status_code == 204
 
             login = client.post("/api/portal/auth/login", json={"email": "sample@example.com", "password": "demo-password"})
@@ -47,10 +51,11 @@ def test_supplier_can_resume_and_submit_without_ai(tmp_path):
 
             details = client.patch("/api/portal/application", headers=supplier_headers, json={
                 "category": "GOODS", "subcategory": "GOODS-OFF",
-                "name": "Example Supply Ltd", "country": "India", "contact_email": "sample@example.com",
+                "name": "Example Supply Ltd", "contact_email": "sample@example.com",
                 "tax_reference": "DEMO-PAN-123", "bank_account_number": "DEMO-ACCOUNT-123", "bank_ifsc": "DEMO0123456",
             })
             assert details.status_code == 200, details.text
+            assert details.json()["country"] == "India"
             for kind in ("registration", "tax", "bank"):
                 response = client.post("/api/portal/application/documents", headers=supplier_headers,
                     data={"document_type": kind}, files={"file": (f"{kind}.txt", b"Example Supply Ltd in India", "text/plain")})

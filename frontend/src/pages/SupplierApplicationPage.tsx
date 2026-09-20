@@ -22,7 +22,6 @@ export function SupplierApplicationPage() {
   const [category, setCategory] = useState('')
   const [subcategory, setSubcategory] = useState('')
   const [name, setName] = useState('')
-  const [country, setCountry] = useState('India')
   const [email, setEmail] = useState(session?.email || '')
   const [taxReference, setTaxReference] = useState('')
   const [bankAccountNumber, setBankAccountNumber] = useState('')
@@ -38,12 +37,12 @@ export function SupplierApplicationPage() {
     setCategory(result.category || '')
     setSubcategory(result.subcategory || '')
     setName(result.name === 'New application' ? '' : result.name)
-    setCountry(result.country || 'India')
     setEmail(result.contact_email || session?.email || '')
     setTaxReference(result.tax_reference || '')
     setBankAccountNumber(result.bank_account_number || '')
     setBankIfsc(result.bank_ifsc || '')
-    setStep(!result.category ? 0 : !result.country || result.name === 'New application' ? 1 : 2)
+    setStep(!result.category ? 0 : result.country !== 'India' || result.name === 'New application' ||
+      !result.tax_reference || !result.bank_account_number || !result.bank_ifsc ? 1 : 2)
   }, [session?.email])
 
   useEffect(() => {
@@ -69,7 +68,7 @@ export function SupplierApplicationPage() {
   async function saveDetails() {
     setBusy(true); setError(''); setNotice('')
     try {
-      const result = await api.saveApplication({ category, subcategory, name: name.trim(), country, contact_email: email.trim(),
+      const result = await api.saveApplication({ category, subcategory, name: name.trim(), contact_email: email.trim(),
         tax_reference: taxReference.trim(), bank_account_number: bankAccountNumber.trim(), bank_ifsc: bankIfsc.trim() })
       setApplication(result); setStep(2); setNotice('Details saved. Next, upload the documents.')
     } catch (err) { setError(err instanceof Error ? err.message : 'Could not save details.') }
@@ -112,6 +111,11 @@ export function SupplierApplicationPage() {
   const categoryOptions = catalog?.categories ?? []
   const selectedCategory = categoryOptions.find((item) => item.code === category)
   const selectedSubcategory = selectedCategory?.subcategories.find((item) => item.code === subcategory)
+  const plainLanguage = (value: string) => value
+    .replace(/\b(?:TECH|PROF|WORK|FAC|FOOD|LOG|GOODS|SENS)-[A-Z]+\b/g,
+      (code) => categoryOptions.flatMap((item) => item.subcategories).find((item) => item.code === code)?.label ?? code)
+    .replace(/\b[A-Z]+(?:-[A-Z]+)?-\d{3}(?:\.R\d)?\b/g,
+      (code) => catalog?.requirements[code.split('.')[0]]?.label.toLowerCase() ?? 'the requested document')
   const submitted = Boolean(application.submitted_at)
   const documents = new Map(application.documents.map((document) => [document.document_type, document]))
   const required = new Set(application.requirements.documents.map((item) => item.document_type))
@@ -130,44 +134,42 @@ export function SupplierApplicationPage() {
 
     <Card><CardContent sx={{ p: { xs: 3, md: 4 }, '&:last-child': { pb: 4 } }}>
       {!submitted && step === 0 && <Stack spacing={3}>
-        <Box><Typography variant="h5">1. What does your business provide?</Typography><Typography color="text.secondary" sx={{ mt: 0.75 }}>Choose one primary service under the synthetic policy v1.1. If your work spans several categories, ask the reviewer to confirm the best fit.</Typography></Box>
+        <Box><Typography variant="h5">1. What does your business provide?</Typography><Typography color="text.secondary" sx={{ mt: 0.75 }}>Choose the service that best describes what you provide. If your work spans several areas, choose the main service and your reviewer can confirm the fit.</Typography></Box>
         <TextField select label="Category" value={category} onChange={(event) => { setCategory(event.target.value); setSubcategory('') }} required>
-          {categoryOptions.map((item) => <MenuItem key={item.code} value={item.code}>{item.label} ({item.code})</MenuItem>)}
+          {categoryOptions.map((item) => <MenuItem key={item.code} value={item.code}>{item.label}</MenuItem>)}
         </TextField>
         <TextField select label="Subcategory" value={subcategory} onChange={(event) => setSubcategory(event.target.value)} disabled={!category} required>
-          {(selectedCategory?.subcategories ?? []).map((item) => <MenuItem key={item.code} value={item.code}>{item.label} ({item.code})</MenuItem>)}
+          {(selectedCategory?.subcategories ?? []).map((item) => <MenuItem key={item.code} value={item.code}>{item.label}</MenuItem>)}
         </TextField>
-        {selectedSubcategory && <Alert severity="info">{selectedSubcategory.definition} Examples: {selectedSubcategory.examples} Boundary: {selectedSubcategory.boundary}</Alert>}
+        {selectedSubcategory && <Alert severity="info">{selectedSubcategory.definition} Examples: {selectedSubcategory.examples} {plainLanguage(selectedSubcategory.boundary)}</Alert>}
         <Button onClick={() => void saveCategory()} disabled={busy || !category || !subcategory} variant="contained" size="large">Save and continue</Button>
       </Stack>}
 
       {!submitted && step === 1 && <Stack spacing={3}>
         <Box><Typography variant="h5">2. Tell us about your business</Typography><Typography color="text.secondary" sx={{ mt: 0.75 }}>{selectedCategory?.label} / {selectedSubcategory?.label}</Typography></Box>
         <TextField label="Registered business name" required value={name} onChange={(event) => setName(event.target.value)} inputProps={{ maxLength: 200 }} />
-        <TextField label="Country" required value={country} InputProps={{ readOnly: true }} helperText="Synthetic policy v1.1 covers India-based incorporated suppliers only." />
         <TextField label="Contact email" type="email" required value={email} onChange={(event) => setEmail(event.target.value)} />
-        <TextField label="PAN / tax reference" required value={taxReference} onChange={(event) => setTaxReference(event.target.value)} helperText="Must match the tax evidence you upload (BASE-002). Use synthetic data for the demo." />
-        <TextField label="Bank account number" required value={bankAccountNumber} onChange={(event) => setBankAccountNumber(event.target.value)} helperText="Must match the bank evidence you upload (BASE-003). Use synthetic data for the demo." />
-        <TextField label="Bank IFSC" required value={bankIfsc} onChange={(event) => setBankIfsc(event.target.value)} helperText="Must match the bank evidence you upload (BASE-003)." />
+        <TextField label="PAN / tax reference" required value={taxReference} onChange={(event) => setTaxReference(event.target.value)} helperText="Enter the reference shown on your tax document." />
+        <TextField label="Bank account number" required value={bankAccountNumber} onChange={(event) => setBankAccountNumber(event.target.value)} helperText="Enter the account number shown on your bank document." />
+        <TextField label="Bank IFSC" required value={bankIfsc} onChange={(event) => setBankIfsc(event.target.value)} helperText="Enter the IFSC shown on your bank document." />
         <Stack direction="row" spacing={1}><Button startIcon={<ArrowBackRoundedIcon />} onClick={() => setStep(0)}>Category</Button>
-          <Button onClick={() => void saveDetails()} disabled={busy || name.trim().length < 2 || !country || !email.trim() || !taxReference.trim() || !bankAccountNumber.trim() || !bankIfsc.trim()} variant="contained" size="large">Save and continue to documents</Button></Stack>
+          <Button onClick={() => void saveDetails()} disabled={busy || name.trim().length < 2 || !email.trim() || !taxReference.trim() || !bankAccountNumber.trim() || !bankIfsc.trim()} variant="contained" size="large">Save and continue to documents</Button></Stack>
       </Stack>}
 
       {(step === 2 || submitted) && <Stack spacing={3}>
         <Box><Typography variant="h5">{submitted ? 'Application summary' : '3. Upload your documents'}</Typography>
-          <Typography color="text.secondary" sx={{ mt: 0.75 }}>{application.name} · {application.category} / {application.subcategory} · {application.country}</Typography></Box>
+          <Typography color="text.secondary" sx={{ mt: 0.75 }}>{application.name} · {selectedCategory?.label ?? application.category} / {selectedSubcategory?.label ?? application.subcategory}</Typography></Box>
         <Divider />
-        <Alert severity="info">Synthetic policy checklist · {application.requirements.version}. {application.requirements.reason} The portal checks that files are present; a reviewer must verify their contents against the numbered checks.</Alert>
-        <Typography variant="body2" color="text.secondary">Upload one text-based PDF or UTF-8 text file (up to 10 MB) for each requirement. For requirements with two evidence items, combine them into one PDF. Scanned images and image-only PDFs are not supported yet.</Typography>
-        {application.requirements.documents.map(({ document_type: type, requirement_id, label, why, accepted_evidence, required_fields, checks, source }) => {
+        <Alert severity="info">These documents are based on the service you selected. A reviewer will check their contents after you submit.</Alert>
+        <Typography variant="body2" color="text.secondary">Upload one text-based PDF or UTF-8 text file (up to 10 MB) for each item. If an item asks for two pieces of evidence, combine them into one PDF. Scanned images and image-only PDFs are not supported yet.</Typography>
+        {application.requirements.documents.map(({ document_type: type, label, why, accepted_evidence, required_fields, checks }) => {
           const document = documents.get(type)
           return <Stack key={type} direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ sm: 'center' }} spacing={1.5} sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
-            <Box sx={{ flex: 1 }}><Typography fontWeight={700}>{requirement_id && `${requirement_id} · `}{label}</Typography><Typography variant="body2" color="text.secondary">{why}</Typography>
-              {accepted_evidence && <Typography variant="body2" sx={{ mt: 0.5 }}><strong>Submit:</strong> {accepted_evidence}</Typography>}
-              {required_fields && <Typography variant="body2"><strong>Include:</strong> {required_fields}</Typography>}
-              {checks.length > 0 && <Box component="details" sx={{ mt: 0.5 }}><Typography component="summary" variant="body2" sx={{ cursor: 'pointer' }}>View policy checks and source</Typography>
-                {checks.map((check, i) => <Typography key={i} variant="body2">{requirement_id}.R{i + 1}: {check}</Typography>)}
-                <Typography variant="caption" color="text.secondary">Source: {source}</Typography></Box>}
+            <Box sx={{ flex: 1 }}><Typography fontWeight={700}>{label}</Typography><Typography variant="body2" color="text.secondary">{plainLanguage(why)}</Typography>
+              {accepted_evidence && <Typography variant="body2" sx={{ mt: 0.5 }}><strong>Submit:</strong> {plainLanguage(accepted_evidence)}</Typography>}
+              {required_fields && <Typography variant="body2"><strong>Include:</strong> {plainLanguage(required_fields)}</Typography>}
+              {checks.length > 0 && <Box component="details" sx={{ mt: 0.5 }}><Typography component="summary" variant="body2" sx={{ cursor: 'pointer' }}>What reviewers will check</Typography>
+                {checks.map((check) => <Typography key={check} variant="body2">{plainLanguage(check)}</Typography>)}</Box>}
               <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>{document ? document.filename : selected?.type === type ? selected.file.name : 'Not uploaded yet'}</Typography></Box>
             {document ? <Stack direction="row" alignItems="center" spacing={1}>
               <Chip label={document.processing_status === 'ready' ? 'Uploaded' : document.processing_status} color={document.processing_status === 'ready' ? 'success' : 'warning'} size="small" />
@@ -185,7 +187,7 @@ export function SupplierApplicationPage() {
         })}
         {extras.length > 0 && <Alert severity="warning">Your details changed, so {extras.length === 1 ? 'a previously uploaded document is' : 'some previously uploaded documents are'} no longer in the checklist. Remove {extras.length === 1 ? 'it' : 'them'} before submitting.</Alert>}
         {extras.map((document) => <Stack key={document.id} direction="row" justifyContent="space-between" alignItems="center" sx={{ p: 2, border: '1px solid', borderColor: 'warning.main', borderRadius: 2 }}>
-          <Box><Typography fontWeight={700}>{fallbackLabels[document.document_type] ?? document.document_type} · not requested</Typography><Typography variant="body2">{document.filename}</Typography></Box>
+          <Box><Typography fontWeight={700}>{fallbackLabels[document.document_type] ?? catalog?.requirements[document.document_type]?.label ?? 'Previously requested document'} · not requested</Typography><Typography variant="body2">{document.filename}</Typography></Box>
           {!submitted && <IconButton aria-label={`Remove ${document.filename}`} disabled={busy} onClick={() => void removeDocument(document.id)}><DeleteOutlineRoundedIcon /></IconButton>}
         </Stack>)}
         {!submitted && <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={1}>

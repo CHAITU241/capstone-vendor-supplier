@@ -114,7 +114,7 @@ def checklist_for(supplier: Supplier) -> Checklist:
     subcategory = subcategory_for(supplier.category or "", supplier.subcategory or "")
     if not subcategory:
         return Checklist(version=policy.version, status="classification_required",
-                         reason="Choose one primary subcategory from the synthetic policy before uploading.", documents=[])
+                         reason="Choose your primary service before uploading documents.", documents=[])
     documents = []
     for code in policy.baseline + subcategory.requirements:
         definition = policy.requirements[code]

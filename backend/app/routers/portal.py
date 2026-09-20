@@ -144,13 +144,14 @@ def save_application(payload: ApplicationUpdate, session: PortalSession = Depend
     if not subcategory_for(payload.category, payload.subcategory):
         raise HTTPException(status_code=422, detail="Choose a primary category and subcategory from the policy list.")
     if payload.country is not None and payload.country.strip() != "India":
-        raise HTTPException(status_code=422, detail="The synthetic v1.1 policy only covers India-based suppliers.")
+        raise HTTPException(status_code=422, detail="This application is available to India-based suppliers.")
     supplier.category = payload.category.strip()
     supplier.subcategory = payload.subcategory.strip()
     if payload.name is not None:
         supplier.name = payload.name.strip()
-    if payload.country is not None:
-        supplier.country = payload.country.strip()
+        supplier.country = "India"  # Only one country is in scope; correct older drafts on details save.
+    elif payload.country is not None:
+        supplier.country = "India"
     if payload.contact_email is not None:
         supplier.contact_email = str(payload.contact_email)
     for field in ("tax_reference", "bank_account_number", "bank_ifsc"):
@@ -166,9 +167,10 @@ def save_application(payload: ApplicationUpdate, session: PortalSession = Depend
 def submit_application(session: PortalSession = Depends(require_supplier), db: Session = Depends(get_db)) -> ApplicationRead:
     supplier = get_application(db, session)
     if not subcategory_for(supplier.category or "", supplier.subcategory or "") or supplier.name == "New application" or supplier.country != "India":
-        raise HTTPException(status_code=422, detail="Choose a policy category and complete your India-based business details first.")
+        raise HTTPException(status_code=422, detail="Choose a service category and complete your business details first.")
     if not all((supplier.contact_email, supplier.tax_reference, supplier.bank_account_number, supplier.bank_ifsc)):
         raise HTTPException(status_code=422, detail="Contact email, tax reference, bank account number and IFSC are required portal fields.")
+    checklist = checklist_for(supplier)
     required = required_types_for(supplier)
     uploaded = set(db.scalars(select(Document.document_type).where(
         Document.supplier_id == supplier.id,
@@ -178,10 +180,11 @@ def submit_application(session: PortalSession = Depends(require_supplier), db: S
         Document.processing_status == ProcessingStatus.READY,
     )).all())
     if ready != required or uploaded != required:
-        missing = sorted(item.value for item in required - ready)
-        extra = sorted(item.value for item in uploaded - required)
+        labels = {item.document_type: item.label for item in checklist.documents}
+        missing = sorted(labels[item] for item in required - ready)
+        extra = uploaded - required
         raise HTTPException(status_code=422, detail=(
-            f"Remove documents no longer required: {', '.join(extra)}." if extra
+            "Remove documents no longer required before submitting." if extra
             else f"Upload ready documents for: {', '.join(missing)}."
         ))
     if supplier.submitted_at is None:
@@ -199,7 +202,7 @@ async def upload_application_document(
     settings: Settings = Depends(get_settings),
 ):
     supplier = get_application(db, session)
-    if supplier.submitted_at or not supplier.category or not supplier.country:
+    if supplier.submitted_at or not supplier.category or supplier.country != "India":
         raise HTTPException(status_code=409, detail="Complete your details before uploading, or this application is already submitted.")
     if document_type not in required_types_for(supplier):
         raise HTTPException(status_code=422, detail="This document type is not in your current checklist.")

@@ -17,6 +17,7 @@ export interface PolicyCatalog {
   status: string
   scope: string
   baseline: string[]
+  requirements: Record<string, { label: string }>
   categories: Array<{ code: string; label: string; subcategories: Array<{ code: string; label: string; definition: string; examples: string; boundary: string; requirements: string[]; source: string }> }>
 }
 

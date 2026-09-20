@@ -13,9 +13,9 @@ const welcomeMessage: GeneralAssistantMessage = {
 }
 
 const quickGuides = [
-  { label: 'What do I need?', answer: 'Choose one of the 24 primary subcategories, then enter your registered name, contact email, tax reference, bank account and IFSC. The document page shows the three baseline items and any additional requirements for your code under synthetic policy v1.1.' },
+  { label: 'What do I need?', answer: 'Choose the service that best describes your business. Then enter your registered name, contact email, tax reference, bank account and IFSC. Your document page will show exactly what to upload and what each item should contain.' },
   { label: 'Can I save and return?', answer: 'Yes. Create a supplier account with your email and password. Each completed step and uploaded document is saved to your account. Sign in with the same email to continue.' },
-  { label: 'What happens next?', answer: 'After the requested files are uploaded, submit your application. A reviewer checks their contents against the policy fields and numbered rules. Uploading a file alone does not mean it passed.' },
+  { label: 'What happens next?', answer: 'After the requested files are uploaded, submit your application. A reviewer checks their contents and will tell you if anything needs correction.' },
 ]
 
 export function SupplierAssistantPopover() {
@@ -56,7 +56,7 @@ export function SupplierAssistantPopover() {
       <Stack sx={{ height: '100%' }}>
         <Stack direction="row" alignItems="center" spacing={1.5} sx={{ px: 2.5, py: 2, bgcolor: 'white', borderBottom: '1px solid', borderColor: 'divider' }}>
           <Box sx={{ width: 42, height: 42, display: 'grid', placeItems: 'center', bgcolor: '#EDE9FE', color: 'tertiary.main', borderRadius: 2 }}><SupportAgentRoundedIcon /></Box>
-          <Box sx={{ flexGrow: 1 }}><Typography fontWeight={750}>VendorLens guide</Typography><Typography variant="caption" color="text.secondary">Onboarding help · OpenRouter ready</Typography></Box>
+          <Box sx={{ flexGrow: 1 }}><Typography fontWeight={750}>VendorLens guide</Typography><Typography variant="caption" color="text.secondary">Supplier onboarding help</Typography></Box>
           <IconButton title="Start a new chat" aria-label="Start a new chat" onClick={resetChat} disabled={asking}><RefreshRoundedIcon /></IconButton>
           <IconButton title="Close assistant" aria-label="Close assistant" onClick={() => setOpen(false)}><CloseRoundedIcon /></IconButton>
         </Stack>
@@ -80,7 +80,7 @@ export function SupplierAssistantPopover() {
             <TextField fullWidth size="small" placeholder="Ask about onboarding..." aria-label="Ask the assistant" value={question} onChange={(event) => setQuestion(event.target.value)} disabled={asking} />
             <Button type="submit" variant="contained" aria-label="Send question" disabled={asking || question.trim().length < 3} sx={{ minWidth: 44, px: 1.5 }}><SendRoundedIcon fontSize="small" /></Button>
           </Stack>
-          <Typography display="block" variant="caption" color="text.secondary" sx={{ mt: 1 }}>Uses synthetic policy v1.1 when AI is configured. This chat cannot inspect your uploads or case results.</Typography>
+          <Typography display="block" variant="caption" color="text.secondary" sx={{ mt: 1 }}>This guide can explain requirements but cannot inspect your uploads or application result.</Typography>
         </Box>
       </Stack>
     </Drawer>
