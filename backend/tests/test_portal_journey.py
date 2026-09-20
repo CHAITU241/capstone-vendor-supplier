@@ -4,12 +4,13 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
+from pathlib import Path
 from uuid import UUID
 
 from app.config import Settings, get_settings
 from app.database import Base, get_db
 from app.main import app
-from app.models import Supplier
+from app.models import DocumentRevision, Supplier
 
 
 def test_supplier_can_resume_and_submit_without_ai(tmp_path):
@@ -68,6 +69,70 @@ def test_supplier_can_resume_and_submit_without_ai(tmp_path):
             assert client.patch("/api/portal/application", headers=supplier_headers, json={
                 "category": "GOODS", "subcategory": "GOODS-ITE",
             }).status_code == 409
+    finally:
+        app.dependency_overrides.clear()
+        engine.dispose()
+
+
+def test_originals_are_private_and_retained_after_replacement(tmp_path):
+    engine = create_engine("sqlite+pysqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
+    Base.metadata.create_all(engine)
+
+    def db_override():
+        with Session(engine) as db:
+            yield db
+
+    app.dependency_overrides[get_db] = db_override
+    app.dependency_overrides[get_settings] = lambda: Settings(upload_dir=tmp_path / "uploads", chroma_path=tmp_path / "chroma")
+    try:
+        with TestClient(app) as client:
+            first_account = client.post("/api/portal/auth/register", json={"email": "original@example.com", "password": "demo-password"})
+            other_account = client.post("/api/portal/auth/register", json={"email": "other@example.com", "password": "demo-password"})
+            own = {"Authorization": f"Bearer {first_account.json()['token']}"}
+            other = {"Authorization": f"Bearer {other_account.json()['token']}"}
+            reviewer = client.post("/api/portal/auth/reviewer-demo")
+            review = {"Authorization": f"Bearer {reviewer.json()['token']}"}
+            profile = client.patch("/api/portal/application", headers=own, json={
+                "category": "GOODS", "subcategory": "GOODS-OFF", "name": "Original Supply Ltd",
+                "contact_email": "original@example.com", "tax_reference": "DEMO-PAN-1",
+                "bank_account_number": "DEMO-ACCOUNT-1", "bank_ifsc": "DEMO0123456",
+            })
+            assert profile.status_code == 200, profile.text
+            supplier_id = profile.json()["id"]
+            url = "/api/portal/application/documents"
+            upload = client.post(url, headers=own, data={"document_type": "registration"},
+                files={"file": ("first.txt", b"Original Supply Ltd, first version", "text/plain")})
+            assert upload.status_code == 201, upload.text
+            first_id = upload.json()["id"]
+            assert upload.json()["revision"] == 1
+            assert len(upload.json()["sha256"]) == 64
+            assert client.get(f"{url}/{first_id}/content", headers=own).content == b"Original Supply Ltd, first version"
+            assert client.get(f"{url}/{first_id}/content", headers=other).status_code == 404
+            assert client.get(f"/api/suppliers/{supplier_id}/documents/{first_id}/content", headers=review).status_code == 404
+
+            assert client.delete(f"{url}/{first_id}", headers=own).status_code == 204
+            history = client.get(f"{url}/history", headers=own).json()
+            assert [item["id"] for item in history] == [first_id]
+            assert client.get(f"{url}/{first_id}/content", headers=own).content == b"Original Supply Ltd, first version"
+            assert client.get(f"{url}/{first_id}/content", headers=other).status_code == 404
+
+            replacement = client.post(url, headers=own, data={"document_type": "registration"},
+                files={"file": ("second.txt", b"Original Supply Ltd, second version", "text/plain")})
+            assert replacement.status_code == 201, replacement.text
+            assert replacement.json()["revision"] == 2
+            assert replacement.json()["id"] != first_id
+            for kind in ("tax", "bank"):
+                response = client.post(url, headers=own, data={"document_type": kind},
+                    files={"file": (f"{kind}.txt", b"Original Supply Ltd", "text/plain")})
+                assert response.status_code == 201, response.text
+            assert client.post("/api/portal/application/submit", headers=own).status_code == 200
+            reviewer_url = f"/api/suppliers/{supplier_id}/documents"
+            assert client.get(f"{reviewer_url}/{first_id}/content", headers=review).content == b"Original Supply Ltd, first version"
+            assert client.get(f"{reviewer_url}/history", headers=review).json()[0]["revision"] == 1
+            with Session(engine) as db:
+                archived = db.get(DocumentRevision, UUID(first_id))
+                Path(archived.storage_path).write_bytes(b"altered outside the portal")
+            assert client.get(f"{reviewer_url}/{first_id}/content", headers=review).status_code == 409
     finally:
         app.dependency_overrides.clear()
         engine.dispose()

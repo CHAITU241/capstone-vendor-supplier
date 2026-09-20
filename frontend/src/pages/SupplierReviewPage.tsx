@@ -32,7 +32,9 @@ import {
 import { ChangeEvent, useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { api } from '../api/client'
+import { downloadOriginal, openOriginal } from '../api/openOriginal'
 import type {
+  DocumentRevision,
   DocumentType,
   ExtractedField,
   SupplierDetail,
@@ -78,6 +80,7 @@ type FieldConflictDetail = {
 export function SupplierReviewPage() {
   const { supplierId = '' } = useParams()
   const [supplier, setSupplier] = useState<SupplierDetail | null>(null)
+  const [history, setHistory] = useState<DocumentRevision[]>([])
   const [documentType, setDocumentType] = useState<DocumentType>('registration')
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [loading, setLoading] = useState(true)
@@ -147,7 +150,9 @@ export function SupplierReviewPage() {
 
   const loadSupplier = useCallback(async () => {
     try {
-      setSupplier(await api.getSupplier(supplierId))
+      const [detail, archived] = await Promise.all([api.getSupplier(supplierId), api.reviewerDocumentHistory(supplierId)])
+      setSupplier(detail)
+      setHistory(archived)
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : 'Supplier could not be loaded.')
     } finally {
@@ -156,6 +161,16 @@ export function SupplierReviewPage() {
   }, [supplierId])
 
   useEffect(() => { void loadSupplier() }, [loadSupplier])
+
+  async function viewOriginal(id: string) {
+    try { await openOriginal(() => api.reviewerOriginal(supplierId, id)) }
+    catch (err) { setError(err instanceof Error ? err.message : 'Could not open the original document.') }
+  }
+
+  async function downloadFile(id: string, filename: string) {
+    try { await downloadOriginal(() => api.reviewerOriginal(supplierId, id), filename) }
+    catch (err) { setError(err instanceof Error ? err.message : 'Could not download the original document.') }
+  }
 
   async function handleUpload() {
     if (!selectedFile || !effectiveDocumentType) return
@@ -331,6 +346,8 @@ export function SupplierReviewPage() {
                   </Stack>
                   <Stack direction="row" alignItems="center" spacing={0.5}>
                     <StatusChip status={document.processing_status} />
+                    <Button size="small" onClick={() => void viewOriginal(document.id)}>View original</Button>
+                    <Button size="small" onClick={() => void downloadFile(document.id, document.filename)}>Download</Button>
                     <Tooltip title="Delete document">
                       <IconButton
                         aria-label={`Delete ${document.filename}`}
@@ -346,6 +363,15 @@ export function SupplierReviewPage() {
               ))}
             </Stack>
           )}
+          {history.length > 0 && <Box sx={{ mt: 3 }}>
+            <Typography fontWeight={700}>Previous uploads</Typography>
+            <Typography variant="body2" color="text.secondary">Retained originals from earlier uploads.</Typography>
+            {history.map((item) => <Stack key={item.id} direction="row" justifyContent="space-between" alignItems="center" spacing={1} sx={{ py: 1 }}>
+              <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>{item.filename} · version {item.revision}</Typography>
+              <Button size="small" onClick={() => void viewOriginal(item.id)}>View original</Button>
+              <Button size="small" onClick={() => void downloadFile(item.id, item.filename)}>Download</Button>
+            </Stack>)}
+          </Box>}
         </CardContent></Card>
 
         <Card><CardContent sx={{ p: 3 }}>

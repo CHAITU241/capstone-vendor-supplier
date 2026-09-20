@@ -1,8 +1,10 @@
 import uuid
+import hashlib
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile, status
-from sqlalchemy import delete, select
+from fastapi.responses import FileResponse
+from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -12,13 +14,14 @@ from app.models import (
     AuditEvent,
     ComplianceResult,
     Document,
+    DocumentRevision,
     DocumentType,
     ExtractedField,
     ProcessingStatus,
     Supplier,
     SupplierStatus,
 )
-from app.schemas import DocumentRead
+from app.schemas import DocumentRead, DocumentRevisionRead
 from app.services.portal_auth import require_reviewer
 from app.services.document_policy import required_types_for
 from app.services.documents import DocumentExtractionError, extract_document_text
@@ -86,6 +89,11 @@ async def upload_document(
     file_path = supplier_directory / f"{document_id}{ALLOWED_CONTENT_TYPES[content_type]}"
     file_path.write_bytes(contents)
 
+    previous_revision = db.scalar(select(func.max(DocumentRevision.revision)).where(
+        DocumentRevision.supplier_id == supplier_id,
+        DocumentRevision.document_type == document_type.value,
+    )) or 0
+
     document = Document(
         id=document_id,
         supplier_id=supplier_id,
@@ -94,6 +102,8 @@ async def upload_document(
         storage_path=str(file_path),
         content_type=content_type,
         file_size=len(contents),
+        sha256=hashlib.sha256(contents).hexdigest(),
+        revision=previous_revision + 1,
         processing_status=ProcessingStatus.PROCESSING,
     )
     db.add(document)
@@ -155,8 +165,9 @@ def delete_document(
     if document is None:
         raise HTTPException(status_code=404, detail="Document was not found.")
 
-    file_path = Path(document.storage_path).resolve()
-    upload_root = settings.upload_dir.resolve()
+    file_path = _private_file_path(document.storage_path, settings)
+    if not file_path.is_file():
+        raise HTTPException(status_code=503, detail="The original document is unavailable in file storage.")
     supplier = db.get(Supplier, supplier_id)
     if supplier is not None and supplier.status in {
         SupplierStatus.APPROVED,
@@ -178,15 +189,24 @@ def delete_document(
         supplier.decision_reason = None
         supplier.decided_at = None
         supplier.erp_supplier_id = None
+    db.add(DocumentRevision(
+        id=document.id, supplier_id=supplier_id,
+        document_type=document.document_type.value, revision=document.revision,
+        filename=document.filename, storage_path=document.storage_path,
+        content_type=document.content_type, file_size=document.file_size,
+        sha256=document.sha256 or hashlib.sha256(file_path.read_bytes()).hexdigest(),
+        uploaded_at=document.created_at,
+    ))
     db.add(
         AuditEvent(
             supplier_id=supplier_id,
-            action="document.deleted",
+            action="document.archived",
             entity_type="document",
             entity_id=str(document.id),
             details={
                 "filename": document.filename,
                 "document_type": document.document_type.value,
+                "revision": document.revision,
                 "ai_results_cleared": True,
             },
         )
@@ -194,7 +214,65 @@ def delete_document(
     db.delete(document)
     db.commit()
 
-    if file_path.is_relative_to(upload_root):
-        file_path.unlink(missing_ok=True)
-
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+def _private_file_path(storage_path: str, settings: Settings) -> Path:
+    path = Path(storage_path).resolve()
+    if not path.is_relative_to(settings.upload_dir.resolve()):
+        raise HTTPException(status_code=404, detail="Document was not found.")
+    return path
+
+
+def original_file_response(
+    db: Session, supplier_id: uuid.UUID, document_id: uuid.UUID, settings: Settings,
+    *, actor: str,
+) -> FileResponse:
+    active = db.scalar(select(Document).where(Document.id == document_id, Document.supplier_id == supplier_id))
+    archived = None if active else db.scalar(select(DocumentRevision).where(
+        DocumentRevision.id == document_id, DocumentRevision.supplier_id == supplier_id,
+    ))
+    record = active or archived
+    if record is None:
+        raise HTTPException(status_code=404, detail="Document was not found.")
+    path = _private_file_path(record.storage_path, settings)
+    if not path.is_file():
+        raise HTTPException(status_code=503, detail="The original document is unavailable in file storage.")
+    if record.sha256 and hashlib.sha256(path.read_bytes()).hexdigest() != record.sha256:
+        raise HTTPException(status_code=409, detail="The stored original failed its integrity check.")
+    db.add(AuditEvent(
+        supplier_id=supplier_id, action="document.viewed", entity_type="document",
+        entity_id=str(document_id), details={"actor": actor, "archived": active is None},
+    ))
+    db.commit()
+    return FileResponse(
+        path, media_type=record.content_type, filename=record.filename,
+        content_disposition_type="inline",
+        headers={"Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff"},
+    )
+
+
+def document_history(db: Session, supplier_id: uuid.UUID) -> list[DocumentRevisionRead]:
+    versions = db.scalars(select(DocumentRevision).where(
+        DocumentRevision.supplier_id == supplier_id,
+    ).order_by(DocumentRevision.archived_at.desc())).all()
+    return [DocumentRevisionRead.model_validate(item) for item in versions]
+
+
+@router.get("/{supplier_id}/documents/history", response_model=list[DocumentRevisionRead])
+def reviewer_document_history(supplier_id: uuid.UUID, db: Session = Depends(get_db)) -> list[DocumentRevisionRead]:
+    supplier = db.get(Supplier, supplier_id)
+    if supplier is None or (supplier.account_id is not None and supplier.submitted_at is None):
+        raise HTTPException(status_code=404, detail="Supplier was not found.")
+    return document_history(db, supplier_id)
+
+
+@router.get("/{supplier_id}/documents/{document_id}/content")
+def reviewer_document_content(
+    supplier_id: uuid.UUID, document_id: uuid.UUID,
+    db: Session = Depends(get_db), settings: Settings = Depends(get_settings),
+) -> FileResponse:
+    supplier = db.get(Supplier, supplier_id)
+    if supplier is None or (supplier.account_id is not None and supplier.submitted_at is None):
+        raise HTTPException(status_code=404, detail="Supplier was not found.")
+    return original_file_response(db, supplier_id, document_id, settings, actor="reviewer")

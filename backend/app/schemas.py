@@ -49,10 +49,27 @@ class DocumentRead(BaseModel):
     filename: str
     content_type: str
     file_size: int
+    sha256: str | None = None
+    revision: int = 1
     page_count: int
     processing_status: ProcessingStatus
     error_message: str | None
     created_at: datetime
+
+
+class DocumentRevisionRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    supplier_id: uuid.UUID
+    document_type: str
+    revision: int
+    filename: str
+    content_type: str
+    file_size: int
+    sha256: str
+    uploaded_at: datetime
+    archived_at: datetime
 
 
 class AuditEventRead(BaseModel):

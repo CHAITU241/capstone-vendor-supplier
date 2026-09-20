@@ -73,10 +73,25 @@ export interface SupplierDocument {
   filename: string
   content_type: string
   file_size: number
+  sha256: string | null
+  revision: number
   page_count: number
   processing_status: ProcessingStatus
   error_message: string | null
   created_at: string
+}
+
+export interface DocumentRevision {
+  id: string
+  supplier_id: string
+  document_type: string
+  revision: number
+  filename: string
+  content_type: string
+  file_size: number
+  sha256: string
+  uploaded_at: string
+  archived_at: string
 }
 
 export interface AuditEvent {

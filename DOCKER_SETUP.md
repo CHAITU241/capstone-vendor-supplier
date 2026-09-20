@@ -193,6 +193,7 @@ Named volumes preserve:
 
 - PostgreSQL records and audit history in `vendorlens_postgres_data`.
 - Uploaded source files in `vendorlens_uploads_data`.
+- Originals removed from the active checklist remain in the same uploads volume and are listed as previous uploads. Replacements receive new document IDs and version numbers.
 - Chroma vectors in `vendorlens_chroma_data`.
 
 To inspect them:

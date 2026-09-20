@@ -171,6 +171,8 @@ class Document(Base):
     storage_path: Mapped[str] = mapped_column(String(500))
     content_type: Mapped[str] = mapped_column(String(100))
     file_size: Mapped[int]
+    sha256: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    revision: Mapped[int] = mapped_column(Integer, default=1)
     page_count: Mapped[int] = mapped_column(default=0)
     extracted_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     redacted_text: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -189,6 +191,24 @@ class Document(Base):
     extracted_fields: Mapped[list["ExtractedField"]] = relationship(
         back_populates="document", cascade="all, delete-orphan"
     )
+
+
+class DocumentRevision(Base):
+    """Immutable metadata for an original that is no longer the active upload."""
+
+    __tablename__ = "document_revisions"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True)
+    supplier_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("suppliers.id", ondelete="CASCADE"), index=True)
+    document_type: Mapped[str] = mapped_column(String(40))
+    revision: Mapped[int] = mapped_column(Integer)
+    filename: Mapped[str] = mapped_column(String(255))
+    storage_path: Mapped[str] = mapped_column(String(500))
+    content_type: Mapped[str] = mapped_column(String(100))
+    file_size: Mapped[int] = mapped_column(Integer)
+    sha256: Mapped[str] = mapped_column(String(64))
+    uploaded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    archived_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class ExtractedField(Base):

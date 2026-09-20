@@ -4,7 +4,8 @@ import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
 import { Alert, Box, Button, Card, CardContent, Chip, CircularProgress, Divider, IconButton, MenuItem, Stack, Step, StepLabel, Stepper, TextField, Typography } from '@mui/material'
 import { useCallback, useEffect, useState, type ChangeEvent } from 'react'
 import { api } from '../api/client'
-import type { DocumentType, PolicyCatalog, SupplierApplication } from '../api/types'
+import { downloadOriginal, openOriginal } from '../api/openOriginal'
+import type { DocumentRevision, DocumentType, PolicyCatalog, SupplierApplication } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
 
 const fallbackLabels: Record<DocumentType, string> = {
@@ -17,6 +18,7 @@ const fallbackLabels: Record<DocumentType, string> = {
 export function SupplierApplicationPage() {
   const { session } = useAuth()
   const [application, setApplication] = useState<SupplierApplication | null>(null)
+  const [history, setHistory] = useState<DocumentRevision[]>([])
   const [catalog, setCatalog] = useState<PolicyCatalog | null>(null)
   const [step, setStep] = useState(0)
   const [category, setCategory] = useState('')
@@ -32,8 +34,9 @@ export function SupplierApplicationPage() {
   const [notice, setNotice] = useState('')
 
   const load = useCallback(async () => {
-    const result = await api.getApplication()
+    const [result, archived] = await Promise.all([api.getApplication(), api.applicationDocumentHistory()])
     setApplication(result)
+    setHistory(archived)
     setCategory(result.category || '')
     setSubcategory(result.subcategory || '')
     setName(result.name === 'New application' ? '' : result.name)
@@ -81,7 +84,7 @@ export function SupplierApplicationPage() {
     try {
       await api.uploadApplicationDocument(type, selected.file)
       setSelected(null)
-      setApplication(await api.getApplication())
+      await load()
       setNotice(`${application?.requirements.documents.find((item) => item.document_type === type)?.label ?? fallbackLabels[type] ?? type} uploaded.`)
     } catch (err) { setError(err instanceof Error ? err.message : 'Could not upload document.') }
     finally { setBusy(false) }
@@ -91,8 +94,8 @@ export function SupplierApplicationPage() {
     setBusy(true); setError(''); setNotice('')
     try {
       await api.deleteApplicationDocument(id)
-      setApplication(await api.getApplication())
-      setNotice('Document removed. You can upload a replacement.')
+      await load()
+      setNotice('Document moved to upload history. You can upload a replacement.')
     } catch (err) { setError(err instanceof Error ? err.message : 'Could not remove document.') }
     finally { setBusy(false) }
   }
@@ -104,6 +107,16 @@ export function SupplierApplicationPage() {
       setNotice('Your application has been submitted to the reviewer workspace.')
     } catch (err) { setError(err instanceof Error ? err.message : 'Could not submit application.') }
     finally { setBusy(false) }
+  }
+
+  async function viewOriginal(id: string) {
+    try { await openOriginal(() => api.applicationOriginal(id)) }
+    catch (err) { setError(err instanceof Error ? err.message : 'Could not open the original document.') }
+  }
+
+  async function downloadFile(id: string, filename: string) {
+    try { await downloadOriginal(() => api.applicationOriginal(id), filename) }
+    catch (err) { setError(err instanceof Error ? err.message : 'Could not download the original document.') }
   }
 
   if ((!application || !catalog) && !error) return <Box sx={{ display: 'grid', placeItems: 'center', py: 8 }}><CircularProgress /></Box>
@@ -173,6 +186,8 @@ export function SupplierApplicationPage() {
               <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>{document ? document.filename : selected?.type === type ? selected.file.name : 'Not uploaded yet'}</Typography></Box>
             {document ? <Stack direction="row" alignItems="center" spacing={1}>
               <Chip label={document.processing_status === 'ready' ? 'Uploaded' : document.processing_status} color={document.processing_status === 'ready' ? 'success' : 'warning'} size="small" />
+              <Button size="small" onClick={() => void viewOriginal(document.id)}>View original</Button>
+              <Button size="small" onClick={() => void downloadFile(document.id, document.filename)}>Download</Button>
               {!submitted && <IconButton aria-label={`Remove ${label}`} disabled={busy} onClick={() => void removeDocument(document.id)}><DeleteOutlineRoundedIcon /></IconButton>}
             </Stack> : !submitted && <Stack direction="row" spacing={1}>
               <Button component="label" variant="outlined" startIcon={<CloudUploadRoundedIcon />}>Choose file
@@ -190,6 +205,15 @@ export function SupplierApplicationPage() {
           <Box><Typography fontWeight={700}>{fallbackLabels[document.document_type] ?? catalog?.requirements[document.document_type]?.label ?? 'Previously requested document'} · not requested</Typography><Typography variant="body2">{document.filename}</Typography></Box>
           {!submitted && <IconButton aria-label={`Remove ${document.filename}`} disabled={busy} onClick={() => void removeDocument(document.id)}><DeleteOutlineRoundedIcon /></IconButton>}
         </Stack>)}
+        {history.length > 0 && <Box>
+          <Typography variant="h6">Previous uploads</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>Original files are retained when you remove or replace them.</Typography>
+          {history.map((item) => <Stack key={item.id} direction="row" alignItems="center" justifyContent="space-between" spacing={2} sx={{ py: 1, borderBottom: '1px solid', borderColor: 'divider' }}>
+            <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>{item.filename} · version {item.revision}</Typography>
+            <Button size="small" onClick={() => void viewOriginal(item.id)}>View original</Button>
+            <Button size="small" onClick={() => void downloadFile(item.id, item.filename)}>Download</Button>
+          </Stack>)}
+        </Box>}
         {!submitted && <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={1}>
           <Button startIcon={<ArrowBackRoundedIcon />} onClick={() => setStep(1)}>Edit details</Button>
           <Button variant="contained" size="large" disabled={busy || application.requirements.documents.length === 0 || missing.length > 0 || extras.length > 0} onClick={() => void submit()}>Submit application for review</Button>

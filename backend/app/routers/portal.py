@@ -4,6 +4,7 @@ import uuid
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile, status
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -12,8 +13,8 @@ from sqlalchemy.orm import Session
 from app.config import Settings, get_settings
 from app.database import get_db
 from app.models import Document, DocumentType, PortalAccount, PortalSession, ProcessingStatus, Supplier, SupplierStatus
-from app.routers.documents import delete_document, upload_document
-from app.schemas import DocumentRead
+from app.routers.documents import delete_document, document_history, original_file_response, upload_document
+from app.schemas import DocumentRead, DocumentRevisionRead
 from app.services.document_policy import Checklist, Policy, checklist_for, load_policy, required_types_for, subcategory_for
 from app.services.portal_auth import (
     create_session, current_session, hash_password, require_supplier, verify_password,
@@ -218,3 +219,19 @@ def delete_application_document(
     if supplier.submitted_at:
         raise HTTPException(status_code=409, detail="This application has already been submitted.")
     return delete_document(supplier.id, document_id, db, settings)
+
+
+@router.get("/application/documents/history", response_model=list[DocumentRevisionRead])
+def application_document_history(
+    session: PortalSession = Depends(require_supplier), db: Session = Depends(get_db),
+) -> list[DocumentRevisionRead]:
+    return document_history(db, get_application(db, session).id)
+
+
+@router.get("/application/documents/{document_id}/content")
+def application_document_content(
+    document_id: uuid.UUID, session: PortalSession = Depends(require_supplier),
+    db: Session = Depends(get_db), settings: Settings = Depends(get_settings),
+) -> FileResponse:
+    supplier = get_application(db, session)
+    return original_file_response(db, supplier.id, document_id, settings, actor="supplier")

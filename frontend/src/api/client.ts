@@ -3,6 +3,7 @@ import type {
   ComplianceRunResponse,
   DecisionResponse,
   DocumentType,
+  DocumentRevision,
   GeneralAssistantMessage,
   GeneralAssistantResponse,
   ProcessSupplierResponse,
@@ -45,6 +46,19 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return response.json() as Promise<T>
 }
 
+async function originalFile(path: string): Promise<Blob> {
+  const saved = localStorage.getItem('vendorlens.session')
+  let token = ''
+  try { token = saved ? (JSON.parse(saved) as PortalSession).token : '' } catch { /* Ignore stale storage. */ }
+  const response = await fetch(`${API_URL}${path}`, { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' })
+  if (!response.ok) {
+    let message = 'The original document could not be opened.'
+    try { message = ((await response.json()) as ApiErrorBody).message ?? message } catch { /* Keep fallback. */ }
+    throw new ApiError(message, response.status)
+  }
+  return response.blob()
+}
+
 export const api = {
   register: (email: string, password: string) => request<PortalSession>('/portal/auth/register', {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }),
@@ -69,6 +83,8 @@ export const api = {
     return request<SupplierDocument>('/portal/application/documents', { method: 'POST', body: formData })
   },
   deleteApplicationDocument: (id: string) => request<void>(`/portal/application/documents/${id}`, { method: 'DELETE' }),
+  applicationDocumentHistory: () => request<DocumentRevision[]>('/portal/application/documents/history'),
+  applicationOriginal: (id: string) => originalFile(`/portal/application/documents/${id}/content`),
   listSuppliers: () => request<SupplierSummary[]>('/suppliers'),
   getSupplier: (id: string) => request<SupplierDetail>(`/suppliers/${id}`),
   createSupplier: (payload: SupplierCreate) =>
@@ -90,6 +106,8 @@ export const api = {
     request<void>(`/suppliers/${supplierId}/documents/${documentId}`, {
       method: 'DELETE',
     }),
+  reviewerDocumentHistory: (supplierId: string) => request<DocumentRevision[]>(`/suppliers/${supplierId}/documents/history`),
+  reviewerOriginal: (supplierId: string, id: string) => originalFile(`/suppliers/${supplierId}/documents/${id}/content`),
   processSupplier: (supplierId: string) =>
     request<ProcessSupplierResponse>(`/suppliers/${supplierId}/process`, {
       method: 'POST',
