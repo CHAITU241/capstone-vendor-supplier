@@ -1,14 +1,15 @@
 import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded'
 import { Alert, Box, Button, Card, CardContent, Stack, TextField, Typography } from '@mui/material'
 import { useState, type FormEvent } from 'react'
-import { Link, Navigate, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { api } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
 
 export function SupplierLoginPage() {
   const { session, setSession } = useAuth()
   const navigate = useNavigate()
-  const [mode, setMode] = useState<'login' | 'register'>('register')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [mode, setMode] = useState<'login' | 'register'>(() => searchParams.get('mode') === 'login' ? 'login' : 'register')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -38,7 +39,12 @@ export function SupplierLoginPage() {
         <TextField required autoComplete="email" type="email" label="Work email" value={email} onChange={(event) => setEmail(event.target.value)} />
         <TextField required type="password" autoComplete={mode === 'register' ? 'new-password' : 'current-password'} label="Password" value={password} onChange={(event) => setPassword(event.target.value)} inputProps={{ minLength: 8, maxLength: 128 }} helperText={mode === 'register' ? 'At least 8 characters.' : undefined} />
         <Button type="submit" variant="contained" size="large" disabled={busy}>{busy ? 'Please wait...' : mode === 'register' ? 'Create account and continue' : 'Sign in and continue'}</Button>
-        <Button onClick={() => { setMode(mode === 'register' ? 'login' : 'register'); setError('') }}>
+        <Button onClick={() => {
+          const nextMode = mode === 'register' ? 'login' : 'register'
+          setMode(nextMode)
+          setSearchParams({ mode: nextMode }, { replace: true })
+          setError('')
+        }}>
           {mode === 'register' ? 'Already started? Sign in' : 'New supplier? Create an account'}
         </Button>
       </Stack>

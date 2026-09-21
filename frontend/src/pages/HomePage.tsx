@@ -44,9 +44,12 @@ export function HomePage() {
             <Box sx={{ width: 52, height: 52, display: 'grid', placeItems: 'center', borderRadius: 2.5, bgcolor: '#DBEAFE', color: 'primary.main', mb: 3 }}><BusinessRoundedIcon /></Box>
             <Typography variant="h5">I'm a supplier</Typography>
             <Typography color="text.secondary" sx={{ mt: 1, mb: 3, minHeight: 50 }}>Apply, add your business details, upload documents, and pick up where you left off.</Typography>
-            <Button component={Link} to={session?.role === 'supplier' ? '/supplier/application' : '/supplier/login'} variant="contained" endIcon={<ArrowForwardRoundedIcon />} size="large">
-              {session?.role === 'supplier' ? 'Continue application' : 'Sign in or create account'}
-            </Button>
+            {session?.role === 'supplier'
+              ? <Button component={Link} to="/supplier/application" variant="contained" endIcon={<ArrowForwardRoundedIcon />} size="large">Continue application</Button>
+              : <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ xs: 'stretch', sm: 'center' }}>
+                  <Button component={Link} to="/supplier/login?mode=register" variant="contained" endIcon={<ArrowForwardRoundedIcon />} size="large">Create account</Button>
+                  <Button component={Link} to="/supplier/login?mode=login" variant="outlined" size="large">Sign in</Button>
+                </Stack>}
           </CardContent>
         </Card>
         <Card sx={{ borderRadius: 3, background: 'linear-gradient(145deg, #FFFFFF 60%, #F3E8FF)' }}>
