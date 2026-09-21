@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.config import Settings, get_settings
 from app.database import get_db
-from app.models import DocumentType, ProcessingStatus, Supplier, SupplierStatus
+from app.models import AiRun, AiRunStatus, AiRunType, DocumentType, ProcessingStatus, Supplier, SupplierStatus
 from app.schemas import (
     AiRunRead,
     ProcessSupplierResponse,
@@ -84,9 +84,17 @@ def process_supplier(
     except HTTPException:
         raise
     except Exception as exc:
+        failed_run = db.scalar(
+            select(AiRun).where(
+                AiRun.supplier_id == supplier_id,
+                AiRun.run_type == AiRunType.PROCESSING,
+                AiRun.status == AiRunStatus.FAILED,
+            ).order_by(AiRun.created_at.desc())
+        )
         raise HTTPException(
             status_code=502,
-            detail="AI processing failed. Review the latest AI run for details.",
+            detail=(failed_run.error_message if failed_run and failed_run.error_message
+                    else "AI processing failed before a diagnostic could be recorded."),
         ) from exc
 
     return ProcessSupplierResponse(

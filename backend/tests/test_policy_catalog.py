@@ -1,8 +1,11 @@
 """The portal catalog and checklist must remain aligned with the 12 PDF sources."""
 
-from app.models import DocumentType, Supplier
+from app.models import Document, DocumentType, ProcessingStatus, Supplier
 from app.services.document_policy import checklist_for, load_policy
-from app.services.policy_retrieval import policy_context_for, supplier_facing_answer
+from app.services.policy_retrieval import (
+    application_answer_for, application_context_for, policy_context_for,
+    supplier_facing_answer,
+)
 
 
 def test_all_24_codes_have_exact_baseline_and_mapped_additions():
@@ -56,3 +59,33 @@ def test_supplier_answer_recovers_from_model_listing_internal_ids():
 def test_supplier_answer_replaces_internal_id_in_general_guidance():
     answer = supplier_facing_answer("How do I prove my tax status?", "Upload evidence for BASE-002.")
     assert answer == "Upload evidence for Tax registration or accepted tax status."
+
+
+def test_application_context_uses_selected_service_and_exact_checklist():
+    supplier = Supplier(
+        name="Example Cyber Ltd", category="TECH", subcategory="TECH-CYB",
+        status="new",
+    )
+    supplier.documents = [
+        Document(
+            document_type=DocumentType.REGISTRATION,
+            filename="registration.txt", storage_path="uploads/registration.txt",
+            content_type="text/plain", file_size=10, page_count=1,
+            processing_status=ProcessingStatus.READY, review_status="pending",
+        )
+    ]
+
+    context = application_context_for(supplier)
+
+    assert "Technology and Digital Services / Cybersecurity" in context
+    assert "1 of 8 requested evidence files" in context
+    assert "Cyber liability coverage" in context
+    assert "Recruitment" not in context
+    assert "still a draft" in context
+    status_answer = application_answer_for(supplier, "Is my review complete?")
+    assert status_answer and "still a draft" in status_answer
+    upload_answer = application_answer_for(supplier, "Have I uploaded all the documents correctly?")
+    assert upload_answer and "1 of 8" in upload_answer and "reviewer confirms" in upload_answer
+    checklist_answer = application_answer_for(supplier, "What documents am I supposed to upload?")
+    assert checklist_answer and "Cyber liability coverage" in checklist_answer
+    assert "Recruitment" not in checklist_answer

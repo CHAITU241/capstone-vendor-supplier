@@ -15,13 +15,18 @@ from app.config import Settings, get_settings
 from app.database import get_db
 from app.models import Document, DocumentType, PortalAccount, PortalSession, ProcessingStatus, Supplier, SupplierStatus
 from app.routers.documents import delete_document, document_history, original_file_response, upload_document
-from app.schemas import DocumentRead, DocumentRevisionRead
+from app.schemas import (
+    DocumentRead, DocumentRevisionRead, GeneralAssistantRequest,
+    GeneralAssistantResponse, GeneralAssistantRun,
+)
+from app.routers.assistant import answer_chat
 from app.services.document_policy import Checklist, Policy, checklist_for, load_policy, required_types_for, subcategory_for
 from app.services.portal_auth import (
     create_session, current_session, hash_password, require_supplier, verify_password,
 )
 from app.services.openai_service import build_openai_service
 from app.services.processing import process_supplier_documents
+from app.services.policy_retrieval import application_answer_for, application_context_for
 from app.services.retrieval import get_chunk_collection
 
 router = APIRouter(prefix="/portal", tags=["portal"])
@@ -149,6 +154,30 @@ def read_application(session: PortalSession = Depends(require_supplier), db: Ses
 def policy_catalog() -> Policy:
     """Public taxonomy and evidence guidance; no supplier data or AI provider needed."""
     return load_policy()
+
+
+@router.post("/application/assistant", response_model=GeneralAssistantResponse)
+def application_assistant(
+    payload: GeneralAssistantRequest,
+    session: PortalSession = Depends(require_supplier),
+    db: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> GeneralAssistantResponse:
+    if payload.messages[-1].role != "user":
+        raise HTTPException(status_code=422, detail="The last message must be a user question.")
+    if sum(len(message.content) for message in payload.messages) > 10000:
+        raise HTTPException(status_code=422, detail="The conversation is too long. Start a new chat.")
+    supplier = get_application(db, session)
+    direct_answer = application_answer_for(supplier, payload.messages[-1].content)
+    if direct_answer:
+        return GeneralAssistantResponse(
+            answer=direct_answer,
+            run=GeneralAssistantRun(
+                model="application-state", prompt_version="deterministic-v1",
+                input_tokens=0, output_tokens=0, latency_ms=0, redaction_counts={},
+            ),
+        )
+    return answer_chat(payload, settings, application_context_for(supplier))
 
 
 @router.patch("/application", response_model=ApplicationRead)

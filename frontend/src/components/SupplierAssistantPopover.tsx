@@ -10,6 +10,7 @@ import remarkGfm from 'remark-gfm'
 import { api, ApiError } from '../api/client'
 import type { GeneralAssistantMessage } from '../api/types'
 import { supplierReference } from '../api/supplierReference'
+import { useAuth } from '../auth/AuthContext'
 
 const welcomeMessage: GeneralAssistantMessage = {
   role: 'assistant',
@@ -30,6 +31,7 @@ function recentConversation(messages: GeneralAssistantMessage[]): GeneralAssista
 
 function assistantErrorMessage(error: unknown): string {
   if (error instanceof ApiError) {
+    if (error.status === 409) return 'This supplier’s document Q&A becomes available after AI processing builds its private search index. The reviewer can retry the failed processing run.'
     if (error.status === 502) return 'The assistant could not get an answer right now. Please try again.'
     if (error.status === 503) return 'The assistant is temporarily unavailable. Please try again later.'
     if (error.status === 422) return 'This chat could not be sent. Start a new chat and try again.'
@@ -39,6 +41,7 @@ function assistantErrorMessage(error: unknown): string {
 }
 
 export function SupplierAssistantPopover() {
+  const { session } = useAuth()
   const location = useLocation()
   const supplierId = location.pathname.match(/^\/review\/suppliers\/([0-9a-f-]+)$/i)?.[1]
   const contextLabel = supplierId ? supplierReference(supplierId) : null
@@ -73,7 +76,10 @@ export function SupplierAssistantPopover() {
           : ''
         setMessages((current) => [...current, { role: 'assistant', content: `${result.answer}${sources}` }])
       } else {
-        const result = await api.askGeneralAssistant(recentConversation(nextMessages))
+        const conversation = recentConversation(nextMessages)
+        const result = session?.role === 'supplier'
+          ? await api.askApplicationAssistant(conversation)
+          : await api.askGeneralAssistant(conversation)
         setMessages((current) => [...current, { role: 'assistant', content: result.answer }])
       }
     } catch (requestError) {

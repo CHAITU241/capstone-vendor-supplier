@@ -18,6 +18,14 @@ router = APIRouter(prefix="/assistant", tags=["assistant"])
 
 @router.post("/chat", response_model=GeneralAssistantResponse)
 def chat(payload: GeneralAssistantRequest, settings: Settings = Depends(get_settings)) -> GeneralAssistantResponse:
+    return answer_chat(payload, settings)
+
+
+def answer_chat(
+    payload: GeneralAssistantRequest,
+    settings: Settings,
+    application_context: str = "",
+) -> GeneralAssistantResponse:
     if payload.messages[-1].role != "user":
         raise HTTPException(status_code=422, detail="The last message must be a user question.")
 
@@ -50,7 +58,10 @@ def chat(payload: GeneralAssistantRequest, settings: Settings = Depends(get_sett
             sanitized_messages.append({"role": message.role, "content": redaction.text})
             for category, count in redaction.counts.items():
                 redaction_counts[category] = redaction_counts.get(category, 0) + count
-        result = ai.answer_general_question(sanitized_messages, policy_context_for(payload.messages[-1].content))
+        context = policy_context_for(payload.messages[-1].content)
+        if application_context:
+            context = f"{application_context}\n\n{context}"
+        result = ai.answer_general_question(sanitized_messages, context)
     except Exception as exc:
         raise HTTPException(status_code=502, detail="The supplier assistant could not answer this question.") from exc
 

@@ -4,11 +4,15 @@ import re
 from functools import lru_cache
 from pathlib import Path
 
-from app.services.document_policy import load_policy
+from app.models import AiRunStatus, AiRunType, ProcessingStatus, Supplier, SupplierStatus
+from app.services.document_policy import checklist_for, load_policy
 
 SOURCE_DIR = Path(__file__).resolve().parents[2] / "policy" / "source"
 STOPWORDS = {"what", "which", "does", "this", "that", "the", "for", "and", "are", "can", "how", "why", "supplier", "policy", "need", "document", "documents", "required", "about"}
 INTERNAL_ID = re.compile(r"\b[A-Z]+(?:-[A-Z]+)*-\d{3}\b")
+STATUS_QUESTION = re.compile(r"\b(?:review|application)\b.*\b(?:complete|completed|done|status|progress|pending)\b|\bstatus\b.*\b(?:review|application)\b", re.IGNORECASE)
+UPLOAD_CHECK_QUESTION = re.compile(r"\b(?:uploaded|upload)\b.*\b(?:all|correct|correctly|complete|missing)\b|\b(?:all|any)\b.*\bdocuments?\b.*\b(?:uploaded|missing)\b", re.IGNORECASE)
+CHECKLIST_QUESTION = re.compile(r"\b(?:what|which)\b.*\b(?:documents?|evidence|files?)\b.*\b(?:upload|provide|need|required|supposed)\b|\bdocuments?\b.*\b(?:supposed|required)\b.*\bupload\b", re.IGNORECASE)
 
 
 def _matching_subcategories(question: str):
@@ -77,3 +81,102 @@ def policy_context_for(question: str) -> str:
     for _, source, passage in selected:
         context.append(f"[{source}] {passage}")
     return "\n\n".join(context)[:11000]
+
+
+def _application_facts(supplier: Supplier):
+    checklist = checklist_for(supplier)
+    documents = {item.document_type: item for item in supplier.documents}
+    processing_runs = [run for run in supplier.ai_runs if run.run_type == AiRunType.PROCESSING]
+    latest_run = max(processing_runs, key=lambda run: run.created_at) if processing_runs else None
+    if supplier.status == SupplierStatus.APPROVED:
+        journey_status = "Review is complete: the application was approved."
+    elif supplier.status == SupplierStatus.REJECTED:
+        journey_status = "Review is complete: the application was rejected. The reviewer decision is authoritative."
+    elif supplier.submitted_at is None:
+        journey_status = "This application is still a draft and has not been submitted for review."
+    elif supplier.status == SupplierStatus.PROCESSING:
+        journey_status = "The application was submitted and automated document processing is currently in progress. Human review is not complete."
+    elif latest_run and latest_run.status == AiRunStatus.FAILED:
+        journey_status = "The application was submitted, but automated document processing did not finish. A reviewer can retry it. Human review is still in progress."
+    elif latest_run and latest_run.status == AiRunStatus.SUCCEEDED:
+        journey_status = "Automated document processing is complete. Human reviewer verification is still in progress."
+    else:
+        journey_status = "The application was submitted and is awaiting document processing and human review."
+    return checklist, documents, latest_run, journey_status
+
+
+def application_answer_for(supplier: Supplier, question: str) -> str | None:
+    """Answer account-state questions deterministically, without an AI round trip."""
+    checklist, documents, _, journey_status = _application_facts(supplier)
+    ready = [
+        item for item in checklist.documents
+        if (document := documents.get(item.document_type))
+        and document.processing_status == ProcessingStatus.READY
+    ]
+    missing = [item for item in checklist.documents if item not in ready]
+
+    if STATUS_QUESTION.search(question):
+        return journey_status
+    if UPLOAD_CHECK_QUESTION.search(question):
+        if missing:
+            return (
+                f"You have {len(ready)} of {len(checklist.documents)} requested evidence files uploaded and text-readable. "
+                f"Still needed: {', '.join(item.label for item in missing)}. "
+                "This checks upload completeness only; a reviewer confirms whether each document is correct."
+            )
+        return (
+            f"All {len(checklist.documents)} requested evidence files are uploaded and text-readable. "
+            "That confirms completeness, not correctness; the human reviewer confirms whether their contents meet the requirements."
+        )
+    if CHECKLIST_QUESTION.search(question):
+        if not checklist.documents:
+            return "Choose your primary service category and subcategory first; the portal will then create your exact document checklist."
+        lines = ["For your selected service, upload:"]
+        for item in checklist.documents:
+            state = "uploaded" if item in ready else "not yet uploaded"
+            lines.append(f"- {item.label}: {item.accepted_evidence} ({state})")
+        return "\n".join(lines)
+    return None
+
+
+def application_context_for(supplier: Supplier) -> str:
+    """Authoritative, non-sensitive context for the signed-in supplier assistant."""
+    policy = load_policy()
+    category = next((item for item in policy.categories if item.code == supplier.category), None)
+    subcategory = next(
+        (item for item in (category.subcategories if category else []) if item.code == supplier.subcategory),
+        None,
+    )
+    checklist, documents, _, journey_status = _application_facts(supplier)
+    ready_count = sum(
+        1 for item in checklist.documents
+        if (document := documents.get(item.document_type))
+        and document.processing_status == ProcessingStatus.READY
+    )
+    verified_count = sum(
+        1 for item in checklist.documents
+        if (document := documents.get(item.document_type))
+        and document.review_status == "verified"
+    )
+
+    lines = [
+        "CURRENT SIGNED-IN APPLICATION (authoritative account context):",
+        f"Selected service: {category.label if category else 'Not selected'} / {subcategory.label if subcategory else 'Not selected'}.",
+        f"Journey status: {journey_status}",
+        f"Checklist completeness: {ready_count} of {len(checklist.documents)} requested evidence files are uploaded and text-readable.",
+        f"Human evidence verification: {verified_count} of {len(checklist.documents)} items verified.",
+        "An uploaded/readable file is not proof that its contents are correct; only the human reviewer confirms that.",
+        "The exact checklist for this selected service is:",
+    ]
+    for item in checklist.documents:
+        document = documents.get(item.document_type)
+        upload_state = (
+            "uploaded and text-readable"
+            if document and document.processing_status == ProcessingStatus.READY
+            else "uploaded but unreadable/failed"
+            if document else "not uploaded"
+        )
+        lines.append(
+            f"- {item.label}: {item.accepted_evidence} Include {item.required_fields} Current upload state: {upload_state}."
+        )
+    return "\n".join(lines)

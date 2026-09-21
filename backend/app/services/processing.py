@@ -60,19 +60,29 @@ FIELD_SOURCE_PRIORITY: dict[str, tuple[DocumentType, ...]] = {
 }
 
 
-def _safe_failure_message(exc: Exception) -> str:
+def _safe_failure_message(
+    exc: Exception,
+    *,
+    stage: str | None = None,
+    document_name: str | None = None,
+) -> str:
     """Return an operational error without persisting secrets or document content."""
     if isinstance(exc, AuthenticationError):
-        return "The configured AI provider rejected authentication. Check its API key and endpoint."
-    if isinstance(exc, RateLimitError):
-        return "The configured AI provider rate limit or quota was exceeded."
-    if isinstance(exc, APIConnectionError):
-        return "The configured AI provider could not be reached. Check its endpoint and the network."
-    if isinstance(exc, APIStatusError):
-        return f"The configured AI provider request failed with HTTP {exc.status_code}."
-    if isinstance(exc, AIResponseError):
-        return str(exc)
-    return f"{type(exc).__name__}: AI run failed."
+        reason = "The AI provider rejected authentication. Check the configured API key."
+    elif isinstance(exc, RateLimitError):
+        reason = "The AI provider rate limit or credit quota was exceeded."
+    elif isinstance(exc, APIConnectionError):
+        reason = "The AI provider could not be reached. Check the provider endpoint and VM network."
+    elif isinstance(exc, APIStatusError):
+        reason = f"The AI provider request failed with HTTP {exc.status_code}."
+    elif isinstance(exc, AIResponseError):
+        reason = str(exc)
+    else:
+        reason = f"{type(exc).__name__}: the AI run failed."
+    location = stage or "AI processing"
+    if document_name:
+        location += f" for {document_name}"
+    return f"{location} failed. {reason}"
 
 
 @dataclass(frozen=True)
@@ -256,6 +266,8 @@ def process_supplier_documents(
     redaction_counts: dict[str, int] = {}
     classification_mismatches: list[str] = []
     field_candidates: list[FieldCandidate] = []
+    current_stage = "Starting AI processing"
+    current_document: str | None = None
 
     try:
         supplier.status = SupplierStatus.PROCESSING
@@ -274,12 +286,14 @@ def process_supplier_documents(
         delete_supplier_chunks(collection, str(supplier.id))
 
         for document in sorted(supplier.documents, key=lambda item: item.document_type.value):
+            current_document = document.filename
             redaction = redact_pii(document.extracted_text or "")
             document.redacted_text = redaction.text
             document.redaction_summary = redaction.counts
             for category, count in redaction.counts.items():
                 redaction_counts[category] = redaction_counts.get(category, 0) + count
 
+            current_stage = "Document extraction"
             extraction = ai.extract_document(
                 expected_type=document.document_type,
                 filename=document.filename,
@@ -327,12 +341,14 @@ def process_supplier_documents(
                     document_candidates[field_name] = candidate
             field_candidates.extend(document_candidates.values())
 
+            current_stage = "Search chunking"
             chunks = chunk_document(
                 redaction.text,
                 model=settings.active_embedding_model,
                 chunk_size=settings.chunk_size_tokens,
                 overlap=settings.chunk_overlap_tokens,
             )
+            current_stage = "Search indexing (embeddings)"
             embedding = ai.embed([chunk.text for chunk in chunks])
             input_tokens += embedding.input_tokens
             replace_document_chunks(
@@ -345,6 +361,8 @@ def process_supplier_documents(
             )
             chunk_count += len(chunks)
 
+        current_document = None
+        current_stage = "Extracted-field consolidation"
         canonical_fields, field_conflicts = select_canonical_fields(field_candidates)
         field_by_name = {field.field_name: field for field in canonical_fields}
         document_filenames = {
@@ -415,6 +433,7 @@ def process_supplier_documents(
         db.refresh(run)
         db.refresh(supplier)
         db.expire(supplier, ["documents", "extracted_fields", "compliance_results"])
+        current_stage = "Validation setup"
         persist_compliance_results(db, supplier, evaluate_compliance(supplier))
         db.commit()
         record_processing("success")
@@ -427,7 +446,11 @@ def process_supplier_documents(
     except Exception as exc:
         latency_ms = int((time.perf_counter() - started) * 1000)
         delete_supplier_chunks(collection, str(supplier.id))
-        _fail_run(db, supplier.id, run.id, _safe_failure_message(exc), latency_ms)
+        _fail_run(
+            db, supplier.id, run.id,
+            _safe_failure_message(exc, stage=current_stage, document_name=current_document),
+            latency_ms,
+        )
         record_processing("error")
         raise
 

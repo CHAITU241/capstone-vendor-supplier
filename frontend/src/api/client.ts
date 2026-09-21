@@ -131,6 +131,12 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ messages }),
     }),
+  askApplicationAssistant: (messages: GeneralAssistantMessage[]) =>
+    request<GeneralAssistantResponse>('/portal/application/assistant', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages }),
+    }),
   runCompliance: (supplierId: string) =>
     request<ComplianceRunResponse>(`/suppliers/${supplierId}/compliance/run`, {
       method: 'POST',

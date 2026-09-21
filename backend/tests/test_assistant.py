@@ -2,7 +2,7 @@ import pytest
 from fastapi import HTTPException
 
 from app.config import Settings
-from app.routers.assistant import chat
+from app.routers.assistant import answer_chat, chat
 from app.schemas import GeneralAssistantMessage, GeneralAssistantRequest
 from app.services.openai_service import GeneralAssistantAnswer, ModelResult
 
@@ -136,3 +136,33 @@ def test_assistant_rejects_an_oversized_conversation(monkeypatch) -> None:
 
     with pytest.raises(HTTPException, match="conversation is too long"):
         chat(payload, Settings())
+
+
+def test_signed_in_application_context_is_passed_to_assistant(monkeypatch) -> None:
+    contexts: list[str] = []
+
+    class FakeAssistant:
+        def answer_general_question(self, messages, policy_context="") -> ModelResult[GeneralAssistantAnswer]:
+            contexts.append(policy_context)
+            return ModelResult(
+                value=GeneralAssistantAnswer(answer="Your human review is still in progress."),
+                input_tokens=1,
+                output_tokens=1,
+            )
+
+    monkeypatch.setattr("app.routers.assistant.get_openai_service", lambda: FakeAssistant())
+    payload = GeneralAssistantRequest(
+        messages=[GeneralAssistantMessage(role="user", content="Is my review complete?")]
+    )
+
+    result = answer_chat(
+        payload,
+        Settings(),
+        "CURRENT SIGNED-IN APPLICATION (authoritative account context):\n"
+        "Selected service: Technology and Digital Services / Cybersecurity.\n"
+        "Journey status: Human reviewer verification is still in progress.",
+    )
+
+    assert result.answer == "Your human review is still in progress."
+    assert "Cybersecurity" in contexts[0]
+    assert "still in progress" in contexts[0]

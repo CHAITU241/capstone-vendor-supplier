@@ -178,7 +178,9 @@ export function SupplierReviewPage() {
       await loadSupplier()
       return true
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'The review action could not be completed.')
+      const message = requestError instanceof Error ? requestError.message : 'The review action could not be completed.'
+      await loadSupplier()
+      setError(message)
       return false
     } finally {
       setBusy(false)
