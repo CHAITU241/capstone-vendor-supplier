@@ -33,6 +33,7 @@ import { ChangeEvent, useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { api } from '../api/client'
 import { downloadOriginal, openOriginal } from '../api/openOriginal'
+import { evidenceDownloadFilename, supplierReference } from '../api/supplierReference'
 import type {
   DocumentRevision,
   DocumentType,
@@ -167,8 +168,12 @@ export function SupplierReviewPage() {
     catch (err) { setError(err instanceof Error ? err.message : 'Could not open the original document.') }
   }
 
-  async function downloadFile(id: string, filename: string) {
-    try { await downloadOriginal(() => api.reviewerOriginal(supplierId, id), filename) }
+  async function downloadFile(document: { id: string; document_type: string; revision: number; filename: string }) {
+    const requirement = requiredDocuments.find((item) => item.document_type === document.document_type)
+    const filename = evidenceDownloadFilename({ supplierId, documentType: document.document_type,
+      revision: document.revision, originalFilename: document.filename,
+      requirementId: requirement?.requirement_id, label: requirement?.label ?? documentLabels[document.document_type] })
+    try { await downloadOriginal(() => api.reviewerOriginal(supplierId, document.id), filename) }
     catch (err) { setError(err instanceof Error ? err.message : 'Could not download the original document.') }
   }
 
@@ -310,6 +315,7 @@ export function SupplierReviewPage() {
       <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={2}>
         <Box>
           <Typography variant="h4">{supplier.name}</Typography>
+          <Chip label={`Supplier reference: ${supplierReference(supplier.id)}`} size="small" variant="outlined" sx={{ my: 0.75 }} />
           <Typography color="text.secondary">{supplier.category ? `${supplier.category} / ${supplier.subcategory} · ` : ''}{supplier.country || 'Country not provided'} / {supplier.contact_email || 'No contact email'}</Typography>
         </Box>
         <StatusChip status={supplier.status} />
@@ -347,7 +353,7 @@ export function SupplierReviewPage() {
                   <Stack direction="row" alignItems="center" spacing={0.5}>
                     <StatusChip status={document.processing_status} />
                     <Button size="small" onClick={() => void viewOriginal(document.id)}>View original</Button>
-                    <Button size="small" onClick={() => void downloadFile(document.id, document.filename)}>Download</Button>
+                    <Button size="small" onClick={() => void downloadFile(document)}>Download</Button>
                     <Tooltip title="Delete document">
                       <IconButton
                         aria-label={`Delete ${document.filename}`}
@@ -369,7 +375,7 @@ export function SupplierReviewPage() {
             {history.map((item) => <Stack key={item.id} direction="row" justifyContent="space-between" alignItems="center" spacing={1} sx={{ py: 1 }}>
               <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>{item.filename} · version {item.revision}</Typography>
               <Button size="small" onClick={() => void viewOriginal(item.id)}>View original</Button>
-              <Button size="small" onClick={() => void downloadFile(item.id, item.filename)}>Download</Button>
+              <Button size="small" onClick={() => void downloadFile(item)}>Download</Button>
             </Stack>)}
           </Box>}
         </CardContent></Card>

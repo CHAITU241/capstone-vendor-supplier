@@ -16,6 +16,8 @@ The `0006` through `0009_document_revisions` Alembic migrations run at backend s
 
 The original bytes are written under `/app/uploads/<supplier UUID>/<document UUID>.<extension>` in the backend container. Docker Compose stores this directory in its named `uploads_data` volume. PostgreSQL holds active document metadata and archived revision records; each new upload stores a SHA-256 digest. Removing an upload removes it from the active checklist but retains the original bytes and archived metadata. Supplier-owned and reviewer-only API routes stream active and archived files after authorization, check the file digest, and record a view event. Reviewer access to account-owned suppliers begins after submission. A supplier cannot open another supplier's original.
 
+The supplier and reviewer views show a stable display reference derived from the supplier UUID, for example `SUP-C37603DF`. Explicit downloads use `<supplier reference>_<requirement ID>_v<revision>_<document label>.<extension>` while the original supplier-provided filename remains stored as audit metadata. Physical storage continues to use UUID filenames to prevent collisions and unsafe paths.
+
 The Docker volume survives container rebuilds, but it is not a backup. `docker compose down -v` destroys it. A production deployment would need durable object storage, coordinated database/file backup and restore, retention rules, malware scanning, and company reviewer authentication. OCR remains out of scope for this slice; scanned PDFs and image uploads cannot be processed by the current text extractor.
 
 ## Admin maintenance

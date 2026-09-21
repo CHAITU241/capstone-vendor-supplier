@@ -5,6 +5,7 @@ import { Alert, Box, Button, Card, CardContent, Chip, CircularProgress, Divider,
 import { useCallback, useEffect, useState, type ChangeEvent } from 'react'
 import { api } from '../api/client'
 import { downloadOriginal, openOriginal } from '../api/openOriginal'
+import { evidenceDownloadFilename, supplierReference } from '../api/supplierReference'
 import type { DocumentRevision, DocumentType, PolicyCatalog, SupplierApplication } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
 
@@ -114,8 +115,12 @@ export function SupplierApplicationPage() {
     catch (err) { setError(err instanceof Error ? err.message : 'Could not open the original document.') }
   }
 
-  async function downloadFile(id: string, filename: string) {
-    try { await downloadOriginal(() => api.applicationOriginal(id), filename) }
+  async function downloadFile(document: { id: string; document_type: string; revision: number; filename: string }) {
+    const requirement = application?.requirements.documents.find((item) => item.document_type === document.document_type)
+    const filename = evidenceDownloadFilename({ supplierId: application?.id ?? '', documentType: document.document_type,
+      revision: document.revision, originalFilename: document.filename,
+      requirementId: requirement?.requirement_id, label: requirement?.label ?? catalog?.requirements[document.document_type]?.label })
+    try { await downloadOriginal(() => api.applicationOriginal(document.id), filename) }
     catch (err) { setError(err instanceof Error ? err.message : 'Could not download the original document.') }
   }
 
@@ -137,7 +142,10 @@ export function SupplierApplicationPage() {
 
   return <Stack spacing={3} maxWidth={860} mx="auto">
     <Box><Typography variant="h4">Your supplier application</Typography>
-      <Typography color="text.secondary" sx={{ mt: 1 }}>Signed in as {session?.email}. Your completed steps and uploaded files are saved to this account.</Typography></Box>
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ sm: 'center' }} sx={{ mt: 1 }}>
+        <Chip label={`Supplier reference: ${supplierReference(application.id)}`} size="small" variant="outlined" />
+        <Typography color="text.secondary">Signed in as {session?.email}. Your completed steps and uploaded files are saved to this account.</Typography>
+      </Stack></Box>
     <Stepper activeStep={submitted ? 3 : step} alternativeLabel sx={{ py: 2 }}>
       {['Category', 'Business details', 'Documents'].map((label) => <Step key={label}><StepLabel>{label}</StepLabel></Step>)}
     </Stepper>
@@ -187,7 +195,7 @@ export function SupplierApplicationPage() {
             {document ? <Stack direction="row" alignItems="center" spacing={1}>
               <Chip label={document.processing_status === 'ready' ? 'Uploaded' : document.processing_status} color={document.processing_status === 'ready' ? 'success' : 'warning'} size="small" />
               <Button size="small" onClick={() => void viewOriginal(document.id)}>View original</Button>
-              <Button size="small" onClick={() => void downloadFile(document.id, document.filename)}>Download</Button>
+              <Button size="small" onClick={() => void downloadFile(document)}>Download</Button>
               {!submitted && <IconButton aria-label={`Remove ${label}`} disabled={busy} onClick={() => void removeDocument(document.id)}><DeleteOutlineRoundedIcon /></IconButton>}
             </Stack> : !submitted && <Stack direction="row" spacing={1}>
               <Button component="label" variant="outlined" startIcon={<CloudUploadRoundedIcon />}>Choose file
@@ -211,7 +219,7 @@ export function SupplierApplicationPage() {
           {history.map((item) => <Stack key={item.id} direction="row" alignItems="center" justifyContent="space-between" spacing={2} sx={{ py: 1, borderBottom: '1px solid', borderColor: 'divider' }}>
             <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>{item.filename} · version {item.revision}</Typography>
             <Button size="small" onClick={() => void viewOriginal(item.id)}>View original</Button>
-            <Button size="small" onClick={() => void downloadFile(item.id, item.filename)}>Download</Button>
+            <Button size="small" onClick={() => void downloadFile(item)}>Download</Button>
           </Stack>)}
         </Box>}
         {!submitted && <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={1}>
