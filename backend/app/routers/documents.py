@@ -189,6 +189,7 @@ def delete_document(
         supplier.decision_reason = None
         supplier.decided_at = None
         supplier.erp_supplier_id = None
+        supplier.erp_payload = None
     db.add(DocumentRevision(
         id=document.id, supplier_id=supplier_id,
         document_type=document.document_type.value, revision=document.revision,

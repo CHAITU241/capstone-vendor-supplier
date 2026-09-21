@@ -37,6 +37,7 @@ class SupplierSummary(BaseModel):
     decision_reason: str | None
     decided_at: datetime | None
     erp_supplier_id: str | None
+    erp_payload: dict | None = None
     document_count: int = 0
 
 
@@ -54,6 +55,10 @@ class DocumentRead(BaseModel):
     page_count: int
     processing_status: ProcessingStatus
     error_message: str | None
+    review_status: str = "pending"
+    review_comment: str | None = None
+    reviewed_by: str | None = None
+    reviewed_at: datetime | None = None
     created_at: datetime
 
 
@@ -93,6 +98,10 @@ class ExtractedFieldRead(BaseModel):
     page_number: int
     confidence: float
     needs_review: bool
+    review_status: str = "pending"
+    review_comment: str | None = None
+    reviewed_by: str | None = None
+    reviewed_at: datetime | None = None
     created_at: datetime
 
 
@@ -125,6 +134,9 @@ class ComplianceResultRead(BaseModel):
 
 
 class SupplierDetail(SupplierSummary):
+    tax_reference: str | None
+    bank_account_number: str | None
+    bank_ifsc: str | None
     requirements: Checklist
     documents: list[DocumentRead]
     audit_events: list[AuditEventRead]
@@ -136,6 +148,19 @@ class SupplierDetail(SupplierSummary):
 class ExtractedFieldUpdate(BaseModel):
     value: str = Field(min_length=1, max_length=1000)
     page_number: int = Field(ge=1)
+    reviewer_name: str = Field(default="Demo reviewer", min_length=2, max_length=100)
+
+
+class ReviewSelectionRequest(BaseModel):
+    ids: list[uuid.UUID] = Field(min_length=1, max_length=100)
+    action: Literal["verify", "dispute"]
+    reason: str | None = Field(default=None, max_length=1000)
+    reviewer_name: str = Field(default="Demo reviewer", min_length=2, max_length=100)
+
+
+class EvidenceReviewRequest(BaseModel):
+    action: Literal["verify", "dispute"]
+    reason: str | None = Field(default=None, max_length=1000)
     reviewer_name: str = Field(default="Demo reviewer", min_length=2, max_length=100)
 
 

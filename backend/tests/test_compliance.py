@@ -29,6 +29,7 @@ def document(document_type: DocumentType) -> Document:
         redacted_text=f"Named supplier: {SUPPLIER_NAME}",
         redaction_summary={},
         processing_status=ProcessingStatus.READY,
+        review_status="verified",
     )
 
 
@@ -49,6 +50,7 @@ def field(
         page_number=1,
         confidence=0.95,
         needs_review=needs_review,
+        review_status="attention" if needs_review else "verified",
     )
 
 
@@ -129,6 +131,8 @@ def test_policy_uploads_are_not_misreported_as_validated() -> None:
     supplier.subcategory = "GOODS-OFF"
     supplier.submitted_at = None
     supplier.documents = [document(DocumentType.REGISTRATION), document(DocumentType.TAX), document(DocumentType.BANK)]
+    for item in supplier.documents:
+        item.review_status = "pending"
 
     outcomes = outcomes_by_code(supplier)
 
@@ -166,3 +170,19 @@ def test_mock_erp_reference_is_deterministic() -> None:
 
     assert first.supplier_id == second.supplier_id
     assert first.supplier_id.startswith("ERP-")
+    assert first.payload["legal_name"] == SUPPLIER_NAME
+    assert first.payload["supplier_reference"].startswith("SUP-")
+
+
+def test_policy_checks_pass_after_human_evidence_review() -> None:
+    supplier = ready_supplier()
+    supplier.category = "GOODS"
+    supplier.subcategory = "GOODS-OFF"
+    supplier.submitted_at = None
+    supplier.documents = [document(DocumentType.REGISTRATION), document(DocumentType.TAX), document(DocumentType.BANK)]
+
+    outcomes = outcomes_by_code(supplier)
+
+    assert outcomes["BASE-001.REVIEW"].status == ComplianceStatus.PASS
+    assert outcomes["BASE-002.REVIEW"].status == ComplianceStatus.PASS
+    assert outcomes["BASE-003.REVIEW"].status == ComplianceStatus.PASS

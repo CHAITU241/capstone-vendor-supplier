@@ -23,6 +23,7 @@ from app.models import (
     SupplierStatus,
 )
 from app.services.chunking import chunk_document
+from app.services.compliance import evaluate_compliance, persist_compliance_results
 from app.services.openai_service import AIResponseError, OpenAIService
 from app.services.redaction import redact_pii, restore_placeholders
 from app.services.retrieval import (
@@ -269,6 +270,7 @@ def process_supplier_documents(
         supplier.decision_reason = None
         supplier.decided_at = None
         supplier.erp_supplier_id = None
+        supplier.erp_payload = None
         delete_supplier_chunks(collection, str(supplier.id))
 
         for document in sorted(supplier.documents, key=lambda item: item.document_type.value):
@@ -290,6 +292,13 @@ def process_supplier_documents(
             )
             if type_mismatch:
                 classification_mismatches.append(document.filename)
+                document.review_status = "attention"
+                document.review_comment = "AI classified this file differently from its selected requirement."
+            else:
+                document.review_status = "pending"
+                document.review_comment = None
+            document.reviewed_by = None
+            document.reviewed_at = None
 
             document_candidates: dict[str, FieldCandidate] = {}
             for field in extraction.value.fields:
@@ -372,6 +381,7 @@ def process_supplier_documents(
                     page_number=field.page_number,
                     confidence=field.confidence,
                     needs_review=field.needs_review,
+                    review_status="attention" if field.needs_review else "pending",
                 )
             )
         db.flush()
@@ -403,6 +413,10 @@ def process_supplier_documents(
         )
         db.commit()
         db.refresh(run)
+        db.refresh(supplier)
+        db.expire(supplier, ["documents", "extracted_fields", "compliance_results"])
+        persist_compliance_results(db, supplier, evaluate_compliance(supplier))
+        db.commit()
         record_processing("success")
         return ProcessingOutcome(
             run=run,

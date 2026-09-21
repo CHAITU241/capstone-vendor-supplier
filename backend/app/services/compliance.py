@@ -172,12 +172,13 @@ def evaluate_compliance(
     if name_field is None:
         name_status = ComplianceStatus.FAIL
         name_message = "Canonical supplier name is missing."
-    elif mismatched_documents or name_field.needs_review:
+    elif name_field.needs_review or name_field.review_status not in {"verified", "corrected"}:
         name_status = ComplianceStatus.NEEDS_REVIEW
         name_message = "Supplier name needs review across uploaded documents."
     else:
         name_status = ComplianceStatus.PASS
-        name_message = "Supplier name matches all uploaded documents."
+        name_message = ("Reviewer verified the canonical supplier name against the evidence."
+                        if mismatched_documents else "Supplier name matches all uploaded documents.")
     supplier_name_match = RuleOutcome(
         rule_code="supplier_name_match",
         status=name_status,
@@ -217,7 +218,8 @@ def evaluate_compliance(
     )
 
     unresolved_fields = sorted(
-        field.field_name for field in supplier.extracted_fields if field.needs_review
+        field.field_name for field in supplier.extracted_fields
+        if field.needs_review or field.review_status not in {"verified", "corrected"}
     )
     if not supplier.extracted_fields:
         field_status = ComplianceStatus.FAIL
@@ -250,15 +252,23 @@ def evaluate_compliance(
         for item in checklist.documents:
             document = next((d for d in supplier.documents if d.document_type == item.document_type), None)
             ready = document is not None and document.processing_status == ProcessingStatus.READY
+            review_status = document.review_status if document else "missing"
             outcomes.append(RuleOutcome(
                 rule_code=f"{item.requirement_id}.REVIEW" if ready else f"{item.requirement_id}.DOC_MISSING",
-                status=ComplianceStatus.NEEDS_REVIEW if ready else ComplianceStatus.FAIL,
+                status=(ComplianceStatus.PASS if ready and review_status == "verified"
+                        else ComplianceStatus.FAIL if not ready or review_status == "disputed"
+                        else ComplianceStatus.NEEDS_REVIEW),
                 message=(
-                    f"{item.requirement_id}: evidence uploaded; a reviewer must verify the required fields and both numbered checks."
+                    f"{item.requirement_id}: evidence and numbered checks were verified by a reviewer."
+                    if ready and review_status == "verified"
+                    else f"{item.requirement_id}: evidence was disputed by the reviewer."
+                    if review_status == "disputed"
+                    else f"{item.requirement_id}: evidence uploaded; a reviewer must verify the required fields and both numbered checks."
                     if ready else f"{item.requirement_id}: required evidence is missing or unreadable."
                 ),
                 evidence={"requirement_id": item.requirement_id, "source": item.source,
                           "document_id": str(document.id) if document else None,
+                          "review_status": review_status,
                           "required_fields": item.required_fields, "checks": item.checks},
             ))
     return outcomes

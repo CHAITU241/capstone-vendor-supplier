@@ -145,6 +145,16 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     }),
+  reviewExtractedFields: (supplierId: string, ids: string[], action: 'verify' | 'dispute', reason?: string) =>
+    request<SupplierDetail['extracted_fields']>(`/suppliers/${supplierId}/fields/review`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids, action, reason }),
+    }),
+  reviewEvidence: (supplierId: string, documentId: string, action: 'verify' | 'dispute', reason?: string) =>
+    request<SupplierDocument>(`/suppliers/${supplierId}/documents/${documentId}/review`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, reason }),
+    }),
   approveSupplier: (supplierId: string, reviewerName = 'Demo reviewer') =>
     request<DecisionResponse>(`/suppliers/${supplierId}/approve`, {
       method: 'POST',

@@ -60,7 +60,6 @@ export function HomePage() {
             {session?.role === 'reviewer'
               ? <Button component={Link} to="/review" variant="outlined" endIcon={<ArrowForwardRoundedIcon />} size="large">Continue reviewing</Button>
               : <Button variant="outlined" endIcon={<ArrowForwardRoundedIcon />} size="large" onClick={() => void enterReviewerDemo()} disabled={loading}>{loading ? 'Opening...' : 'Enter reviewer demo'}</Button>}
-            <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1.5 }}>Demo access; company sign in is a later integration.</Typography>
           </CardContent>
         </Card>
       </Box>

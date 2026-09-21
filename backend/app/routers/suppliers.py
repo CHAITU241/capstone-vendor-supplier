@@ -88,5 +88,8 @@ def get_supplier(supplier_id: uuid.UUID, db: Session = Depends(get_db)) -> Suppl
         extracted_fields=supplier.extracted_fields,
         ai_runs=supplier.ai_runs[:10],
         compliance_results=supplier.compliance_results,
+        tax_reference=supplier.tax_reference,
+        bank_account_number=supplier.bank_account_number,
+        bank_ifsc=supplier.bank_ifsc,
         requirements=checklist_for(supplier),
     )

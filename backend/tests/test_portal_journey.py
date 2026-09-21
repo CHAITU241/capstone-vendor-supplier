@@ -10,7 +10,7 @@ from uuid import UUID
 from app.config import Settings, get_settings
 from app.database import Base, get_db
 from app.main import app
-from app.models import DocumentRevision, Supplier
+from app.models import DocumentRevision, ExtractedField, Supplier
 
 
 def test_supplier_can_resume_and_submit_without_ai(tmp_path):
@@ -69,6 +69,85 @@ def test_supplier_can_resume_and_submit_without_ai(tmp_path):
             assert client.patch("/api/portal/application", headers=supplier_headers, json={
                 "category": "GOODS", "subcategory": "GOODS-ITE",
             }).status_code == 409
+    finally:
+        app.dependency_overrides.clear()
+        engine.dispose()
+
+
+def test_human_review_gates_approval_and_retains_erp_payload(tmp_path):
+    engine = create_engine("sqlite+pysqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
+    Base.metadata.create_all(engine)
+
+    def db_override():
+        with Session(engine) as db:
+            yield db
+
+    app.dependency_overrides[get_db] = db_override
+    app.dependency_overrides[get_settings] = lambda: Settings(upload_dir=tmp_path / "uploads", chroma_path=tmp_path / "chroma")
+    try:
+        with TestClient(app) as client:
+            account = client.post("/api/portal/auth/register", json={
+                "email": "review-gate@example.com", "password": "demo-password",
+            }).json()
+            supplier_headers = {"Authorization": f"Bearer {account['token']}"}
+            profile = client.patch("/api/portal/application", headers=supplier_headers, json={
+                "category": "GOODS", "subcategory": "GOODS-OFF", "name": "Review Gate Supplies Ltd",
+                "contact_email": "review-gate@example.com", "tax_reference": "DEMO-PAN-900",
+                "bank_account_number": "DEMO-ACCOUNT-900", "bank_ifsc": "DEMO0123456",
+            }).json()
+            for kind in ("registration", "tax", "bank"):
+                response = client.post("/api/portal/application/documents", headers=supplier_headers,
+                    data={"document_type": kind},
+                    files={"file": (f"{kind}.txt", b"Review Gate Supplies Ltd", "text/plain")})
+                assert response.status_code == 201, response.text
+            submitted = client.post("/api/portal/application/submit", headers=supplier_headers)
+            assert submitted.status_code == 200, submitted.text
+            supplier_id = UUID(profile["id"])
+
+            with Session(engine) as db:
+                supplier = db.get(Supplier, supplier_id)
+                for document in supplier.documents:
+                    document.redacted_text = document.extracted_text
+                    document.redaction_summary = {}
+                registration = next(item for item in supplier.documents if item.document_type.value == "registration")
+                supplier.extracted_fields = [
+                    ExtractedField(document=registration, field_name="supplier_name", value=supplier.name,
+                                   page_number=1, confidence=0.97, needs_review=False, review_status="pending"),
+                    ExtractedField(document=registration, field_name="contact_email", value=supplier.contact_email,
+                                   page_number=1, confidence=0.96, needs_review=False, review_status="pending"),
+                    ExtractedField(document=registration, field_name="country", value="India",
+                                   page_number=1, confidence=0.98, needs_review=False, review_status="pending"),
+                ]
+                db.commit()
+
+            reviewer = client.post("/api/portal/auth/reviewer-demo").json()
+            review_headers = {"Authorization": f"Bearer {reviewer['token']}"}
+            approve_url = f"/api/suppliers/{supplier_id}/approve"
+            blocked = client.post(approve_url, headers=review_headers, json={
+                "confirmed": True, "reviewer_name": "Demo reviewer",
+            })
+            assert blocked.status_code == 409
+
+            detail = client.get(f"/api/suppliers/{supplier_id}", headers=review_headers).json()
+            for document in detail["documents"]:
+                reviewed = client.post(
+                    f"/api/suppliers/{supplier_id}/documents/{document['id']}/review",
+                    headers=review_headers, json={"action": "verify", "reviewer_name": "Demo reviewer"},
+                )
+                assert reviewed.status_code == 200, reviewed.text
+            field_ids = [field["id"] for field in detail["extracted_fields"]]
+            reviewed_fields = client.post(f"/api/suppliers/{supplier_id}/fields/review", headers=review_headers,
+                json={"ids": field_ids, "action": "verify", "reviewer_name": "Demo reviewer"})
+            assert reviewed_fields.status_code == 200, reviewed_fields.text
+
+            approved = client.post(approve_url, headers=review_headers, json={
+                "confirmed": True, "reviewer_name": "Demo reviewer",
+            })
+            assert approved.status_code == 200, approved.text
+            assert approved.json()["erp_supplier_id"].startswith("ERP-")
+            final = client.get(f"/api/suppliers/{supplier_id}", headers=review_headers).json()
+            assert final["erp_payload"]["legal_name"] == "Review Gate Supplies Ltd"
+            assert final["erp_payload"]["tax_reference"] == "DEMO-PAN-900"
     finally:
         app.dependency_overrides.clear()
         engine.dispose()

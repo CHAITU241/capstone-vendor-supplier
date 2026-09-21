@@ -111,6 +111,7 @@ class Supplier(Base):
         DateTime(timezone=True), nullable=True
     )
     erp_supplier_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    erp_payload: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
 
     documents: Mapped[list["Document"]] = relationship(
         back_populates="supplier", cascade="all, delete-orphan"
@@ -183,6 +184,10 @@ class Document(Base):
         index=True,
     )
     error_message: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    review_status: Mapped[str] = mapped_column(String(20), default="pending")
+    review_comment: Mapped[str | None] = mapped_column(Text, nullable=True)
+    reviewed_by: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
@@ -234,6 +239,10 @@ class ExtractedField(Base):
     page_number: Mapped[int] = mapped_column(Integer)
     confidence: Mapped[float] = mapped_column(Float)
     needs_review: Mapped[bool] = mapped_column(Boolean, default=False)
+    review_status: Mapped[str] = mapped_column(String(20), default="pending")
+    review_comment: Mapped[str | None] = mapped_column(Text, nullable=True)
+    reviewed_by: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

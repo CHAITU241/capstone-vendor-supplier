@@ -62,6 +62,13 @@ class Settings(BaseSettings):
         return "openrouter" if self.use_openrouter else "azure"
 
     @property
+    def ai_configured(self) -> bool:
+        return self.use_openrouter or bool(
+            self.openai_api_key and self.openai_api_key.get_secret_value().strip()
+            and self.azure_openai_endpoint and self.azure_openai_endpoint.strip()
+        )
+
+    @property
     def active_extraction_model(self) -> str:
         if self.use_openrouter:
             return self.openrouter_extraction_model

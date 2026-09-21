@@ -20,6 +20,9 @@ from app.services.document_policy import Checklist, Policy, checklist_for, load_
 from app.services.portal_auth import (
     create_session, current_session, hash_password, require_supplier, verify_password,
 )
+from app.services.openai_service import build_openai_service
+from app.services.processing import process_supplier_documents
+from app.services.retrieval import get_chunk_collection
 
 router = APIRouter(prefix="/portal", tags=["portal"])
 
@@ -176,7 +179,10 @@ def save_application(payload: ApplicationUpdate, session: PortalSession = Depend
 
 
 @router.post("/application/submit", response_model=ApplicationRead)
-def submit_application(session: PortalSession = Depends(require_supplier), db: Session = Depends(get_db)) -> ApplicationRead:
+def submit_application(
+    session: PortalSession = Depends(require_supplier), db: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> ApplicationRead:
     supplier = get_application(db, session)
     if not subcategory_for(supplier.category or "", supplier.subcategory or "") or supplier.name == "New application" or supplier.country != "India":
         raise HTTPException(status_code=422, detail="Choose a service category and complete your business details first.")
@@ -204,6 +210,17 @@ def submit_application(session: PortalSession = Depends(require_supplier), db: S
         supplier.submitted_at = datetime.now(timezone.utc)
         db.commit()
         db.refresh(supplier)
+        if settings.ai_configured:
+            try:
+                process_supplier_documents(
+                    db=db, supplier=supplier, settings=settings,
+                    ai=build_openai_service(settings), collection=get_chunk_collection(),
+                )
+            except Exception:
+                # The AI run records its safe failure state. Submission remains valid
+                # and the reviewer gets a visible retry action instead of a lost case.
+                pass
+            db.refresh(supplier)
     return application_response(db, supplier)
 
 

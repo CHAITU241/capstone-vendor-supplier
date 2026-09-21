@@ -3,7 +3,7 @@ from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from app.services.portal_auth import require_reviewer
-from sqlalchemy import delete, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from app.database import get_db
@@ -11,6 +11,7 @@ from app.metrics import record_compliance_checks, record_supplier_decision
 from app.models import (
     AuditEvent,
     ComplianceResult,
+    Document,
     ExtractedField,
     Supplier,
     SupplierStatus,
@@ -20,8 +21,11 @@ from app.schemas import (
     ComplianceResultRead,
     ComplianceRunResponse,
     DecisionResponse,
+    DocumentRead,
+    EvidenceReviewRequest,
     ExtractedFieldRead,
     ExtractedFieldUpdate,
+    ReviewSelectionRequest,
     RejectionRequest,
 )
 from app.services.compliance import (
@@ -123,10 +127,11 @@ def correct_extracted_field(
     field.page_number = payload.page_number
     field.confidence = 1.0
     field.needs_review = False
+    field.review_status = "corrected"
+    field.review_comment = "Value corrected and verified by the reviewer."
+    field.reviewed_by = payload.reviewer_name.strip()
+    field.reviewed_at = datetime.now(UTC)
     supplier.status = SupplierStatus.NEEDS_REVIEW
-    db.execute(
-        delete(ComplianceResult).where(ComplianceResult.supplier_id == supplier_id)
-    )
     db.add(
         AuditEvent(
             supplier_id=supplier_id,
@@ -142,9 +147,72 @@ def correct_extracted_field(
             },
         )
     )
+    persist_compliance_results(db, supplier, evaluate_compliance(supplier))
     db.commit()
     db.refresh(field)
     return ExtractedFieldRead.model_validate(field)
+
+
+@router.post("/{supplier_id}/fields/review", response_model=list[ExtractedFieldRead])
+def review_extracted_fields(
+    supplier_id: uuid.UUID,
+    payload: ReviewSelectionRequest,
+    db: Session = Depends(get_db),
+) -> list[ExtractedFieldRead]:
+    supplier = _get_review_supplier(db, supplier_id)
+    _ensure_reviewable(supplier)
+    if payload.action == "dispute" and not (payload.reason or "").strip():
+        raise HTTPException(status_code=422, detail="A reason is required when fields are flagged.")
+    selected = [field for field in supplier.extracted_fields if field.id in set(payload.ids)]
+    if len(selected) != len(set(payload.ids)):
+        raise HTTPException(status_code=404, detail="One or more extracted fields were not found.")
+    now = datetime.now(UTC)
+    for field in selected:
+        field.review_status = "verified" if payload.action == "verify" else "disputed"
+        field.needs_review = payload.action == "dispute"
+        field.review_comment = (payload.reason or "Verified against the source document.").strip()
+        field.reviewed_by = payload.reviewer_name.strip()
+        field.reviewed_at = now
+    event_action = "verified" if payload.action == "verify" else "disputed"
+    db.add(AuditEvent(
+        supplier_id=supplier_id, action=f"extracted_fields.{event_action}",
+        entity_type="extracted_field", entity_id=None,
+        details={"field_ids": [str(item.id) for item in selected],
+                 "reviewer_name": payload.reviewer_name.strip(), "reason": payload.reason},
+    ))
+    persist_compliance_results(db, supplier, evaluate_compliance(supplier))
+    db.commit()
+    return [ExtractedFieldRead.model_validate(item) for item in selected]
+
+
+@router.post("/{supplier_id}/documents/{document_id}/review", response_model=DocumentRead)
+def review_evidence(
+    supplier_id: uuid.UUID,
+    document_id: uuid.UUID,
+    payload: EvidenceReviewRequest,
+    db: Session = Depends(get_db),
+) -> DocumentRead:
+    supplier = _get_review_supplier(db, supplier_id)
+    _ensure_reviewable(supplier)
+    document = next((item for item in supplier.documents if item.id == document_id), None)
+    if document is None:
+        raise HTTPException(status_code=404, detail="Evidence document was not found.")
+    if payload.action == "dispute" and not (payload.reason or "").strip():
+        raise HTTPException(status_code=422, detail="A reason is required when evidence is flagged.")
+    document.review_status = "verified" if payload.action == "verify" else "disputed"
+    document.review_comment = (payload.reason or "Evidence and numbered checks verified.").strip()
+    document.reviewed_by = payload.reviewer_name.strip()
+    document.reviewed_at = datetime.now(UTC)
+    event_action = "verified" if payload.action == "verify" else "disputed"
+    db.add(AuditEvent(
+        supplier_id=supplier_id, action=f"document.{event_action}",
+        entity_type="document", entity_id=str(document.id),
+        details={"reviewer_name": payload.reviewer_name.strip(), "reason": payload.reason},
+    ))
+    persist_compliance_results(db, supplier, evaluate_compliance(supplier))
+    db.commit()
+    db.refresh(document)
+    return DocumentRead.model_validate(document)
 
 
 @router.post("/{supplier_id}/approve", response_model=DecisionResponse)
@@ -179,13 +247,14 @@ def approve_supplier(
     supplier.decision_reason = "Approved after human review."
     supplier.decided_at = erp_result.completed_at
     supplier.erp_supplier_id = erp_result.supplier_id
+    supplier.erp_payload = erp_result.payload
     db.add(
         AuditEvent(
             supplier_id=supplier.id,
             action="erp.supplier.created",
             entity_type="supplier",
             entity_id=erp_result.supplier_id,
-            details={"status": erp_result.status},
+            details={"status": erp_result.status, "payload_fields": sorted(erp_result.payload)},
         )
     )
     db.add(
@@ -234,6 +303,7 @@ def reject_supplier(
     supplier.decision_reason = payload.reason.strip()
     supplier.decided_at = decided_at
     supplier.erp_supplier_id = None
+    supplier.erp_payload = None
     db.add(
         AuditEvent(
             supplier_id=supplier.id,

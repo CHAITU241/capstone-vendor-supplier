@@ -3,11 +3,13 @@ import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded'
 import SendRoundedIcon from '@mui/icons-material/SendRounded'
 import SupportAgentRoundedIcon from '@mui/icons-material/SupportAgentRounded'
 import { Alert, Box, Button, Chip, CircularProgress, Drawer, Fab, IconButton, Stack, TextField, Typography } from '@mui/material'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { api, ApiError } from '../api/client'
 import type { GeneralAssistantMessage } from '../api/types'
+import { supplierReference } from '../api/supplierReference'
 
 const welcomeMessage: GeneralAssistantMessage = {
   role: 'assistant',
@@ -37,11 +39,23 @@ function assistantErrorMessage(error: unknown): string {
 }
 
 export function SupplierAssistantPopover() {
+  const location = useLocation()
+  const supplierId = location.pathname.match(/^\/review\/suppliers\/([0-9a-f-]+)$/i)?.[1]
+  const contextLabel = supplierId ? supplierReference(supplierId) : null
   const [open, setOpen] = useState(false)
   const [messages, setMessages] = useState<GeneralAssistantMessage[]>([welcomeMessage])
   const [question, setQuestion] = useState('')
   const [asking, setAsking] = useState(false)
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    setMessages([supplierId ? {
+      role: 'assistant',
+      content: `I’m scoped to ${contextLabel}. Ask about this supplier’s uploaded evidence; answers use only its indexed documents.`,
+    } : welcomeMessage])
+    setQuestion('')
+    setError('')
+  }, [supplierId, contextLabel])
 
   async function handleSubmit() {
     const trimmedQuestion = question.trim()
@@ -52,8 +66,16 @@ export function SupplierAssistantPopover() {
     setAsking(true)
     setError('')
     try {
-      const result = await api.askGeneralAssistant(recentConversation(nextMessages))
-      setMessages((current) => [...current, { role: 'assistant', content: result.answer }])
+      if (supplierId) {
+        const result = await api.askSupplierQuestion(supplierId, trimmedQuestion)
+        const sources = result.citations.length
+          ? `\n\n**Sources**\n${result.citations.map((item) => `- ${item.filename}, page ${item.page_number}`).join('\n')}`
+          : ''
+        setMessages((current) => [...current, { role: 'assistant', content: `${result.answer}${sources}` }])
+      } else {
+        const result = await api.askGeneralAssistant(recentConversation(nextMessages))
+        setMessages((current) => [...current, { role: 'assistant', content: result.answer }])
+      }
     } catch (requestError) {
       setMessages(messages)
       setQuestion(trimmedQuestion)
@@ -62,7 +84,7 @@ export function SupplierAssistantPopover() {
   }
 
   function resetChat() {
-    setMessages([welcomeMessage])
+    setMessages([supplierId ? { role: 'assistant', content: `I’m scoped to ${contextLabel}. Ask about this supplier’s uploaded evidence.` } : welcomeMessage])
     setQuestion('')
     setError('')
   }
@@ -76,7 +98,7 @@ export function SupplierAssistantPopover() {
       <Stack sx={{ height: '100%' }}>
         <Stack direction="row" alignItems="center" spacing={1.5} sx={{ px: 2.5, py: 2, bgcolor: 'white', borderBottom: '1px solid', borderColor: 'divider' }}>
           <Box sx={{ width: 42, height: 42, display: 'grid', placeItems: 'center', bgcolor: '#EDE9FE', color: 'tertiary.main', borderRadius: 2 }}><SupportAgentRoundedIcon /></Box>
-          <Box sx={{ flexGrow: 1 }}><Typography fontWeight={750}>VendorLens guide</Typography><Typography variant="caption" color="text.secondary">Supplier onboarding help</Typography></Box>
+          <Box sx={{ flexGrow: 1 }}><Typography fontWeight={750}>VendorLens guide</Typography><Typography variant="caption" color="text.secondary">{contextLabel ? `Reviewing ${contextLabel}` : 'Supplier onboarding help'}</Typography></Box>
           <IconButton title="Start a new chat" aria-label="Start a new chat" onClick={resetChat} disabled={asking}><RefreshRoundedIcon /></IconButton>
           <IconButton title="Close assistant" aria-label="Close assistant" onClick={() => setOpen(false)}><CloseRoundedIcon /></IconButton>
         </Stack>
@@ -98,7 +120,7 @@ export function SupplierAssistantPopover() {
             </Box>)}
             {asking && <CircularProgress size={20} />}
           </Stack>
-          {messages.length === 1 && <Box sx={{ mt: 3 }}><Typography variant="caption" color="text.secondary" fontWeight={700}>QUICK ANSWERS</Typography>
+          {messages.length === 1 && !supplierId && <Box sx={{ mt: 3 }}><Typography variant="caption" color="text.secondary" fontWeight={700}>QUICK ANSWERS</Typography>
             <Stack direction="row" useFlexGap flexWrap="wrap" gap={1} sx={{ mt: 1 }}>
               {quickGuides.map((guide) => <Chip key={guide.label} label={guide.label} clickable variant="outlined" color="primary" onClick={() => setMessages((current) => [...current, { role: 'user', content: guide.label }, { role: 'assistant', content: guide.answer }])} />)}
             </Stack></Box>}
@@ -107,10 +129,10 @@ export function SupplierAssistantPopover() {
 
         <Box sx={{ p: 2.5, borderTop: '1px solid', borderColor: 'divider', bgcolor: 'white' }}>
           <Stack component="form" direction="row" spacing={1} onSubmit={(event) => { event.preventDefault(); void handleSubmit() }}>
-            <TextField fullWidth size="small" placeholder="Ask about onboarding..." aria-label="Ask the assistant" value={question} onChange={(event) => setQuestion(event.target.value)} slotProps={{ htmlInput: { maxLength: 2000 } }} disabled={asking} />
+            <TextField fullWidth size="small" placeholder={supplierId ? `Ask about ${contextLabel}...` : 'Ask about onboarding...'} aria-label="Ask the assistant" value={question} onChange={(event) => setQuestion(event.target.value)} slotProps={{ htmlInput: { maxLength: 2000 } }} disabled={asking} />
             <Button type="submit" variant="contained" aria-label="Send question" disabled={asking || question.trim().length < 3} sx={{ minWidth: 44, px: 1.5 }}><SendRoundedIcon fontSize="small" /></Button>
           </Stack>
-          <Typography display="block" variant="caption" color="text.secondary" sx={{ mt: 1 }}>This guide can explain requirements but cannot inspect your uploads or application result.</Typography>
+          <Typography display="block" variant="caption" color="text.secondary" sx={{ mt: 1 }}>{supplierId ? `Answers are restricted to ${contextLabel}'s indexed documents and include source names.` : 'This guide explains onboarding policy and portal usage.'}</Typography>
         </Box>
       </Stack>
     </Drawer>

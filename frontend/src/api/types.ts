@@ -41,6 +41,7 @@ export interface SupplierSummary {
   decision_reason: string | null
   decided_at: string | null
   erp_supplier_id: string | null
+  erp_payload: Record<string, unknown> | null
   document_count: number
 }
 
@@ -89,6 +90,10 @@ export interface SupplierDocument {
   page_count: number
   processing_status: ProcessingStatus
   error_message: string | null
+  review_status: 'pending' | 'attention' | 'verified' | 'disputed'
+  review_comment: string | null
+  reviewed_by: string | null
+  reviewed_at: string | null
   created_at: string
 }
 
@@ -122,6 +127,10 @@ export interface ExtractedField {
   page_number: number
   confidence: number
   needs_review: boolean
+  review_status: 'pending' | 'attention' | 'verified' | 'corrected' | 'disputed'
+  review_comment: string | null
+  reviewed_by: string | null
+  reviewed_at: string | null
   created_at: string
 }
 
@@ -150,6 +159,9 @@ export interface ComplianceResult {
 }
 
 export interface SupplierDetail extends SupplierSummary {
+  tax_reference: string | null
+  bank_account_number: string | null
+  bank_ifsc: string | null
   requirements: DocumentChecklist
   documents: SupplierDocument[]
   audit_events: AuditEvent[]
