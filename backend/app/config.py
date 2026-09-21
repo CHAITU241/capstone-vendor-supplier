@@ -15,6 +15,8 @@ class Settings(BaseSettings):
     upload_dir: Path = Path("uploads")
     chroma_path: Path = Path("data/chroma")
     max_upload_size_mb: int = 10
+    admin_email: str | None = None
+    admin_password: SecretStr | None = None
     openrouter_api_key: SecretStr | None = None
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
     openrouter_extraction_model: str = "openai/gpt-4o-mini"

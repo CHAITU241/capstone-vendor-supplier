@@ -43,5 +43,6 @@ export function SupplierLoginPage() {
         </Button>
       </Stack>
     </CardContent></Card>
+    <Button component={Link} to="/admin/login" size="small" color="inherit" sx={{ alignSelf: 'flex-end', color: 'text.disabled', fontSize: 12 }}>Admin</Button>
   </Stack>
 }

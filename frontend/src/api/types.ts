@@ -46,8 +46,19 @@ export interface SupplierSummary {
 
 export interface PortalSession {
   token: string
-  role: 'supplier' | 'reviewer'
+  role: 'supplier' | 'reviewer' | 'admin'
   email: string | null
+}
+
+export interface AdminProfile {
+  id: string
+  name: string
+  email: string | null
+  status: SupplierStatus
+  created_at: string
+  submitted_at: string | null
+  document_count: number
+  archived_count: number
 }
 
 export interface SupplierApplication {

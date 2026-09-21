@@ -14,7 +14,7 @@ from app.metrics import (
     HTTP_REQUESTS_IN_PROGRESS,
     metrics_asgi_app,
 )
-from app.routers import ai, assistant, documents, health, portal, review, suppliers
+from app.routers import admin, ai, assistant, documents, health, portal, review, suppliers
 from app.services.tracing import get_langfuse_tracer
 
 settings = get_settings()
@@ -86,6 +86,7 @@ async def validation_exception_handler(
 
 app.include_router(health.router, prefix="/api")
 app.include_router(portal.router, prefix="/api")
+app.include_router(admin.router, prefix="/api")
 app.include_router(suppliers.router, prefix="/api")
 app.include_router(documents.router, prefix="/api")
 app.include_router(ai.router, prefix="/api")

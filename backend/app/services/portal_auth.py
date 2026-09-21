@@ -67,3 +67,9 @@ def require_reviewer(session: PortalSession = Depends(current_session)) -> Porta
     if session.role != "reviewer":
         raise HTTPException(status_code=403, detail="Reviewer access is required.")
     return session
+
+
+def require_admin(session: PortalSession = Depends(current_session)) -> PortalSession:
+    if session.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access is required.")
+    return session

@@ -1,5 +1,6 @@
 import type {
   ApiErrorBody,
+  AdminProfile,
   ComplianceRunResponse,
   DecisionResponse,
   DocumentType,
@@ -67,6 +68,12 @@ export const api = {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }),
   }),
   reviewerDemo: () => request<PortalSession>('/portal/auth/reviewer-demo', { method: 'POST' }),
+  adminLogin: (email: string, password: string) => request<PortalSession>('/portal/auth/admin', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }),
+  }),
+  adminProfiles: () => request<AdminProfile[]>('/admin/profiles'),
+  adminResetPassword: (id: string) => request<{ password: string }>(`/admin/profiles/${id}/reset-password`, { method: 'POST' }),
+  adminDeleteProfile: (id: string) => request<void>(`/admin/profiles/${id}`, { method: 'DELETE' }),
   session: () => request<PortalSession>('/portal/auth/session'),
   logout: () => request<void>('/portal/auth/logout', { method: 'POST' }),
   getApplication: () => request<SupplierApplication>('/portal/application'),

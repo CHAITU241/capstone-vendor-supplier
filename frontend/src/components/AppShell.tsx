@@ -8,7 +8,7 @@ import { SupplierAssistantPopover } from './SupplierAssistantPopover'
 export function AppShell() {
   const { session, signOut } = useAuth()
   const navigate = useNavigate()
-  const workspace = session?.role === 'reviewer' ? '/review' : '/supplier/application'
+  const workspace = session?.role === 'reviewer' ? '/review' : session?.role === 'admin' ? '/admin' : '/supplier/application'
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
@@ -22,7 +22,7 @@ export function AppShell() {
             <Typography variant="h6">VendorLens</Typography>
             </Box>
             {session && <Stack direction="row" spacing={1} alignItems="center">
-              <Button component={Link} to={workspace} variant="text">{session.role === 'reviewer' ? 'Review workspace' : 'My application'}</Button>
+              <Button component={Link} to={workspace} variant="text">{session.role === 'reviewer' ? 'Review workspace' : session.role === 'admin' ? 'Admin' : 'My application'}</Button>
               <Button onClick={() => { void signOut().then(() => navigate('/')) }} startIcon={<LogoutRoundedIcon />} color="inherit" sx={{ display: { xs: 'none', sm: 'inline-flex' } }}>Sign out</Button>
               <Button onClick={() => { void signOut().then(() => navigate('/')) }} color="inherit" sx={{ display: { xs: 'inline-flex', sm: 'none' } }}>Exit</Button>
             </Stack>}

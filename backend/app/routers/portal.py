@@ -1,6 +1,7 @@
 """Separate supplier self-service from the internal reviewer demo."""
 
 import uuid
+import secrets
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile, status
@@ -111,6 +112,16 @@ def login(payload: Credentials, db: Session = Depends(get_db)) -> SessionRespons
 def reviewer_demo(db: Session = Depends(get_db)) -> SessionResponse:
     # Intentionally open for the capstone demo. Replace with company SSO before real use.
     return SessionResponse(token=create_session(db, "reviewer"), role="reviewer")
+
+
+@router.post("/auth/admin", response_model=SessionResponse)
+def admin_login(payload: Credentials, db: Session = Depends(get_db), settings: Settings = Depends(get_settings)) -> SessionResponse:
+    configured_password = settings.admin_password.get_secret_value() if settings.admin_password else ""
+    if (not settings.admin_email or not configured_password
+        or not secrets.compare_digest(str(payload.email).lower(), settings.admin_email.strip().lower())
+        or not secrets.compare_digest(payload.password, configured_password)):
+        raise HTTPException(status_code=401, detail="Admin credentials are incorrect or not configured.")
+    return SessionResponse(token=create_session(db, "admin"), role="admin", email=settings.admin_email)
 
 
 @router.get("/auth/session", response_model=SessionResponse)

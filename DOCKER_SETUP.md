@@ -50,6 +50,8 @@ cp backend/.env.example backend/.env
 
 `backend/.env` is ignored by Git. Never commit API keys or replace the blank values in `.env.example` with real credentials.
 
+For the optional admin maintenance page, set `ADMIN_EMAIL` and a strong `ADMIN_PASSWORD` in `backend/.env`. Recreate the backend after changing these values. Sign in through the small **Admin** link below the supplier sign in form. Leave both blank to disable admin login.
+
 The Compose file overrides `DATABASE_URL`, `UPLOAD_DIR`, `CHROMA_PATH`, and `FRONTEND_ORIGIN` with container-safe values. You do not need to edit those entries.
 
 ## 4. Configure one AI provider
