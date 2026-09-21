@@ -1,13 +1,14 @@
 import AutoAwesomeRoundedIcon from '@mui/icons-material/AutoAwesomeRounded'
 import LogoutRoundedIcon from '@mui/icons-material/LogoutRounded'
 import { AppBar, Box, Button, Container, Stack, Toolbar, Typography } from '@mui/material'
-import { Link, Outlet, useNavigate } from 'react-router-dom'
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { SupplierAssistantPopover } from './SupplierAssistantPopover'
 
 export function AppShell() {
   const { session, signOut } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
   const workspace = session?.role === 'reviewer' ? '/review' : session?.role === 'admin' ? '/admin' : '/supplier/application'
 
   return (
@@ -22,7 +23,7 @@ export function AppShell() {
             <Typography variant="h6">VendorLens</Typography>
             </Box>
             {session && <Stack direction="row" spacing={1} alignItems="center">
-              <Button component={Link} to={workspace} variant="text">{session.role === 'reviewer' ? 'Review workspace' : session.role === 'admin' ? 'Admin' : 'My application'}</Button>
+              {location.pathname !== workspace && <Button component={Link} to={workspace} variant="text">{session.role === 'reviewer' ? 'Review workspace' : session.role === 'admin' ? 'Admin' : 'My application'}</Button>}
               <Button onClick={() => { void signOut().then(() => navigate('/')) }} startIcon={<LogoutRoundedIcon />} color="inherit" sx={{ display: { xs: 'none', sm: 'inline-flex' } }}>Sign out</Button>
               <Button onClick={() => { void signOut().then(() => navigate('/')) }} color="inherit" sx={{ display: { xs: 'inline-flex', sm: 'none' } }}>Exit</Button>
             </Stack>}

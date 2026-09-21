@@ -1,7 +1,8 @@
 import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded'
 import CloudUploadRoundedIcon from '@mui/icons-material/CloudUploadRounded'
 import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
-import { Alert, Box, Button, Card, CardContent, Chip, CircularProgress, Divider, IconButton, MenuItem, Stack, Step, StepLabel, Stepper, TextField, Typography } from '@mui/material'
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
+import { Alert, Box, Button, Card, CardContent, Chip, CircularProgress, Divider, IconButton, MenuItem, Stack, Step, StepLabel, Stepper, TextField, Tooltip, Typography } from '@mui/material'
 import { useCallback, useEffect, useState, type ChangeEvent } from 'react'
 import { api } from '../api/client'
 import { downloadOriginal, openOriginal } from '../api/openOriginal'
@@ -183,10 +184,15 @@ export function SupplierApplicationPage() {
         <Divider />
         <Alert severity="info">These documents are based on the service you selected. A reviewer will check their contents after you submit.</Alert>
         <Typography variant="body2" color="text.secondary">Upload one text-based PDF or UTF-8 text file (up to 10 MB) for each item. If an item asks for two pieces of evidence, combine them into one PDF. Scanned images and image-only PDFs are not supported yet.</Typography>
-        {application.requirements.documents.map(({ document_type: type, label, why, accepted_evidence, required_fields, checks }) => {
+        {application.requirements.documents.map(({ document_type: type, requirement_id: requirementId, label, why, accepted_evidence, required_fields, checks }) => {
           const document = documents.get(type)
           return <Stack key={type} direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ sm: 'center' }} spacing={1.5} sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
-            <Box sx={{ flex: 1 }}><Typography fontWeight={700}>{label}</Typography><Typography variant="body2" color="text.secondary">{plainLanguage(why)}</Typography>
+            <Box sx={{ flex: 1 }}><Stack direction="row" alignItems="center" spacing={0.5}>
+              <Typography fontWeight={700}>{label}</Typography>
+              <Tooltip title={requirementId ? `Policy requirement: ${requirementId}` : 'Legacy document requirement'} arrow>
+                <IconButton size="small" aria-label={requirementId ? `Policy requirement ${requirementId}` : 'Legacy document requirement'} sx={{ p: 0.25, color: 'info.main' }}><InfoOutlinedIcon sx={{ fontSize: 18 }} /></IconButton>
+              </Tooltip>
+            </Stack><Typography variant="body2" color="text.secondary">{plainLanguage(why)}</Typography>
               {accepted_evidence && <Typography variant="body2" sx={{ mt: 0.5 }}><strong>Submit:</strong> {plainLanguage(accepted_evidence)}</Typography>}
               {required_fields && <Typography variant="body2"><strong>Include:</strong> {plainLanguage(required_fields)}</Typography>}
               {checks.length > 0 && <Box component="details" sx={{ mt: 0.5 }}><Typography component="summary" variant="body2" sx={{ cursor: 'pointer' }}>What reviewers will check</Typography>
