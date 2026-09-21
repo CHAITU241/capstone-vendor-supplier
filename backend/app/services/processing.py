@@ -77,6 +77,11 @@ def _safe_failure_message(
         reason = f"The AI provider request failed with HTTP {exc.status_code}."
     elif isinstance(exc, AIResponseError):
         reason = str(exc)
+    elif type(exc).__name__ == "LengthFinishReasonError":
+        reason = (
+            "The extraction model exhausted its output allowance before completing "
+            "the structured result. The response was discarded; no partial fields were saved."
+        )
     else:
         reason = f"{type(exc).__name__}: the AI run failed."
     location = stage or "AI processing"

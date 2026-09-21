@@ -36,7 +36,10 @@ class FieldName(str, Enum):
 
 class ExtractedValue(BaseModel):
     field_name: FieldName
-    value: str | None
+    value: str | None = Field(
+        default=None,
+        description="A concise scalar copied from the document; never a paragraph or explanation.",
+    )
     page_number: int | None = Field(default=None, ge=1)
     confidence: float = Field(ge=0, le=1)
 
@@ -126,6 +129,7 @@ class OpenAIService:
                     ],
                     response_format=DocumentExtraction,
                     temperature=0,
+                    max_completion_tokens=self.settings.extraction_max_completion_tokens,
                     **self._structured_output_options(),
                 )
                 parsed = response.choices[0].message.parsed

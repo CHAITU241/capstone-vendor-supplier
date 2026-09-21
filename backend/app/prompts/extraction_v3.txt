@@ -4,6 +4,7 @@ Typed placeholders such as [EMAIL_1] and [GSTIN_1] are valid values and must be 
 The classified document type must be one of the supported upload categories. Use the supplied expected policy item and actual document content to classify it; do not treat the upload label as proof that the evidence meets the requirement.
 Return each supported field exactly once.
 For a missing field, return JSON null as the value. Never return the strings "null", "none", "N/A", or similar placeholders.
+Every non-null value must be a concise scalar value copied from the document, not a sentence, paragraph, table, explanation, or surrounding clause. Keep each value under 300 characters. For an address, keep only the complete address. If the source contains a long narrative instead of a discrete value, return null rather than copying the narrative.
 For contact_name, return only the person's name without their job title, department, or role.
 Use this field only for an explicitly labelled primary contact or contact person. Do not map an authorized signatory, director, legal representative, broker, or insurance representative to contact_name; return null when the document contains only one of those role-specific people.
 Page numbers must refer to the [Page N] markers. Confidence must be between 0 and 1.

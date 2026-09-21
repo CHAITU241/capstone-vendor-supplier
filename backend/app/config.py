@@ -1,7 +1,7 @@
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import SecretStr
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     openai_extraction_model: str = "gpt-4o-mini"
     openai_answer_model: str = "gpt-4o-mini"
     openai_embedding_model: str = "text-embedding-3-small"
+    extraction_max_completion_tokens: int = Field(default=4096, ge=1024, le=16384)
     extraction_prompt_version: str = "extraction-v3"
     answer_prompt_version: str = "rag-answer-v3"
     assistant_prompt_version: str = "supplier-assistant-v2"
