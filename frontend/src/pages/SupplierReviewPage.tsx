@@ -4,6 +4,7 @@ import BlockRoundedIcon from '@mui/icons-material/BlockRounded'
 import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded'
 import DescriptionRoundedIcon from '@mui/icons-material/DescriptionRounded'
 import EditRoundedIcon from '@mui/icons-material/EditRounded'
+import ExpandLessRoundedIcon from '@mui/icons-material/ExpandLessRounded'
 import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded'
 import FactCheckRoundedIcon from '@mui/icons-material/FactCheckRounded'
 import FlagRoundedIcon from '@mui/icons-material/FlagRounded'
@@ -30,13 +31,6 @@ const fieldLabels: Record<string, string> = {
 
 type RequirementFilter = 'attention' | 'matched' | 'verified' | 'flagged'
 type RequirementItem = SupplierDetail['requirements']['documents'][number]
-
-function reviewColor(status: string): 'default' | 'success' | 'warning' | 'error' {
-  if (status === 'verified' || status === 'corrected') return 'success'
-  if (status === 'disputed') return 'error'
-  if (status === 'attention') return 'warning'
-  return 'default'
-}
 
 function displayStatus(status: string) { return status.replaceAll('_', ' ') }
 function fieldLabel(name: string) { return fieldLabels[name] ?? name.replaceAll('_', ' ').replace(/\b\w/g, (character) => character.toUpperCase()) }
@@ -87,6 +81,7 @@ export function SupplierReviewPage() {
   const [rejectionReason, setRejectionReason] = useState('')
   const [selectedFilter, setSelectedFilter] = useState<RequirementFilter>('attention')
   const [expandedRequirements, setExpandedRequirements] = useState<Set<string>>(new Set())
+  const [checkVisibility, setCheckVisibility] = useState<Record<string, boolean>>({})
 
   const loadSupplier = useCallback(async () => {
     try {
@@ -236,6 +231,9 @@ export function SupplierReviewPage() {
   const activeOption = filterOptions.find((option) => option.key === selectedFilter) ?? filterOptions[0]
   const visibleRequirements = orderedEvidence.filter((item) => item.status === selectedFilter)
   const proposedErp = Object.entries(supplier.erp_preview.payload).map(([fieldName, value]) => ({ fieldName, label: erpLabels[fieldName] ?? fieldLabel(fieldName), value: value ?? 'Not provided', source: supplier.erp_preview.sources[fieldName] }))
+  const identityErpFields = new Set(['supplier_reference', 'legal_name', 'registered_address', 'country', 'contact_name', 'contact_email', 'category', 'subcategory'])
+  const identityErp = proposedErp.filter((item) => identityErpFields.has(item.fieldName))
+  const paymentErp = proposedErp.filter((item) => !identityErpFields.has(item.fieldName))
   const reviewSupplier = supplier
 
   function renderCheck(check: ComplianceResult, document: SupplierDocument | undefined) {
@@ -250,14 +248,19 @@ export function SupplierReviewPage() {
     const inferredExpected = [...new Set(citedFields)].filter((name) => portalValues[name] != null && portalValues[name] !== '').map((name) => ({ field_name: name, value: portalValues[name] }))
     const expected = savedExpected.length ? savedExpected : inferredExpected.length ? inferredExpected : [{ field_name: 'policy_rule', value: String(check.evidence.check_text ?? 'Review against the policy check.') }]
     const method = String(check.evidence.assessment_method ?? 'ai_semantic')
-    const methodLabel = method === 'deterministic' ? 'Calculated' : method === 'reviewer' ? 'Reviewer decision' : method === 'human_required' ? 'Human review' : 'AI-assisted'
+    const methodLabel = method === 'deterministic' ? 'Calculated from extracted values' : method === 'human_required' ? 'Human judgement required' : method === 'reviewer' ? 'Confirmed by reviewer' : 'AI-assisted comparison'
     const checkText = String(check.evidence.check_text ?? check.message)
     const reason = String(check.evidence.ai_reason ?? check.message)
     return (
       <Box key={check.id} sx={{ px: 2, py: 1.75 }}>
         <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={1} alignItems={{ sm: 'flex-start' }}>
-          <Box><Typography variant="body2" fontWeight={700}>{checkText}</Typography>{reason !== checkText && <Typography variant="body2" color="text.secondary" sx={{ mt: .4 }}>{reason}</Typography>}</Box>
-          <Stack direction="row" spacing={.75} sx={{ flexShrink: 0 }}><Chip size="small" color={outcome === 'matched' ? 'success' : outcome === 'not_matched' ? 'error' : 'warning'} label={outcome === 'matched' ? 'Matched' : outcome === 'not_matched' ? 'Not matched' : 'Human review'} /><Chip size="small" variant="outlined" label={methodLabel} /></Stack>
+          <Box><Typography variant="body2" fontWeight={700}>{checkText}</Typography>{reason !== checkText && method !== 'reviewer' && <Typography variant="body2" color="text.secondary" sx={{ mt: .4 }}>{reason}</Typography>}</Box>
+          <Stack alignItems={{ sm: 'flex-end' }} sx={{ flexShrink: 0 }}>
+            <Typography variant="caption" fontWeight={700} color={outcome === 'matched' ? 'success.dark' : outcome === 'not_matched' ? 'error.dark' : 'warning.dark'}>
+              {outcome === 'matched' ? '✓ Matched' : outcome === 'not_matched' ? 'Not matched' : 'Human review'}
+            </Typography>
+            {method !== 'reviewer' && <Typography variant="caption" color="text.secondary">{methodLabel}</Typography>}
+          </Stack>
         </Stack>
         {outcome !== 'matched' && (
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1, mt: 1.25 }}>
@@ -265,6 +268,30 @@ export function SupplierReviewPage() {
             <Box sx={{ p: 1.25, borderRadius: 1.5, bgcolor: 'action.hover' }}><Typography variant="caption" fontWeight={750}>Expected</Typography>{expected.map((item, index) => <Typography key={`${item.field_name}-${index}`} variant="caption" display="block" sx={{ mt: .4, overflowWrap: 'anywhere' }}>{item.field_name === 'policy_rule' ? '' : `${fieldLabel(String(item.field_name ?? 'value'))}: `}{String(item.value ?? 'Not specified')}</Typography>)}</Box>
           </Box>
         )}
+      </Box>
+    )
+  }
+
+  function renderErpGroup(title: string, items: typeof proposedErp) {
+    return (
+      <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, overflow: 'hidden' }}>
+        <Typography fontWeight={750} sx={{ px: 2, py: 1.5, bgcolor: 'action.hover' }}>{title}</Typography>
+        <Stack divider={<Divider flexItem />}>
+          {items.map((item) => {
+            const sourceColor = item.source?.source === 'reviewed_evidence' ? 'success.dark'
+              : item.source?.source === 'supplier_entered' ? 'info.dark'
+                : item.source?.source === 'not_available' ? 'warning.dark' : 'text.secondary'
+            return (
+              <Stack key={item.fieldName} direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={1.5} sx={{ px: 2, py: 1.25 }}>
+                <Typography variant="body2" color="text.secondary">{item.label}</Typography>
+                <Box sx={{ minWidth: 0, textAlign: { sm: 'right' } }}>
+                  <Typography variant="body2" fontWeight={650} sx={{ overflowWrap: 'anywhere' }}>{String(item.value)}</Typography>
+                  <Typography variant="caption" color={sourceColor}>{item.source?.label ?? 'Unknown source'}</Typography>
+                </Box>
+              </Stack>
+            )
+          })}
+        </Stack>
       </Box>
     )
   }
@@ -280,50 +307,78 @@ export function SupplierReviewPage() {
       {notice && <Alert severity="success" onClose={() => setNotice('')}>{notice}</Alert>}
       {finalized && <Alert severity={supplier.status === 'approved' ? 'success' : 'error'}>{supplier.status === 'approved' ? `Approved and created in the mock ERP as ${supplier.erp_supplier_id}.` : `Rejected: ${supplier.decision_reason}`}{supplier.decided_at && ` Decision recorded ${new Date(supplier.decided_at).toLocaleString()}.`}</Alert>}
 
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: 'minmax(0, 2fr) minmax(320px, .8fr)' }, gap: 3, alignItems: 'start' }}>
-        <Card>
-          <CardContent sx={{ p: { xs: 2.5, md: 4 } }}>
-            <Stack direction="row" spacing={1} alignItems="center"><FactCheckRoundedIcon color="primary" /><Typography variant="h6">Requirement review</Typography></Stack>
-            <Typography color="text.secondary" variant="body2" sx={{ mt: .5 }}>Review the document, policy findings, and extracted values together. Confirm or flag the requirement without leaving its card.</Typography>
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' }, gap: 1, my: 2.5 }}>
-              {filterOptions.map((option) => {
-                const count = orderedEvidence.filter((item) => item.status === option.key).length
-                return <ButtonBase key={option.key} aria-pressed={selectedFilter === option.key} onClick={() => setSelectedFilter(option.key)} sx={{ p: 1.4, border: 1, borderColor: `${option.color}.main`, borderRadius: 2, bgcolor: selectedFilter === option.key ? 'action.selected' : 'background.paper', display: 'block', textAlign: 'left', boxShadow: selectedFilter === option.key ? 2 : 0 }}><Typography variant="h5" color={`${option.color}.dark`} fontWeight={750}>{count}</Typography><Typography variant="body2" fontWeight={700}>{option.label}</Typography></ButtonBase>
-              })}
+      <Card>
+        <CardContent sx={{ p: { xs: 2.5, md: 3 } }}>
+          <Stack direction={{ xs: 'column', lg: 'row' }} spacing={2.5} alignItems={{ lg: 'center' }}>
+            <Box sx={{ minWidth: { lg: 230 } }}>
+              <Stack direction="row" spacing={1} alignItems="center"><AutoAwesomeRoundedIcon color="primary" /><Typography variant="h6">Document processing</Typography></Stack>
+              <Typography color="text.secondary" variant="body2" sx={{ mt: .5 }}>Extraction, indexing, and technical readiness.</Typography>
             </Box>
-            <Typography fontWeight={750}>{activeOption.label}</Typography><Typography variant="caption" color="text.secondary">{activeOption.description}</Typography>
-            <Stack spacing={2} sx={{ mt: 2 }}>
-              {visibleRequirements.length === 0 ? <Alert severity="info">No requirements in this group.</Alert> : visibleRequirements.map(({ requirement, document, checks, fields, status }) => {
-                const expanded = expandedRequirements.has(requirement.requirement_id)
-                const hasMismatch = checks.some((check) => policyOutcome(check) === 'not_matched')
-                const analysisReady = document?.ai_extraction_status === 'ready'
-                const canConfirm = Boolean(document && analysisReady && !hasMismatch && !finalized)
-                const blockedReason = !document ? 'The required document is missing.' : !analysisReady ? 'Run or retry document analysis first.' : hasMismatch ? 'Correct the extracted value or flag the requirement before confirming.' : ''
-                return (
-                  <Box key={requirement.requirement_id} sx={{ border: 1, borderColor: status === 'flagged' ? 'error.main' : status === 'attention' ? 'warning.main' : 'divider', borderRadius: 2.5, overflow: 'hidden' }}>
-                    <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={1.5} sx={{ p: 2, bgcolor: 'action.hover' }}>
-                      <Box><Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap><Typography fontWeight={750}>{requirement.label}</Typography><Chip size="small" variant="outlined" label={requirement.requirement_id} /><Chip size="small" color={status === 'verified' ? 'success' : status === 'flagged' ? 'error' : status === 'attention' ? 'warning' : 'info'} label={filterOptions.find((option) => option.key === status)?.label} /></Stack><Typography variant="body2" color="text.secondary" sx={{ mt: .5 }}>{requirement.accepted_evidence}</Typography>{document && <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: .5, overflowWrap: 'anywhere' }}>{document.filename} · {document.page_count} page(s) · version {document.revision}</Typography>}{document?.review_comment && <Typography variant="caption" color={document.review_status === 'disputed' ? 'error' : 'success.dark'} display="block">{document.review_comment}</Typography>}</Box>
-                      {document ? <Stack spacing={.75} alignItems={{ md: 'flex-end' }} sx={{ flexShrink: 0 }}><Stack direction="row" spacing={.5} flexWrap="wrap" useFlexGap><StatusChip status={document.processing_status} /><Chip size="small" color={document.ai_extraction_status === 'ready' ? 'success' : document.ai_extraction_status === 'failed' ? 'error' : 'default'} label={`Extraction: ${displayStatus(document.ai_extraction_status)}`} /><Chip size="small" color={reviewColor(document.review_status)} label={`Review: ${displayStatus(document.review_status)}`} /></Stack><Stack direction="row" spacing={.5}><Button size="small" startIcon={<DescriptionRoundedIcon />} onClick={() => void viewOriginal(document.id)}>View original</Button><Button size="small" onClick={() => void downloadFile(document)}>Download</Button>{!finalized && (document.ai_extraction_status === 'failed' || document.ai_index_status === 'failed') && <Button size="small" disabled={busy} onClick={() => void retryDocument(document)}>Retry AI</Button>}</Stack></Stack> : <Chip label="Missing" color="error" size="small" />}
-                    </Stack>
-                    {checks.length ? <Stack divider={<Divider flexItem />}>{checks.map((check) => renderCheck(check, document))}</Stack> : <Alert severity="warning" sx={{ m: 2 }}>Policy analysis is not available for this requirement yet.</Alert>}
-                    <Divider />
-                    <Box sx={{ px: 2, py: 1.5 }}>
-                      <Button size="small" endIcon={<ExpandMoreRoundedIcon sx={{ transform: expanded ? 'rotate(180deg)' : 'none', transition: 'transform 150ms' }} />} onClick={() => setExpandedRequirements((current) => { const next = new Set(current); if (next.has(requirement.requirement_id)) next.delete(requirement.requirement_id); else next.add(requirement.requirement_id); return next })}>Extracted values ({fields.length})</Button>
-                      {expanded && <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' }, gap: 1, mt: 1.25 }}>{fields.length ? fields.map((field) => <Box key={field.id} sx={{ p: 1.25, border: 1, borderColor: field.review_status === 'disputed' ? 'error.main' : 'divider', borderRadius: 1.5 }}><Stack direction="row" justifyContent="space-between" spacing={1}><Typography variant="caption" color="text.secondary" fontWeight={700}>{fieldLabel(field.field_name)}</Typography><Stack direction="row" spacing={.25} alignItems="center"><Chip size="small" color={reviewColor(field.review_status)} label={displayStatus(field.review_status)} />{!finalized && <Tooltip title="Correct value"><IconButton size="small" onClick={() => openFieldEditor(field)}><EditRoundedIcon fontSize="small" /></IconButton></Tooltip>}</Stack></Stack><Typography variant="body2" fontWeight={650} sx={{ mt: .75, overflowWrap: 'anywhere' }}>{field.value}</Typography><Typography variant="caption" color="text.secondary">page {field.page_number} · {Math.round(field.confidence * 100)}% AI confidence</Typography></Box>) : <Alert severity="info">No values were extracted from this document.</Alert>}</Box>}
-                    </Box>
-                    {!finalized && document && <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="flex-end" spacing={1} sx={{ px: 2, pb: 2 }}><Button color="error" variant="outlined" startIcon={<FlagRoundedIcon />} disabled={busy} onClick={() => setFlagDocumentId(document.id)}>Flag with reason</Button><Tooltip title={canConfirm ? 'Confirm the document, extracted values, and policy checks together.' : blockedReason}><span><Button color="success" variant="contained" startIcon={<CheckCircleRoundedIcon />} disabled={!canConfirm || busy} onClick={() => void confirmRequirement(document, requirement)}>Confirm requirement</Button></span></Tooltip></Stack>}
-                  </Box>
-                )
-              })}
+            <Stack spacing={.75} sx={{ flex: 1 }}>
+              {findings.map((finding, index) => <Alert key={`${finding.text}-${index}`} severity={finding.severity} sx={{ flex: 1, py: .25, overflowWrap: 'anywhere' }}>{finding.text}</Alert>)}
             </Stack>
-            {history.length > 0 && <Box sx={{ mt: 3, pt: 2, borderTop: 1, borderColor: 'divider' }}><Typography fontWeight={700}>Previous document versions</Typography><Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>Retained originals remain available for audit.</Typography>{history.map((item) => <Stack key={item.id} direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ sm: 'center' }} spacing={1} sx={{ py: .75 }}><Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>{item.filename} · version {item.revision}</Typography><Stack direction="row"><Button size="small" onClick={() => void viewOriginal(item.id)}>View</Button><Button size="small" onClick={() => void downloadFile(item)}>Download</Button></Stack></Stack>)}</Box>}
-          </CardContent>
-        </Card>
+            <Box sx={{ minWidth: { lg: 245 }, textAlign: { lg: 'right' } }}>
+              {latestProcessingRun && <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>Last run {new Date(latestProcessingRun.created_at).toLocaleString()} · {(latestProcessingRun.latency_ms / 1000).toFixed(1)}s</Typography>}
+              {!finalized && <Button variant="outlined" startIcon={busy ? <CircularProgress size={17} /> : <AutoAwesomeRoundedIcon />} disabled={busy} onClick={() => void runSupplierAnalysis()}>{busy ? 'Analyzing documents...' : !latestProcessingRun ? 'Run AI analysis' : latestProcessingRun.status === 'failed' ? 'Retry analysis' : 'Refresh AI analysis'}</Button>}
+            </Box>
+          </Stack>
+        </CardContent>
+      </Card>
 
-        <Card sx={{ position: { xl: 'sticky' }, top: { xl: 88 } }}><CardContent sx={{ p: 3 }}><Stack direction="row" spacing={1} alignItems="center"><AutoAwesomeRoundedIcon color="primary" /><Typography variant="h6">Document processing</Typography></Stack><Typography color="text.secondary" variant="body2" sx={{ mt: .75, mb: 2 }}>Extraction, indexing, and technical issues. Policy findings and reviewer actions are inside each requirement.</Typography><Stack spacing={1.25}>{findings.map((finding, index) => <Alert key={`${finding.text}-${index}`} severity={finding.severity} sx={{ overflowWrap: 'anywhere' }}>{finding.text}</Alert>)}</Stack>{latestProcessingRun && <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 2 }}>Last run {new Date(latestProcessingRun.created_at).toLocaleString()} · {latestProcessingRun.model} · {(latestProcessingRun.latency_ms / 1000).toFixed(1)}s</Typography>}{!finalized && <Button fullWidth variant="outlined" startIcon={busy ? <CircularProgress size={17} /> : <AutoAwesomeRoundedIcon />} disabled={busy} onClick={() => void runSupplierAnalysis()} sx={{ mt: 2 }}>{busy ? 'Analyzing documents...' : !latestProcessingRun ? 'Run AI document analysis' : latestProcessingRun.status === 'failed' ? 'Retry failed analysis' : 'Refresh AI analysis'}</Button>}</CardContent></Card>
-      </Box>
+      <Card>
+        <CardContent sx={{ p: { xs: 2.5, md: 4 } }}>
+          <Stack direction="row" spacing={1} alignItems="center"><FactCheckRoundedIcon color="primary" /><Typography variant="h6">Requirement review</Typography></Stack>
+          <Typography color="text.secondary" variant="body2" sx={{ mt: .5 }}>Review the document, policy findings, and extracted values together. Confirm or flag the requirement without leaving its card.</Typography>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' }, gap: 1, my: 2.5 }}>
+            {filterOptions.map((option) => {
+              const count = orderedEvidence.filter((item) => item.status === option.key).length
+              return <ButtonBase key={option.key} aria-pressed={selectedFilter === option.key} onClick={() => setSelectedFilter(option.key)} sx={{ p: 1.4, border: 1, borderColor: `${option.color}.main`, borderRadius: 2, bgcolor: selectedFilter === option.key ? 'action.selected' : 'background.paper', display: 'block', textAlign: 'left', boxShadow: selectedFilter === option.key ? 2 : 0 }}><Typography variant="h5" color={`${option.color}.dark`} fontWeight={750}>{count}</Typography><Typography variant="body2" fontWeight={700}>{option.label}</Typography></ButtonBase>
+            })}
+          </Box>
+          <Typography fontWeight={750}>{activeOption.label}</Typography><Typography variant="caption" color="text.secondary">{activeOption.description}</Typography>
+          <Stack spacing={2} sx={{ mt: 2 }}>
+            {visibleRequirements.length === 0 ? <Alert severity="info">No requirements in this group.</Alert> : visibleRequirements.map(({ requirement, document, checks, fields, status }) => {
+              const extractedExpanded = expandedRequirements.has(requirement.requirement_id)
+              const checksExpanded = checkVisibility[requirement.requirement_id] ?? status !== 'verified'
+              const hasMismatch = checks.some((check) => policyOutcome(check) === 'not_matched')
+              const analysisReady = document?.ai_extraction_status === 'ready'
+              const canConfirm = Boolean(document && analysisReady && !hasMismatch && !finalized)
+              const blockedReason = !document ? 'The required document is missing.' : !analysisReady ? 'Run or retry document analysis first.' : hasMismatch ? 'Correct the extracted value or flag the requirement before confirming.' : ''
+              const statusLabel = filterOptions.find((option) => option.key === status)?.label
+              return (
+                <Box key={requirement.requirement_id} sx={{ border: 1, borderColor: status === 'flagged' ? 'error.main' : status === 'attention' ? 'warning.main' : 'divider', borderRadius: 2.5, overflow: 'hidden' }}>
+                  <Box sx={{ p: 2, bgcolor: 'action.hover' }}>
+                    <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={1.5}>
+                      <Box sx={{ minWidth: 0 }}>
+                        <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap><Typography fontWeight={750}>{requirement.label}</Typography><Typography variant="caption" color="text.secondary">{requirement.requirement_id}</Typography><Chip size="small" color={status === 'verified' ? 'success' : status === 'flagged' ? 'error' : status === 'attention' ? 'warning' : 'info'} label={statusLabel} /></Stack>
+                        <Typography variant="body2" color="text.secondary" sx={{ mt: .5 }}>{requirement.accepted_evidence}</Typography>
+                        {document && <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: .5, overflowWrap: 'anywhere' }}>{document.filename} · {document.page_count} page(s) · version {document.revision}</Typography>}
+                        {document?.review_status === 'disputed' && document.review_comment && <Typography variant="caption" color="error" display="block">Flag reason: {document.review_comment}</Typography>}
+                      </Box>
+                      <Stack alignItems={{ md: 'flex-end' }} spacing={.5} sx={{ flexShrink: 0 }}>
+                        <Button size="small" color="inherit" endIcon={checksExpanded ? <ExpandLessRoundedIcon /> : <ExpandMoreRoundedIcon />} onClick={() => setCheckVisibility((current) => ({ ...current, [requirement.requirement_id]: !checksExpanded }))}>{checksExpanded ? 'Hide checks' : `Show checks (${checks.length})`}</Button>
+                        {document && <Typography variant="caption" color={document.ai_extraction_status === 'failed' || document.processing_status === 'failed' ? 'error' : 'text.secondary'}>Document {displayStatus(document.processing_status)} · extraction {displayStatus(document.ai_extraction_status)}</Typography>}
+                        {document ? <Stack direction="row" spacing={.5}><Button size="small" startIcon={<DescriptionRoundedIcon />} onClick={() => void viewOriginal(document.id)}>View original</Button><Button size="small" onClick={() => void downloadFile(document)}>Download</Button>{!finalized && (document.ai_extraction_status === 'failed' || document.ai_index_status === 'failed') && <Button size="small" disabled={busy} onClick={() => void retryDocument(document)}>Retry AI</Button>}</Stack> : <Typography variant="caption" color="error">Required document missing</Typography>}
+                      </Stack>
+                    </Stack>
+                  </Box>
+                  {checksExpanded && (checks.length ? <Stack divider={<Divider flexItem />}>{checks.map((check) => renderCheck(check, document))}</Stack> : <Alert severity="warning" sx={{ m: 2 }}>Policy analysis is not available for this requirement yet.</Alert>)}
+                  <Divider />
+                  <Box sx={{ px: 2, py: 1.25 }}>
+                    <Button size="small" endIcon={extractedExpanded ? <ExpandLessRoundedIcon /> : <ExpandMoreRoundedIcon />} onClick={() => setExpandedRequirements((current) => { const next = new Set(current); if (next.has(requirement.requirement_id)) next.delete(requirement.requirement_id); else next.add(requirement.requirement_id); return next })}>Extracted values ({fields.length})</Button>
+                    {extractedExpanded && <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' }, gap: 1, mt: 1.25 }}>{fields.length ? fields.map((field) => <Box key={field.id} sx={{ p: 1.25, border: 1, borderColor: field.review_status === 'disputed' ? 'error.main' : 'divider', borderRadius: 1.5 }}><Stack direction="row" justifyContent="space-between" spacing={1}><Typography variant="caption" color="text.secondary" fontWeight={700}>{fieldLabel(field.field_name)}</Typography><Stack direction="row" spacing={.25} alignItems="center"><Typography variant="caption" color={field.review_status === 'disputed' ? 'error' : 'text.secondary'}>{displayStatus(field.review_status)}</Typography>{!finalized && <Tooltip title="Correct value"><IconButton size="small" onClick={() => openFieldEditor(field)}><EditRoundedIcon fontSize="small" /></IconButton></Tooltip>}</Stack></Stack><Typography variant="body2" fontWeight={650} sx={{ mt: .75, overflowWrap: 'anywhere' }}>{field.value}</Typography><Typography variant="caption" color="text.secondary">page {field.page_number} · {Math.round(field.confidence * 100)}% AI confidence</Typography></Box>) : <Alert severity="info">No values were extracted from this document.</Alert>}</Box>}
+                  </Box>
+                  {!finalized && document && status !== 'verified' && <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="flex-end" spacing={1} sx={{ px: 2, pb: 2 }}><Button color="error" variant="outlined" startIcon={<FlagRoundedIcon />} disabled={busy} onClick={() => setFlagDocumentId(document.id)}>Flag with reason</Button><Tooltip title={canConfirm ? 'Confirm the document, extracted values, and policy checks together.' : blockedReason}><span><Button color="success" variant="contained" startIcon={<CheckCircleRoundedIcon />} disabled={!canConfirm || busy} onClick={() => void confirmRequirement(document, requirement)}>Confirm requirement</Button></span></Tooltip></Stack>}
+                  {status === 'verified' && document?.reviewed_at && <Typography variant="caption" color="text.secondary" display="block" textAlign="right" sx={{ px: 2, pb: 1.5 }}>Confirmed {new Date(document.reviewed_at).toLocaleString()}{document.reviewed_by ? ` by ${document.reviewed_by}` : ''}</Typography>}
+                </Box>
+              )
+            })}
+          </Stack>
+          {history.length > 0 && <Box sx={{ mt: 3, pt: 2, borderTop: 1, borderColor: 'divider' }}><Typography fontWeight={700}>Previous document versions</Typography><Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>Retained originals remain available for audit.</Typography>{history.map((item) => <Stack key={item.id} direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ sm: 'center' }} spacing={1} sx={{ py: .75 }}><Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>{item.filename} · version {item.revision}</Typography><Stack direction="row"><Button size="small" onClick={() => void viewOriginal(item.id)}>View</Button><Button size="small" onClick={() => void downloadFile(item)}>Download</Button></Stack></Stack>)}</Box>}
+        </CardContent>
+      </Card>
 
-      <Card><CardContent sx={{ p: { xs: 3, md: 4 } }}><Typography variant="h6">Proposed ERP supplier record</Typography><Typography color="text.secondary" variant="body2" sx={{ mb: 2 }}>This is the exact payload approval will send. Only reviewed or corrected evidence overrides supplier-entered data.</Typography><Stack divider={<Divider flexItem />}>{proposedErp.map((item) => <Stack key={item.fieldName} direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={1.5} sx={{ py: 1 }}><Typography variant="body2" color="text.secondary">{item.label}</Typography><Stack alignItems={{ sm: 'flex-end' }} spacing={.5} sx={{ minWidth: 0 }}><Typography variant="body2" fontWeight={650} textAlign={{ sm: 'right' }} sx={{ overflowWrap: 'anywhere' }}>{String(item.value)}</Typography><Chip size="small" variant="outlined" color={item.source?.source === 'reviewed_evidence' ? 'success' : item.source?.source === 'supplier_entered' ? 'info' : item.source?.source === 'not_available' ? 'warning' : 'default'} label={item.source?.label ?? 'Unknown source'} /></Stack></Stack>)}</Stack>{supplier.erp_payload && <Alert severity="success" sx={{ mt: 2 }}>The exact ERP payload was retained with this approval for audit.</Alert>}</CardContent></Card>
+      <Card><CardContent sx={{ p: { xs: 3, md: 4 } }}><Typography variant="h6">Proposed ERP supplier record</Typography><Typography color="text.secondary" variant="body2" sx={{ mb: 2 }}>This is the exact payload approval will send. Only reviewed or corrected evidence overrides supplier-entered data.</Typography><Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'repeat(2, minmax(0, 1fr))' }, gap: 2 }}>{renderErpGroup('Identity and classification', identityErp)}{renderErpGroup('Payment, banking and risk', paymentErp)}</Box>{supplier.erp_payload && <Alert severity="success" sx={{ mt: 2 }}>The exact ERP payload was retained with this approval for audit.</Alert>}</CardContent></Card>
 
       <Card><CardContent sx={{ p: { xs: 3, md: 4 } }}><Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" alignItems={{ md: 'center' }} spacing={2}><Alert severity={approvalReady ? 'success' : 'warning'} sx={{ flex: 1 }}>{approvalReady ? 'Every requirement is confirmed and all checks pass. Approval is enabled.' : 'Approval stays blocked until every requirement is confirmed and all checks pass.'}</Alert><Stack direction="row" spacing={1}><Button color="error" variant="outlined" startIcon={<BlockRoundedIcon />} disabled={finalized || busy} onClick={() => setDecisionAction('reject')}>Reject</Button><Button color="success" variant="contained" startIcon={<HowToRegRoundedIcon />} disabled={!approvalReady || finalized || busy} onClick={() => setDecisionAction('approve')}>Approve and send to ERP</Button></Stack></Stack></CardContent></Card>
 
