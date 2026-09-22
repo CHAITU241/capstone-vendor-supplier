@@ -255,8 +255,12 @@ export function SupplierReviewPage() {
     }
   }
 
-  async function retryProcessing() {
-    await runProcessing(() => api.processSupplier(supplierId), 'AI processing completed successfully.')
+  async function runSupplierAnalysis() {
+    const refresh = latestProcessingRun?.status === 'succeeded'
+    await runProcessing(
+      () => api.processSupplier(supplierId, refresh),
+      refresh ? 'AI document analysis refreshed successfully.' : 'AI document analysis completed successfully.',
+    )
   }
 
   async function retryDocument(document: SupplierDocument) {
@@ -455,9 +459,15 @@ export function SupplierReviewPage() {
                 Last run {new Date(latestProcessingRun.created_at).toLocaleString()} · {latestProcessingRun.model} · {(latestProcessingRun.latency_ms / 1000).toFixed(1)}s
               </Typography>
             )}
-            {(!latestProcessingRun || latestProcessingRun.status === 'failed') && !finalized && (
-              <Button fullWidth variant="outlined" startIcon={busy ? <CircularProgress size={17} /> : <AutoAwesomeRoundedIcon />} disabled={busy} onClick={() => void retryProcessing()} sx={{ mt: 2 }}>
-                {busy ? 'Running AI review...' : 'Retry AI review'}
+            {!finalized && (
+              <Button fullWidth variant="outlined" startIcon={busy ? <CircularProgress size={17} /> : <AutoAwesomeRoundedIcon />} disabled={busy} onClick={() => void runSupplierAnalysis()} sx={{ mt: 2 }}>
+                {busy
+                  ? 'Analyzing documents...'
+                  : !latestProcessingRun
+                    ? 'Run AI document analysis'
+                    : latestProcessingRun.status === 'failed'
+                      ? 'Retry failed analysis'
+                      : 'Refresh AI analysis'}
               </Button>
             )}
           </CardContent>
@@ -466,21 +476,19 @@ export function SupplierReviewPage() {
 
       <Card>
         <CardContent sx={{ p: { xs: 3, md: 4 } }}>
-          <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={2} sx={{ mb: 2.5 }}>
-            <Box>
-              <Typography variant="h6">AI-extracted supplier data</Typography>
-              <Typography color="text.secondary" variant="body2">Select the values you have checked against the original evidence, then verify or flag them together.</Typography>
-            </Box>
+          <Box sx={{ mb: 2.5 }}>
+            <Typography variant="h6">AI-extracted supplier data</Typography>
+            <Typography color="text.secondary" variant="body2">Select the values you have checked against the original evidence, then verify or flag them together.</Typography>
             {supplier.extracted_fields.length > 0 && !finalized && (
-              <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-                <Button size="small" onClick={() => setSelectedFields(allFieldsSelected ? new Set() : new Set(supplier.extracted_fields.map((field) => field.id)))}>
+              <Stack direction="row" spacing={1} alignItems="center" justifyContent="flex-end" flexWrap={{ xs: 'wrap', sm: 'nowrap' }} useFlexGap sx={{ mt: 2, minHeight: 40 }}>
+                <Button size="small" sx={{ minWidth: 112 }} onClick={() => setSelectedFields(allFieldsSelected ? new Set() : new Set(supplier.extracted_fields.map((field) => field.id)))}>
                   {allFieldsSelected ? 'Clear selection' : 'Select all'}
                 </Button>
                 <Button color="success" variant="contained" startIcon={<CheckCircleRoundedIcon />} disabled={!selectedFields.size || busy} onClick={() => void verifySelectedFields()}>Verify selected</Button>
                 <Button color="error" variant="contained" startIcon={<FlagRoundedIcon />} disabled={!selectedFields.size || busy} onClick={() => setFlagTarget({ kind: 'fields', ids: [...selectedFields] })}>Flag selected</Button>
               </Stack>
             )}
-          </Stack>
+          </Box>
           {supplier.extracted_fields.length === 0 ? (
             <Alert severity="info">No supplier data has been extracted yet. Check the AI review summary.</Alert>
           ) : (

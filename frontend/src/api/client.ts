@@ -115,8 +115,8 @@ export const api = {
     }),
   reviewerDocumentHistory: (supplierId: string) => request<DocumentRevision[]>(`/suppliers/${supplierId}/documents/history`),
   reviewerOriginal: (supplierId: string, id: string) => originalFile(`/suppliers/${supplierId}/documents/${id}/content`),
-  processSupplier: (supplierId: string) =>
-    request<ProcessSupplierResponse>(`/suppliers/${supplierId}/process`, {
+  processSupplier: (supplierId: string, refresh = false) =>
+    request<ProcessSupplierResponse>(`/suppliers/${supplierId}/process${refresh ? '?refresh=true' : ''}`, {
       method: 'POST',
     }),
   processSupplierDocument: (supplierId: string, documentId: string) =>

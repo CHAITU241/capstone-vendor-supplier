@@ -262,6 +262,7 @@ def _process_supplier_documents(
     ai: OpenAIService,
     collection: Collection,
     document_ids: set[uuid.UUID] | None = None,
+    force_reprocess: bool = False,
 ) -> ProcessingOutcome:
     run = _start_run(
         db,
@@ -290,7 +291,7 @@ def _process_supplier_documents(
         document for document in sorted(supplier.documents, key=lambda item: item.document_type.value)
         if document_ids is None or document.id in document_ids
     ]
-    if document_ids is None:
+    if document_ids is None and not force_reprocess:
         documents = [
             document for document in documents
             if document.ai_extraction_status != "ready" or document.ai_index_status != "ready"
@@ -305,7 +306,7 @@ def _process_supplier_documents(
             redaction_counts[category] = redaction_counts.get(category, 0) + count
         db.commit()
 
-        if document.ai_index_status != "ready":
+        if force_reprocess or document.ai_index_status != "ready":
             document.ai_index_status = "processing"
             document.ai_index_error = None
             db.commit()
@@ -349,7 +350,7 @@ def _process_supplier_documents(
                 ))
                 db.commit()
 
-        if document.ai_extraction_status != "ready":
+        if force_reprocess or document.ai_extraction_status != "ready":
             document.ai_extraction_status = "processing"
             document.ai_extraction_error = None
             db.commit()
@@ -483,6 +484,7 @@ def _process_supplier_documents(
     )
     run.details = {
         "ai_provider": settings.ai_provider,
+        "refresh_requested": force_reprocess,
         "embedding_model": settings.active_embedding_model,
         "chunk_size_tokens": settings.chunk_size_tokens,
         "chunk_overlap_tokens": settings.chunk_overlap_tokens,
@@ -530,6 +532,7 @@ def process_supplier_documents(
     ai: OpenAIService,
     collection: Collection,
     document_ids: set[uuid.UUID] | None = None,
+    force_reprocess: bool = False,
 ) -> ProcessingOutcome:
     """Process evidence independently while still closing unexpected run failures."""
     supplier_id = supplier.id
@@ -541,6 +544,7 @@ def process_supplier_documents(
             ai=ai,
             collection=collection,
             document_ids=document_ids,
+            force_reprocess=force_reprocess,
         )
     except Exception as exc:
         db.rollback()

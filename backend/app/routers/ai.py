@@ -50,6 +50,7 @@ def _get_ai_service():
 @router.post("/{supplier_id}/process", response_model=ProcessSupplierResponse)
 def process_supplier(
     supplier_id: uuid.UUID,
+    refresh: bool = False,
     db: Session = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ) -> ProcessSupplierResponse:
@@ -80,6 +81,7 @@ def process_supplier(
             settings=settings,
             ai=_get_ai_service(),
             collection=get_chunk_collection(),
+            force_reprocess=refresh,
         )
     except HTTPException:
         raise
