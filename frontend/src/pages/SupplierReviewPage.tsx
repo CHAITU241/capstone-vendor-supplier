@@ -363,8 +363,8 @@ export function SupplierReviewPage() {
   const policyGroups = [
     {
       key: 'matched' as PolicyGroupKey,
-      title: 'AI matched',
-      description: 'The extracted evidence is consistent with the policy check.',
+      title: 'Matched',
+      description: 'The extracted evidence satisfies the policy check.',
       color: 'success' as const,
       checks: policyChecks.filter((result) => policyGroupFor(result) === 'matched'),
     },
@@ -569,8 +569,8 @@ export function SupplierReviewPage() {
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 1fr) minmax(0, 1fr)' }, gap: 3 }}>
         <Card>
           <CardContent sx={{ p: { xs: 3, md: 4 } }}>
-            <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.75 }}><FactCheckRoundedIcon color="primary" /><Typography variant="h6">AI policy assessment</Typography></Stack>
-            <Typography color="text.secondary" variant="body2">A provisional comparison of the uploaded evidence against every applicable numbered policy check. The reviewer remains the decision-maker.</Typography>
+            <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.75 }}><FactCheckRoundedIcon color="primary" /><Typography variant="h6">Policy assessment</Typography></Stack>
+            <Typography color="text.secondary" variant="body2">Objective checks are calculated from extracted values; semantic checks are AI-assisted. The reviewer remains the decision-maker.</Typography>
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)' }, gap: 1, my: 2 }}>
               {policyGroups.map((group) => (
                 <ButtonBase
@@ -634,11 +634,22 @@ export function SupplierReviewPage() {
                         source: 'Policy check',
                       }]
                       const reason = String(check.evidence.ai_reason ?? check.message)
+                      const assessmentMethod = String(check.evidence.assessment_method ?? 'ai_semantic')
+                      const methodLabel = assessmentMethod === 'deterministic'
+                        ? 'Calculated'
+                        : assessmentMethod === 'reviewer'
+                          ? 'Reviewer decision'
+                          : assessmentMethod === 'human_required'
+                            ? 'Human review'
+                            : 'AI-assisted'
                       return (
                         <Box key={check.id} sx={{ px: 1.75, py: 1.5 }}>
                           <Stack direction="row" justifyContent="space-between" spacing={1} alignItems="flex-start">
                             <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>{reason}</Typography>
-                            <Typography variant="caption" color="text.secondary" sx={{ flexShrink: 0 }}>Check {String(check.evidence.check_number)}</Typography>
+                            <Stack alignItems="flex-end" spacing={0.5} sx={{ flexShrink: 0 }}>
+                              <Typography variant="caption" color="text.secondary">Check {String(check.evidence.check_number)}</Typography>
+                              <Chip size="small" variant="outlined" color={assessmentMethod === 'deterministic' ? 'info' : assessmentMethod === 'reviewer' ? 'success' : 'secondary'} label={methodLabel} />
+                            </Stack>
                           </Stack>
                           {selectedPolicyGroup !== 'matched' && (
                             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1, mt: 1.25 }}>

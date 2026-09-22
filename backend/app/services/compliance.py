@@ -20,6 +20,7 @@ from app.services.document_policy import (
     required_extraction_field_names,
     required_types_for,
 )
+from app.services.policy_evaluator import evaluate_objective_check
 
 RULE_ORDER = (
     "document_completeness",
@@ -102,8 +103,7 @@ def _policy_value_details(
         for name in dict.fromkeys([*cited_fields, *missing_fields])
         if name in portal_values and portal_values[name]
     ]
-    if not expected:
-        expected.append({"field_name": "policy_rule", "value": check_text, "source": "Policy check"})
+    expected.append({"field_name": "policy_rule", "value": check_text, "source": "Policy check"})
     return observed, expected
 
 
@@ -143,6 +143,7 @@ def _policy_assessment_lookup(
 
 def _evaluate_policy_compliance(
     supplier: Supplier,
+    evaluation_date: date,
     ai_policy_assessments: list[dict] | None = None,
 ) -> list[RuleOutcome]:
     """Combine provisional AI findings with the authoritative human review state."""
@@ -151,6 +152,14 @@ def _evaluate_policy_compliance(
     for field in supplier.extracted_fields:
         fields_by_document.setdefault(field.document_id, {})[field.field_name] = field
     assessment_lookup = _policy_assessment_lookup(supplier, ai_policy_assessments)
+    registration_document = next(
+        (candidate for candidate in supplier.documents
+         if candidate.document_type == DocumentType.REGISTRATION),
+        None,
+    )
+    registration_fields = fields_by_document.get(registration_document.id, {}) if registration_document else {}
+    baseline_name_field = registration_fields.get("supplier_name")
+    baseline_name = baseline_name_field.value if baseline_name_field else None
 
     outcomes: list[RuleOutcome] = []
     for item in checklist.documents:
@@ -167,12 +176,14 @@ def _evaluate_policy_compliance(
         for check_number, check_text in enumerate(item.checks, start=1):
             cited_fields: list[str] = []
             cited_page = None
+            assessment_method = "deterministic"
             if document is None or document.processing_status != ProcessingStatus.READY:
                 status = ComplianceStatus.FAIL
                 message = "Required evidence is missing or unreadable."
                 ai_assessment = "not_matched"
                 ai_reason = message
             elif document.review_status == "disputed":
+                assessment_method = "reviewer"
                 status = ComplianceStatus.FAIL
                 message = "The reviewer flagged this evidence as not satisfying the requirement."
                 ai_assessment = "reviewer_flagged"
@@ -180,6 +191,7 @@ def _evaluate_policy_compliance(
                 cited_fields = []
                 cited_page = None
             elif document.review_status == "verified":
+                assessment_method = "reviewer"
                 status = ComplianceStatus.PASS
                 message = "Reviewer verified this numbered policy check against the original evidence."
                 ai_assessment = "human_verified"
@@ -187,6 +199,7 @@ def _evaluate_policy_compliance(
                 cited_fields = []
                 cited_page = None
             elif document.ai_extraction_status == "failed":
+                assessment_method = "human_required"
                 status = ComplianceStatus.NEEDS_REVIEW
                 message = "AI assessment is unavailable; verify this check directly against the original evidence."
                 ai_assessment = "human_review"
@@ -194,51 +207,63 @@ def _evaluate_policy_compliance(
                 cited_fields = []
                 cited_page = None
             else:
+                values = {name: field.value for name, field in document_fields.items()}
+                objective = evaluate_objective_check(
+                    item.requirement_id,
+                    check_number,
+                    values,
+                    baseline_name=baseline_name,
+                    portal_name=supplier.name,
+                    portal_tax_reference=supplier.tax_reference,
+                    portal_bank_account=supplier.bank_account_number,
+                    portal_bank_ifsc=supplier.bank_ifsc,
+                    evaluation_date=evaluation_date,
+                )
                 assessment = assessment_lookup.get((str(document.id), check_number))
-                field_aliases = {
-                    _normalized_field_key(name): name for name in document_fields
-                }
-                cited_fields = list(dict.fromkeys(
-                    canonical
-                    for name in (assessment or {}).get("evidence_fields", [])
-                    if isinstance(name, str)
-                    for canonical in [field_aliases.get(_normalized_field_key(name))]
-                    if canonical is not None
-                ))
-                cited_page = (assessment or {}).get("page_number")
+                if objective is not None:
+                    cited_fields = [name for name in objective.evidence_fields if name in document_fields]
+                    assessment_result = objective.result
+                    assessment_reason = objective.reason
+                else:
+                    assessment_method = "ai_semantic"
+                    field_aliases = {
+                        _normalized_field_key(name): name for name in document_fields
+                    }
+                    cited_fields = list(dict.fromkeys(
+                        canonical
+                        for name in (assessment or {}).get("evidence_fields", [])
+                        if isinstance(name, str)
+                        for canonical in [field_aliases.get(_normalized_field_key(name))]
+                        if canonical is not None
+                    ))
+                    cited_page = (assessment or {}).get("page_number")
+                    assessment_result = str((assessment or {}).get("result") or "human_review")
+                    assessment_reason = str((assessment or {}).get("reason") or "AI did not produce a semantic conclusion; inspect the original evidence.")
                 low_confidence = any(
                     document_fields[name].needs_review
                     or document_fields[name].confidence < 0.75
                     for name in cited_fields
                 )
-                if assessment is None:
+                if low_confidence:
                     status = ComplianceStatus.NEEDS_REVIEW
                     ai_assessment = "human_review"
-                    ai_reason = (
-                        f"AI did not produce a check-level conclusion. Missing extracted fields: {', '.join(missing_fields)}."
-                        if missing_fields else
-                        "AI did not produce a check-level conclusion; inspect the original evidence."
-                    )
-                elif assessment["result"] == "not_matched":
+                    ai_reason = "The cited extracted evidence has low confidence and requires human confirmation."
+                elif assessment_result == "not_matched":
                     status = ComplianceStatus.FAIL
                     ai_assessment = "not_matched"
-                    ai_reason = str(assessment.get("reason") or "The evidence does not satisfy this check.")
-                elif assessment["result"] == "matched" and not low_confidence:
+                    ai_reason = assessment_reason
+                elif assessment_result == "matched":
                     status = ComplianceStatus.NEEDS_REVIEW
                     ai_assessment = "matched"
-                    ai_reason = str(assessment.get("reason") or "The evidence appears to satisfy this check.")
+                    ai_reason = assessment_reason
                 else:
                     status = ComplianceStatus.NEEDS_REVIEW
                     ai_assessment = "human_review"
-                    ai_reason = (
-                        "The cited extracted evidence has low confidence and requires human confirmation."
-                        if low_confidence else
-                        str(assessment.get("reason") or "Human review is required for this check.")
-                    )
+                    ai_reason = assessment_reason
                 message = (
-                    f"AI found a policy mismatch: {ai_reason}"
+                    f"Policy evaluation found a mismatch: {ai_reason}"
                     if ai_assessment == "not_matched" else
-                    f"AI found evidence consistent with this check: {ai_reason}"
+                    f"Policy evaluation found evidence consistent with this check: {ai_reason}"
                     if ai_assessment == "matched" else
                     f"Human review required: {ai_reason}"
                 )
@@ -267,6 +292,7 @@ def _evaluate_policy_compliance(
                     "review_status": document.review_status if document else "missing",
                     "ai_assessment": ai_assessment,
                     "ai_reason": ai_reason,
+                    "assessment_method": assessment_method,
                     "evidence_fields": cited_fields,
                     "evidence_page": cited_page,
                     "expected_fields": expected_fields,
@@ -315,11 +341,11 @@ def evaluate_compliance(
     today: date | None = None,
     ai_policy_assessments: list[dict] | None = None,
 ) -> list[RuleOutcome]:
+    today = today or datetime.now(UTC).date()
     checklist = checklist_for(supplier)
     if checklist.status == "synthetic_demo_policy":
-        return _evaluate_policy_compliance(supplier, ai_policy_assessments)
+        return _evaluate_policy_compliance(supplier, today, ai_policy_assessments)
 
-    today = today or datetime.now(UTC).date()
     required_types = required_types_for(supplier)
     ready_types = {
         document.document_type

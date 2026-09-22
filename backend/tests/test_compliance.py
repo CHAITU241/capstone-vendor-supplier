@@ -192,7 +192,7 @@ def test_policy_checks_pass_after_human_evidence_review() -> None:
         assert outcomes[f"{requirement}.CHECK-2"].status == ComplianceStatus.PASS
 
 
-def test_ai_policy_findings_distinguish_match_mismatch_and_human_review() -> None:
+def test_objective_privacy_rules_override_model_policy_opinions() -> None:
     supplier = Supplier(
         id=uuid.uuid4(),
         name="Brindle Cyber Shield 002 Pvt Ltd",
@@ -245,15 +245,102 @@ def test_ai_policy_findings_distinguish_match_mismatch_and_human_review() -> Non
     mismatch = outcomes["PRIV-001.CHECK-2"]
     assert matched.status == ComplianceStatus.NEEDS_REVIEW
     assert matched.evidence["ai_assessment"] == "matched"
-    assert matched.evidence["evidence_fields"] == ["subprocessors"]
-    assert mismatch.status == ComplianceStatus.FAIL
-    assert mismatch.evidence["ai_assessment"] == "not_matched"
-    assert "45 days" in mismatch.evidence["ai_reason"]
-    assert mismatch.evidence["observed_values"] == [
-        {"field_name": "deletion_interval", "value": "Demo value", "page_number": 1}
-    ]
+    assert matched.evidence["assessment_method"] == "deterministic"
+    assert "subprocessors" in matched.evidence["evidence_fields"]
+    assert mismatch.status == ComplianceStatus.NEEDS_REVIEW
+    assert mismatch.evidence["ai_assessment"] == "human_review"
+    assert mismatch.evidence["assessment_method"] == "deterministic"
+    assert "ambiguous" in mismatch.evidence["ai_reason"]
     assert mismatch.evidence["expected_values"][0]["source"] == "Policy check"
     assert "30 calendar days" in mismatch.evidence["expected_values"][0]["value"]
+
+
+def test_brindle_objective_checks_ignore_five_false_model_mismatches() -> None:
+    supplier = Supplier(
+        id=uuid.uuid4(),
+        name="Brindle Cyber Shield 002 Pvt Ltd",
+        country="India",
+        tax_reference="DEMO-PAN-0002",
+        bank_account_number="990000000002",
+        bank_ifsc="DEMO0001234",
+        category="TECH",
+        subcategory="TECH-CYB",
+    )
+    supplier.documents = [document(item.document_type) for item in checklist_for(supplier).documents]
+    for item in supplier.documents:
+        item.review_status = "pending"
+        item.ai_extraction_status = "ready"
+
+    by_type = {item.document_type: item for item in supplier.documents}
+    values = {
+        DocumentType.REGISTRATION: {
+            "supplier_name": supplier.name,
+            "registration_date": "2021-04-12",
+            "status": "Active",
+        },
+        DocumentType.BANK: {
+            "supplier_name": supplier.name,
+            "bank_account_number": supplier.bank_account_number,
+            "bank_ifsc": supplier.bank_ifsc,
+            "document_date": "2026-08-30",
+        },
+        DocumentType.CONF_001: {
+            "supplier_name": supplier.name,
+            "both_signatures": "/s/ A. Rao 002, /s/ S. Iyer",
+            "execution_date": "2026-08-20",
+        },
+        DocumentType.SEC_001: {
+            "incident_notice_commitment": "24 hours",
+            "signature_and_date": "/s/ A. Rao 002; 2026-09-05",
+        },
+        DocumentType.CONT_001: {
+            "last_exercise_date": "2026-06-11",
+            "review_date": "2026-08-20",
+        },
+    }
+    supplier.extracted_fields = [
+        field(supplier, by_type[document_type], field_name, value)
+        for document_type, document_values in values.items()
+        for field_name, value in document_values.items()
+    ]
+    false_model_findings = [
+        {
+            "document_id": str(by_type[document_type].id),
+            "requirement_id": requirement_id,
+            "check_number": check_number,
+            "result": "not_matched",
+            "reason": "Incorrect model conclusion.",
+            "evidence_fields": evidence_fields,
+            "page_number": 1,
+        }
+        for document_type, requirement_id, check_number, evidence_fields in (
+            (DocumentType.BANK, "BASE-003", 2, ["Document Date"]),
+            (DocumentType.CONF_001, "CONF-001", 1, ["Supplier Name", "Both Signatures"]),
+            (DocumentType.CONF_001, "CONF-001", 2, ["Execution Date"]),
+            (DocumentType.SEC_001, "SEC-001", 2, ["Incident Notice Commitment", "Signature And Date"]),
+            (DocumentType.CONT_001, "CONT-001", 2, ["Last Exercise Date", "Review Date"]),
+        )
+    ]
+
+    outcomes = {
+        item.rule_code: item
+        for item in evaluate_compliance(
+            supplier,
+            today=date(2026, 9, 22),
+            ai_policy_assessments=false_model_findings,
+        )
+    }
+
+    for rule_code in (
+        "BASE-003.CHECK-2",
+        "CONF-001.CHECK-1",
+        "CONF-001.CHECK-2",
+        "SEC-001.CHECK-2",
+        "CONT-001.CHECK-2",
+    ):
+        assert outcomes[rule_code].evidence["ai_assessment"] == "matched"
+        assert outcomes[rule_code].evidence["assessment_method"] == "deterministic"
+        assert "Incorrect model conclusion" not in outcomes[rule_code].evidence["ai_reason"]
 
 
 def test_pending_ai_values_do_not_override_supplier_erp_data() -> None:
