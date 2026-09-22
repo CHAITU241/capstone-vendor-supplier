@@ -172,6 +172,16 @@ export interface SupplierDetail extends SupplierSummary {
   extracted_fields: ExtractedField[]
   ai_runs: AiRun[]
   compliance_results: ComplianceResult[]
+  erp_preview: {
+    payload: Record<string, unknown>
+    sources: Record<string, {
+      source: 'system_generated' | 'supplier_entered' | 'reviewed_evidence' | 'not_available'
+      label: string
+      field_id?: string
+      document_id?: string
+      review_status?: string
+    }>
+  }
 }
 
 export interface ComplianceRunResponse {

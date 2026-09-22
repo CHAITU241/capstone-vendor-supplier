@@ -134,13 +134,11 @@ def required_types_for(supplier: Supplier) -> set[DocumentType]:
     return {item.document_type for item in checklist_for(supplier).documents}
 
 
-GENERIC_EXTRACTION_FIELDS: dict[DocumentType, tuple[str, ...]] = {
-    DocumentType.REGISTRATION: ("supplier_name", "address", "country", "contact_name", "contact_email"),
-    DocumentType.TAX: ("supplier_name", "tax_identifier"),
-    DocumentType.BANK: ("supplier_name", "bank_account_number", "bank_ifsc"),
-    DocumentType.INSURANCE: ("supplier_name", "insurance_provider", "insurance_expiry_date"),
-    DocumentType.INS_CYB_001: ("supplier_name", "insurance_provider", "insurance_expiry_date"),
-    DocumentType.INS_PI_001: ("supplier_name", "insurance_provider", "insurance_expiry_date"),
+CONDITIONAL_EXTRACTION_FIELDS: dict[str, set[str]] = {
+    "BASE-002": {
+        "gstin_when_registered",
+        "declaration_date_and_signatory_when_not_registered",
+    },
 }
 
 
@@ -166,18 +164,24 @@ def _field_key(label: str, document_type: DocumentType) -> str:
 
 
 def extraction_field_names(document_type: DocumentType) -> list[str]:
-    """Return a small, deterministic field allow-list for one evidence requirement."""
-    requirement_id = next(
+    """Return only fields explicitly required by the applicable policy item."""
+    requirement_id = requirement_id_for_document_type(document_type)
+    definition = load_policy().requirements.get(requirement_id)
+    return list(dict.fromkeys(
+        _field_key(label, document_type)
+        for label in definition.required_fields.split(";")
+        if label.strip()
+    )) if definition else []
+
+
+def requirement_id_for_document_type(document_type: DocumentType) -> str:
+    return next(
         (code for code, kind in BASE_TYPES.items() if kind == document_type),
         document_type.value,
     )
-    definition = load_policy().requirements.get(requirement_id)
-    policy_fields = (
-        [
-            _field_key(label, document_type)
-            for label in definition.required_fields.split(";")
-            if label.strip()
-        ]
-        if definition else []
-    )
-    return list(dict.fromkeys((*GENERIC_EXTRACTION_FIELDS.get(document_type, ()), *policy_fields)))
+
+
+def required_extraction_field_names(document_type: DocumentType) -> list[str]:
+    requirement_id = requirement_id_for_document_type(document_type)
+    optional = CONDITIONAL_EXTRACTION_FIELDS.get(requirement_id, set())
+    return [name for name in extraction_field_names(document_type) if name not in optional]

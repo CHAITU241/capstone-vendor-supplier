@@ -147,6 +147,7 @@ class SupplierDetail(SupplierSummary):
     extracted_fields: list[ExtractedFieldRead]
     ai_runs: list[AiRunRead]
     compliance_results: list[ComplianceResultRead]
+    erp_preview: dict
 
 
 class ExtractedFieldUpdate(BaseModel):

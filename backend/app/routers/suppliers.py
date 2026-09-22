@@ -9,6 +9,8 @@ from app.database import get_db
 from app.models import AuditEvent, Document, Supplier
 from app.schemas import SupplierCreate, SupplierDetail, SupplierSummary
 from app.services.document_policy import checklist_for
+from app.services.compliance import evaluate_compliance, persist_compliance_results
+from app.services.mock_erp import build_erp_preview
 from app.services.portal_auth import require_reviewer
 
 router = APIRouter(prefix="/suppliers", tags=["suppliers"], dependencies=[Depends(require_reviewer)])
@@ -73,6 +75,19 @@ def get_supplier(supplier_id: uuid.UUID, db: Session = Depends(get_db)) -> Suppl
     if supplier is None:
         raise HTTPException(status_code=404, detail="Supplier was not found.")
 
+    checklist = checklist_for(supplier)
+    if checklist.status == "synthetic_demo_policy" and (
+        not supplier.compliance_results
+        or any(
+            result.evidence.get("kind") not in {"policy_check", "review_control"}
+            for result in supplier.compliance_results
+        )
+    ):
+        persist_compliance_results(db, supplier, evaluate_compliance(supplier))
+        db.commit()
+        db.refresh(supplier)
+        db.expire(supplier, ["compliance_results"])
+
     supplier.documents.sort(key=lambda item: item.created_at, reverse=True)
     supplier.audit_events.sort(key=lambda item: item.created_at, reverse=True)
     supplier.extracted_fields.sort(
@@ -80,6 +95,7 @@ def get_supplier(supplier_id: uuid.UUID, db: Session = Depends(get_db)) -> Suppl
     )
     supplier.ai_runs.sort(key=lambda item: item.created_at, reverse=True)
     supplier.compliance_results.sort(key=lambda item: item.rule_code)
+    erp_preview = build_erp_preview(supplier)
     return SupplierDetail(
         **SupplierSummary.model_validate(supplier).model_dump(exclude={"document_count"}),
         document_count=len(supplier.documents),
@@ -91,5 +107,9 @@ def get_supplier(supplier_id: uuid.UUID, db: Session = Depends(get_db)) -> Suppl
         tax_reference=supplier.tax_reference,
         bank_account_number=supplier.bank_account_number,
         bank_ifsc=supplier.bank_ifsc,
-        requirements=checklist_for(supplier),
+        requirements=checklist,
+        erp_preview={
+            "payload": erp_preview.payload,
+            "sources": erp_preview.sources,
+        },
     )

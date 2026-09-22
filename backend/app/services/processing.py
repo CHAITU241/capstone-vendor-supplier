@@ -24,7 +24,10 @@ from app.models import (
 )
 from app.services.chunking import chunk_document
 from app.services.compliance import evaluate_compliance, persist_compliance_results
-from app.services.document_policy import extraction_field_names
+from app.services.document_policy import (
+    extraction_field_names,
+    required_extraction_field_names,
+)
 from app.services.openai_service import AIResponseError, OpenAIService
 from app.services.redaction import redact_pii, restore_placeholders
 from app.services.retrieval import (
@@ -463,7 +466,7 @@ def _process_supplier_documents(
         fields_by_document[field.document_id].add(field.field_name)
     for document in all_documents:
         missing = sorted(
-            set(extraction_field_names(document.document_type))
+            set(required_extraction_field_names(document.document_type))
             - fields_by_document[document.id]
         )
         if missing and document.ai_extraction_status == "ready":

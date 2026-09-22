@@ -15,7 +15,11 @@ from app.models import (
     ProcessingStatus,
     Supplier,
 )
-from app.services.document_policy import checklist_for, required_types_for
+from app.services.document_policy import (
+    checklist_for,
+    required_extraction_field_names,
+    required_types_for,
+)
 
 RULE_ORDER = (
     "document_completeness",
@@ -62,11 +66,112 @@ def _normalized_name(value: str) -> str:
     return re.sub(r"[^a-z0-9]+", " ", value.casefold()).strip()
 
 
+def _evaluate_policy_compliance(supplier: Supplier) -> list[RuleOutcome]:
+    """Create reviewable outcomes directly from the applicable numbered policy checks."""
+    checklist = checklist_for(supplier)
+    fields_by_document: dict = {}
+    for field in supplier.extracted_fields:
+        fields_by_document.setdefault(field.document_id, set()).add(field.field_name)
+
+    outcomes: list[RuleOutcome] = []
+    for item in checklist.documents:
+        document = next(
+            (candidate for candidate in supplier.documents
+             if candidate.document_type == item.document_type),
+            None,
+        )
+        expected_fields = required_extraction_field_names(item.document_type)
+        found_fields = fields_by_document.get(document.id, set()) if document else set()
+        missing_fields = sorted(set(expected_fields) - found_fields)
+
+        for check_number, check_text in enumerate(item.checks, start=1):
+            if document is None or document.processing_status != ProcessingStatus.READY:
+                status = ComplianceStatus.FAIL
+                message = "Required evidence is missing or unreadable."
+                ai_assessment = "evidence_unavailable"
+            elif document.review_status == "disputed":
+                status = ComplianceStatus.FAIL
+                message = "The reviewer flagged this evidence as not satisfying the requirement."
+                ai_assessment = "reviewer_flagged"
+            elif document.review_status == "verified":
+                status = ComplianceStatus.PASS
+                message = "Reviewer verified this numbered policy check against the original evidence."
+                ai_assessment = "human_verified"
+            elif document.ai_extraction_status == "failed":
+                status = ComplianceStatus.NEEDS_REVIEW
+                message = "AI assessment is unavailable; verify this check directly against the original evidence."
+                ai_assessment = "ai_unavailable"
+            elif missing_fields:
+                status = ComplianceStatus.NEEDS_REVIEW
+                message = "AI could not locate every expected field; confirm this check against the original evidence."
+                ai_assessment = "fields_missing"
+            else:
+                status = ComplianceStatus.NEEDS_REVIEW
+                message = "AI found the expected fields; reviewer confirmation is still required."
+                ai_assessment = "appears_in_order"
+
+            outcomes.append(RuleOutcome(
+                rule_code=f"{item.requirement_id}.CHECK-{check_number}",
+                status=status,
+                message=message,
+                evidence={
+                    "kind": "policy_check",
+                    "blocking": True,
+                    "requirement_id": item.requirement_id,
+                    "requirement_label": item.label,
+                    "check_number": check_number,
+                    "check_text": check_text,
+                    "source": item.source,
+                    "document_id": str(document.id) if document else None,
+                    "review_status": document.review_status if document else "missing",
+                    "ai_assessment": ai_assessment,
+                    "expected_fields": expected_fields,
+                    "missing_fields": missing_fields,
+                },
+            ))
+
+    if supplier.extracted_fields:
+        disputed = [
+            field.field_name for field in supplier.extracted_fields
+            if field.review_status == "disputed"
+        ]
+        unresolved = [
+            field.field_name for field in supplier.extracted_fields
+            if field.needs_review
+            or field.review_status not in {"verified", "corrected"}
+        ]
+        if disputed:
+            status = ComplianceStatus.FAIL
+            message = "One or more AI-extracted values were disputed by the reviewer."
+        elif unresolved:
+            status = ComplianceStatus.NEEDS_REVIEW
+            message = "Review or correct every AI-extracted value before approval."
+        else:
+            status = ComplianceStatus.PASS
+            message = "All AI-extracted values were verified or corrected by the reviewer."
+        outcomes.append(RuleOutcome(
+            rule_code="REVIEW.EXTRACTED_FIELDS",
+            status=status,
+            message=message,
+            evidence={
+                "kind": "review_control",
+                "blocking": True,
+                "unresolved_fields": sorted(unresolved),
+                "disputed_fields": sorted(disputed),
+            },
+        ))
+    return outcomes
+
+
 def evaluate_compliance(
     supplier: Supplier,
     *,
     today: date | None = None,
 ) -> list[RuleOutcome]:
+    checklist = checklist_for(supplier)
+    if checklist.status == "synthetic_demo_policy":
+        return _evaluate_policy_compliance(supplier)
+
     today = today or datetime.now(UTC).date()
     required_types = required_types_for(supplier)
     ready_types = {
@@ -247,32 +352,6 @@ def evaluate_compliance(
         redaction_boundary,
         field_review,
     ]
-    checklist = checklist_for(supplier)
-    if checklist.status == "synthetic_demo_policy":
-        # Presence and text extraction do not establish that the 22 policy rules passed.
-        # Keep approvals blocked until numbered checks are actually implemented or reviewed.
-        for item in checklist.documents:
-            document = next((d for d in supplier.documents if d.document_type == item.document_type), None)
-            ready = document is not None and document.processing_status == ProcessingStatus.READY
-            review_status = document.review_status if document else "missing"
-            outcomes.append(RuleOutcome(
-                rule_code=f"{item.requirement_id}.REVIEW" if ready else f"{item.requirement_id}.DOC_MISSING",
-                status=(ComplianceStatus.PASS if ready and review_status == "verified"
-                        else ComplianceStatus.FAIL if not ready or review_status == "disputed"
-                        else ComplianceStatus.NEEDS_REVIEW),
-                message=(
-                    f"{item.requirement_id}: evidence and numbered checks were verified by a reviewer."
-                    if ready and review_status == "verified"
-                    else f"{item.requirement_id}: evidence was disputed by the reviewer."
-                    if review_status == "disputed"
-                    else f"{item.requirement_id}: evidence uploaded; a reviewer must verify the required fields and both numbered checks."
-                    if ready else f"{item.requirement_id}: required evidence is missing or unreadable."
-                ),
-                evidence={"requirement_id": item.requirement_id, "source": item.source,
-                          "document_id": str(document.id) if document else None,
-                          "review_status": review_status,
-                          "required_fields": item.required_fields, "checks": item.checks},
-            ))
     return outcomes
 
 

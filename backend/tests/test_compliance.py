@@ -10,7 +10,8 @@ from app.models import (
     Supplier,
 )
 from app.services.compliance import approval_ready, evaluate_compliance
-from app.services.mock_erp import MockERPService
+from app.services.document_policy import checklist_for, extraction_field_names
+from app.services.mock_erp import MockERPService, build_erp_preview
 
 
 SUPPLIER_NAME = "Asteron Industrial Components Private Limited"
@@ -136,8 +137,9 @@ def test_policy_uploads_are_not_misreported_as_validated() -> None:
 
     outcomes = outcomes_by_code(supplier)
 
-    assert outcomes["BASE-001.REVIEW"].status == ComplianceStatus.NEEDS_REVIEW
-    assert outcomes["BASE-003.REVIEW"].evidence["source"].endswith("§BASE-003")
+    assert outcomes["BASE-001.CHECK-1"].status == ComplianceStatus.NEEDS_REVIEW
+    assert outcomes["BASE-001.CHECK-2"].evidence["check_text"].endswith("status is Active.")
+    assert outcomes["BASE-003.CHECK-1"].evidence["source"].endswith("§BASE-003")
     assert approval_ready(list(outcomes.values())) is False
 
 
@@ -183,6 +185,68 @@ def test_policy_checks_pass_after_human_evidence_review() -> None:
 
     outcomes = outcomes_by_code(supplier)
 
-    assert outcomes["BASE-001.REVIEW"].status == ComplianceStatus.PASS
-    assert outcomes["BASE-002.REVIEW"].status == ComplianceStatus.PASS
-    assert outcomes["BASE-003.REVIEW"].status == ComplianceStatus.PASS
+    for requirement in ("BASE-001", "BASE-002", "BASE-003"):
+        assert outcomes[f"{requirement}.CHECK-1"].status == ComplianceStatus.PASS
+        assert outcomes[f"{requirement}.CHECK-2"].status == ComplianceStatus.PASS
+
+
+def test_pending_ai_values_do_not_override_supplier_erp_data() -> None:
+    supplier = ready_supplier()
+    supplier.tax_reference = "PORTAL-PAN-001"
+    source = supplier.documents[1]
+    pending = field(supplier, source, "tax_identifier", "AI-PAN-999")
+    pending.review_status = "pending"
+    supplier.extracted_fields.append(pending)
+
+    preview = build_erp_preview(supplier)
+
+    assert preview.payload["tax_reference"] == "PORTAL-PAN-001"
+    assert preview.sources["tax_reference"]["source"] == "supplier_entered"
+
+
+def test_verified_ai_values_are_the_exact_erp_preview_values() -> None:
+    supplier = ready_supplier()
+    supplier.tax_reference = "PORTAL-PAN-001"
+    source = supplier.documents[1]
+    supplier.extracted_fields.append(
+        field(supplier, source, "tax_identifier", "VERIFIED-PAN-002")
+    )
+
+    preview = build_erp_preview(supplier)
+    result = MockERPService().create_supplier(supplier)
+
+    assert preview.payload["tax_reference"] == "VERIFIED-PAN-002"
+    assert preview.sources["tax_reference"]["source"] == "reviewed_evidence"
+    assert result.payload == preview.payload
+
+
+def test_aster_cloudworks_style_happy_path_passes_after_human_review() -> None:
+    supplier = Supplier(
+        id=uuid.uuid4(),
+        name="Aster Cloudworks 001 Pvt Ltd",
+        country="India",
+        contact_email="onboarding001@supplier.example",
+        tax_reference="DEMO-PAN-0001",
+        bank_account_number="9900000000001",
+        bank_ifsc="DEMO0001234",
+        category="TECH",
+        subcategory="TECH-SW",
+    )
+    supplier.documents = [
+        document(item.document_type) for item in checklist_for(supplier).documents
+    ]
+    supplier.extracted_fields = [
+        field(supplier, source, field_name, f"Demo {field_name}")
+        for source in supplier.documents
+        for field_name in extraction_field_names(source.document_type)
+    ]
+
+    outcomes = evaluate_compliance(supplier, today=date(2026, 9, 22))
+
+    policy_checks = [
+        outcome for outcome in outcomes
+        if outcome.evidence.get("kind") == "policy_check"
+    ]
+    assert len(policy_checks) == 14
+    assert all(outcome.status == ComplianceStatus.PASS for outcome in outcomes)
+    assert approval_ready(outcomes) is True

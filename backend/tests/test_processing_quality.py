@@ -137,6 +137,20 @@ def test_confidentiality_extraction_uses_requirement_specific_fields() -> None:
     ]
 
 
+def test_business_registration_does_not_invent_erp_fields_as_policy_fields() -> None:
+    fields = extraction_field_names(DocumentType.REGISTRATION)
+
+    assert fields == [
+        "supplier_name",
+        "registration_number",
+        "issuing_registry",
+        "registration_date",
+        "status",
+    ]
+    assert "address" not in fields
+    assert "contact_email" not in fields
+
+
 def test_extraction_schema_rejects_runaway_field_values() -> None:
     payload = {
         "classified_document_type": "CONF-001",

@@ -33,7 +33,7 @@ import { Link, useParams } from 'react-router-dom'
 import { api } from '../api/client'
 import { downloadOriginal, openOriginal } from '../api/openOriginal'
 import { evidenceDownloadFilename, supplierReference } from '../api/supplierReference'
-import type { DocumentRevision, ExtractedField, SupplierDetail, SupplierDocument } from '../api/types'
+import type { DocumentRevision, ExtractedField, ProcessSupplierResponse, SupplierDetail, SupplierDocument } from '../api/types'
 import { StatusChip } from '../components/StatusChip'
 
 const fieldLabels: Record<string, string> = {
@@ -50,15 +50,6 @@ const fieldLabels: Record<string, string> = {
   payment_terms: 'Payment terms',
 }
 
-const ruleLabels: Record<string, string> = {
-  document_completeness: 'Required evidence',
-  insurance_expiry: 'Insurance validity',
-  contact_email: 'Contact email',
-  supplier_name_match: 'Supplier name consistency',
-  redaction_boundary: 'Sensitive-data boundary',
-  field_review: 'Extracted-field review',
-}
-
 type FlagTarget = { kind: 'fields'; ids: string[] } | { kind: 'document'; id: string }
 
 function reviewColor(status: string): 'default' | 'success' | 'warning' | 'error' {
@@ -70,6 +61,35 @@ function reviewColor(status: string): 'default' | 'success' | 'warning' | 'error
 
 function displayStatus(status: string) {
   return status.replaceAll('_', ' ')
+}
+
+function fieldLabel(fieldName: string) {
+  return fieldLabels[fieldName]
+    ?? fieldName.replaceAll('_', ' ').replace(/\b\w/g, (character) => character.toUpperCase())
+}
+
+function failureReason(message?: string) {
+  if (!message) return 'AI processing failed for one or more documents.'
+  const marker = ' failed. '
+  const index = message.indexOf(marker)
+  return index >= 0 ? message.slice(index + marker.length) : message
+}
+
+const erpLabels: Record<string, string> = {
+  supplier_reference: 'Supplier reference',
+  legal_name: 'Legal name',
+  registered_address: 'Registered address',
+  country: 'Country',
+  tax_reference: 'Tax reference',
+  contact_name: 'Contact name',
+  contact_email: 'Contact email',
+  bank_account_number: 'Bank account',
+  bank_ifsc: 'Bank IFSC',
+  category: 'Category',
+  subcategory: 'Subcategory',
+  insurance_provider: 'Insurance provider',
+  insurance_expiry_date: 'Insurance expiry',
+  payment_terms: 'Payment terms',
 }
 
 export function SupplierReviewPage() {
@@ -133,12 +153,24 @@ export function SupplierReviewPage() {
       const total = Number(latestProcessingRun.details.total_documents ?? supplier.documents.length)
       const extracted = Number(latestProcessingRun.details.ready_extractions ?? 0)
       const indexed = Number(latestProcessingRun.details.ready_indexes ?? 0)
-      messages.push({ severity: 'warning', text: `${extracted}/${total} documents were extracted and ${indexed}/${total} were indexed. Successful work was retained.` })
+      messages.push({
+        severity: extracted === 0 && indexed === 0 ? 'error' : 'warning',
+        text: extracted === 0 && indexed === 0
+          ? `AI processing did not start successfully: 0/${total} documents were extracted or indexed.`
+          : `${extracted}/${total} documents were extracted and ${indexed}/${total} were indexed. Successful work was retained.`,
+      })
       const failures = Array.isArray(latestProcessingRun.details.failed_documents)
         ? latestProcessingRun.details.failed_documents as Array<{ filename?: string; stage?: string; message?: string }> : []
-      failures.forEach((failure) => messages.push({
+      const groupedFailures = new Map<string, Set<string>>()
+      failures.forEach((failure) => {
+        const reason = failureReason(failure.message)
+        const affected = groupedFailures.get(reason) ?? new Set<string>()
+        if (failure.filename) affected.add(failure.filename)
+        groupedFailures.set(reason, affected)
+      })
+      groupedFailures.forEach((affected, reason) => messages.push({
         severity: 'error',
-        text: failure.message || `${failure.stage || 'AI processing'} failed for ${failure.filename || 'a document'}.`,
+        text: `${reason} ${affected.size} document${affected.size === 1 ? '' : 's'} affected.`,
       }))
     }
     const mismatches = Array.isArray(latestProcessingRun.details.classification_mismatches)
@@ -151,7 +183,7 @@ export function SupplierReviewPage() {
     if (conflicts.length) messages.push({ severity: 'warning', text: `Conflicting values were detected for: ${conflicts.join(', ')}.` })
     missingFields.forEach((item) => messages.push({
       severity: 'warning',
-      text: `${item.filename || 'A document'} is missing or did not expose: ${(item.fields || []).map((field) => field.replaceAll('_', ' ')).join(', ')}.`,
+      text: `${item.filename || 'A document'} is missing or did not expose these policy fields: ${(item.fields || []).map(fieldLabel).join(', ')}.`,
     }))
     const attentionDocuments = supplier.documents.filter((document) => document.review_status === 'attention' || document.review_status === 'disputed')
     if (attentionDocuments.length) messages.push({ severity: 'warning', text: `${attentionDocuments.length} evidence item(s) need attention.` })
@@ -201,14 +233,36 @@ export function SupplierReviewPage() {
     }
   }
 
+  async function runProcessing(action: () => Promise<ProcessSupplierResponse>, success: string) {
+    setBusy(true)
+    setError('')
+    setNotice('')
+    try {
+      const outcome = await action()
+      await loadSupplier()
+      if (outcome.failed_document_count > 0) {
+        setError(`AI processing finished with ${outcome.failed_document_count} document${outcome.failed_document_count === 1 ? '' : 's'} still requiring a retry. See the consolidated AI summary.`)
+        return false
+      }
+      setNotice(success)
+      return true
+    } catch (requestError) {
+      await loadSupplier()
+      setError(requestError instanceof Error ? requestError.message : 'AI processing could not be completed.')
+      return false
+    } finally {
+      setBusy(false)
+    }
+  }
+
   async function retryProcessing() {
-    await runAction(() => api.processSupplier(supplierId), 'AI processing finished. Successful results were retained; check the summary for any remaining failures.')
+    await runProcessing(() => api.processSupplier(supplierId), 'AI processing completed successfully.')
   }
 
   async function retryDocument(document: SupplierDocument) {
-    await runAction(
+    await runProcessing(
       () => api.processSupplierDocument(supplierId, document.id),
-      `${document.filename} was processed again. Check its extraction and search-index status.`,
+      `${document.filename} was extracted and indexed successfully.`,
     )
   }
 
@@ -273,16 +327,17 @@ export function SupplierReviewPage() {
   if (!supplier) return <Alert severity="error">{error || 'Supplier was not found.'}</Alert>
 
   const allFieldsSelected = supplier.extracted_fields.length > 0 && selectedFields.size === supplier.extracted_fields.length
-  const proposedErp = [
-    ['Supplier reference', supplierReference(supplier.id)],
-    ['Legal name', supplier.extracted_fields.find((field) => field.field_name === 'supplier_name')?.value ?? supplier.name],
-    ['Country', supplier.country ?? '—'],
-    ['Tax reference', supplier.extracted_fields.find((field) => field.field_name === 'tax_identifier')?.value ?? supplier.tax_reference ?? '—'],
-    ['Contact email', supplier.extracted_fields.find((field) => field.field_name === 'contact_email')?.value ?? supplier.contact_email ?? '—'],
-    ['Bank account', supplier.extracted_fields.find((field) => field.field_name === 'bank_account_number')?.value ?? supplier.bank_account_number ?? '—'],
-    ['Bank IFSC', supplier.extracted_fields.find((field) => field.field_name === 'bank_ifsc')?.value ?? supplier.bank_ifsc ?? '—'],
-    ['Category', `${supplier.category ?? '—'} / ${supplier.subcategory ?? '—'}`],
-  ]
+  const proposedErp = Object.entries(supplier.erp_preview.payload).map(([fieldName, value]) => ({
+    fieldName,
+    label: erpLabels[fieldName] ?? fieldLabel(fieldName),
+    value: value ?? 'Not provided',
+    source: supplier.erp_preview.sources[fieldName],
+  }))
+  const policyAssessments = supplier.requirements.documents.map((requirement) => ({
+    requirement,
+    checks: supplier.compliance_results.filter((result) => result.evidence.requirement_id === requirement.requirement_id),
+  }))
+  const reviewControls = supplier.compliance_results.filter((result) => result.evidence.kind === 'review_control')
 
   return (
     <Stack spacing={3}>
@@ -333,17 +388,20 @@ export function SupplierReviewPage() {
                     </Stack>
                     {document ? (
                       <Stack spacing={1} alignItems={{ md: 'flex-end' }} sx={{ flexShrink: 0 }}>
-                        <Stack direction="row" spacing={0.75} alignItems="center">
+                        <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap" useFlexGap justifyContent={{ md: 'flex-end' }}>
                           <StatusChip status={document.processing_status} />
-                          <Chip size="small" color={document.ai_extraction_status === 'ready' ? 'success' : document.ai_extraction_status === 'failed' ? 'error' : 'default'} label={`Extraction: ${displayStatus(document.ai_extraction_status)}`} />
-                          <Chip size="small" color={document.ai_index_status === 'ready' ? 'success' : document.ai_index_status === 'failed' ? 'error' : 'default'} label={`Q&A index: ${displayStatus(document.ai_index_status)}`} />
+                          {document.ai_extraction_status === 'failed' && document.ai_index_status === 'failed' ? (
+                            <Tooltip title="See the consolidated AI review summary for the root cause.">
+                              <Chip size="small" color="error" label="AI unavailable" />
+                            </Tooltip>
+                          ) : (
+                            <>
+                              <Chip size="small" color={document.ai_extraction_status === 'ready' ? 'success' : document.ai_extraction_status === 'failed' ? 'error' : 'default'} label={`Extraction: ${displayStatus(document.ai_extraction_status)}`} />
+                              <Chip size="small" color={document.ai_index_status === 'ready' ? 'success' : document.ai_index_status === 'failed' ? 'error' : 'default'} label={`Q&A index: ${displayStatus(document.ai_index_status)}`} />
+                            </>
+                          )}
                           <Chip size="small" color={reviewColor(document.review_status)} label={displayStatus(document.review_status)} />
                         </Stack>
-                        {(document.ai_extraction_error || document.ai_index_error) && (
-                          <Typography variant="caption" color="error" sx={{ maxWidth: 360 }}>
-                            {document.ai_extraction_error || document.ai_index_error}
-                          </Typography>
-                        )}
                         <Stack direction="row" spacing={0.5}>
                           <Button size="small" onClick={() => void viewOriginal(document.id)}>View original</Button>
                           <Button size="small" onClick={() => void downloadFile(document)}>Download</Button>
@@ -353,7 +411,7 @@ export function SupplierReviewPage() {
                         </Stack>
                         {!finalized && (
                           <Stack direction="row" spacing={1}>
-                            <Button size="small" color="success" variant="outlined" startIcon={<CheckCircleRoundedIcon />} disabled={busy} onClick={() => void verifyEvidence(document)}>Verify</Button>
+                            <Button size="small" color="success" variant="outlined" startIcon={<CheckCircleRoundedIcon />} disabled={busy} onClick={() => void verifyEvidence(document)}>Verify checks</Button>
                             <Button size="small" color="error" variant="outlined" startIcon={<FlagRoundedIcon />} disabled={busy} onClick={() => setFlagTarget({ kind: 'document', id: document.id })}>Flag</Button>
                           </Stack>
                         )}
@@ -386,7 +444,11 @@ export function SupplierReviewPage() {
             </Stack>
             <Typography color="text.secondary" variant="body2" sx={{ mt: 0.75, mb: 2 }}>A head start for the reviewer—not an approval decision.</Typography>
             <Stack spacing={1.25}>
-              {findings.map((finding, index) => <Alert key={`${finding.text}-${index}`} severity={finding.severity}>{finding.text}</Alert>)}
+              {findings.map((finding, index) => (
+                <Alert key={`${finding.text}-${index}`} severity={finding.severity} sx={{ overflowWrap: 'anywhere', '& .MuiAlert-message': { minWidth: 0 } }}>
+                  {finding.text}
+                </Alert>
+              ))}
             </Stack>
             {latestProcessingRun && (
               <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 2 }}>
@@ -429,8 +491,8 @@ export function SupplierReviewPage() {
                   <Box key={field.id} sx={{ p: 2, border: 1, borderColor: field.review_status === 'disputed' ? 'error.main' : 'divider', borderRadius: 2, position: 'relative' }}>
                     <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1}>
                       <Stack direction="row" spacing={0.75} alignItems="center">
-                        {!finalized && <Checkbox size="small" checked={selectedFields.has(field.id)} onChange={() => setSelectedFields((selected) => { const next = new Set(selected); if (next.has(field.id)) next.delete(field.id); else next.add(field.id); return next })} inputProps={{ 'aria-label': `Select ${fieldLabels[field.field_name] ?? field.field_name}` }} />}
-                        <Typography variant="caption" color="text.secondary" fontWeight={700}>{fieldLabels[field.field_name] ?? field.field_name}</Typography>
+                        {!finalized && <Checkbox size="small" checked={selectedFields.has(field.id)} onChange={() => setSelectedFields((selected) => { const next = new Set(selected); if (next.has(field.id)) next.delete(field.id); else next.add(field.id); return next })} inputProps={{ 'aria-label': `Select ${fieldLabel(field.field_name)}` }} />}
+                        <Typography variant="caption" color="text.secondary" fontWeight={700}>{fieldLabel(field.field_name)}</Typography>
                       </Stack>
                       <Stack direction="row" spacing={0.5} alignItems="center">
                         <Chip size="small" color={reviewColor(field.review_status)} label={displayStatus(field.review_status)} />
@@ -451,15 +513,40 @@ export function SupplierReviewPage() {
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 1fr) minmax(0, 1fr)' }, gap: 3 }}>
         <Card>
           <CardContent sx={{ p: { xs: 3, md: 4 } }}>
-            <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.75 }}><FactCheckRoundedIcon color="primary" /><Typography variant="h6">Validation checks</Typography></Stack>
-            <Typography color="text.secondary" variant="body2" sx={{ mb: 2 }}>Checks refresh automatically as evidence and extracted values are reviewed.</Typography>
-            <Stack spacing={1.25}>
-              {supplier.compliance_results.length ? supplier.compliance_results.map((result) => (
-                <Box key={result.id} sx={{ p: 1.75, border: 1, borderColor: 'divider', borderRadius: 2 }}>
-                  <Stack direction="row" justifyContent="space-between" spacing={1}><Typography fontWeight={700}>{ruleLabels[result.rule_code] ?? result.rule_code}</Typography><Chip size="small" color={result.status === 'pass' ? 'success' : result.status === 'fail' ? 'error' : 'warning'} label={displayStatus(result.status)} /></Stack>
-                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75 }}>{result.message}</Typography>
+            <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.75 }}><FactCheckRoundedIcon color="primary" /><Typography variant="h6">Policy assessment</Typography></Stack>
+            <Typography color="text.secondary" variant="body2" sx={{ mb: 2 }}>These are the numbered checks from the applicable onboarding policy—not generic AI rules.</Typography>
+            <Stack spacing={1.5}>
+              {policyAssessments.map(({ requirement, checks }) => (
+                <Box key={requirement.requirement_id} sx={{ p: 1.75, border: 1, borderColor: 'divider', borderRadius: 2 }}>
+                  <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1} sx={{ mb: 1 }}>
+                    <Box>
+                      <Typography fontWeight={750}>{requirement.label}</Typography>
+                      <Typography variant="caption" color="text.secondary">{requirement.requirement_id}</Typography>
+                    </Box>
+                    {checks.length > 0 && <Chip size="small" color={checks.every((check) => check.status === 'pass') ? 'success' : checks.some((check) => check.status === 'fail') ? 'error' : 'warning'} label={checks.every((check) => check.status === 'pass') ? 'verified' : checks.some((check) => check.status === 'fail') ? 'issue found' : 'review needed'} />}
+                  </Stack>
+                  {checks.length ? (
+                    <Stack spacing={1} divider={<Divider flexItem />}>
+                      {checks.map((check) => (
+                        <Box key={check.id} sx={{ pt: 0.5 }}>
+                          <Stack direction="row" justifyContent="space-between" spacing={1} alignItems="flex-start">
+                            <Typography variant="body2" fontWeight={650}>Check {String(check.evidence.check_number)}</Typography>
+                            <Chip size="small" color={check.status === 'pass' ? 'success' : check.status === 'fail' ? 'error' : 'warning'} label={displayStatus(check.status)} />
+                          </Stack>
+                          <Typography variant="body2" sx={{ mt: 0.5 }}>{String(check.evidence.check_text ?? '')}</Typography>
+                          <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>{check.message}</Typography>
+                        </Box>
+                      ))}
+                    </Stack>
+                  ) : <Alert severity="info">Policy checks will appear after processing or review begins.</Alert>}
                 </Box>
-              )) : <Alert severity="info">Checks will appear after the AI review has run.</Alert>}
+              ))}
+              {reviewControls.map((result) => (
+                <Alert key={result.id} severity={result.status === 'pass' ? 'success' : result.status === 'fail' ? 'error' : 'warning'}>
+                  <Typography variant="body2" fontWeight={700}>Extracted-value review</Typography>
+                  <Typography variant="body2">{result.message}</Typography>
+                </Alert>
+              ))}
             </Stack>
           </CardContent>
         </Card>
@@ -467,9 +554,22 @@ export function SupplierReviewPage() {
         <Card>
           <CardContent sx={{ p: { xs: 3, md: 4 } }}>
             <Typography variant="h6">Proposed ERP supplier record</Typography>
-            <Typography color="text.secondary" variant="body2" sx={{ mb: 2 }}>This is the business record that approval will create in the mock ERP. Only reviewed or corrected AI fields are sent.</Typography>
+            <Typography color="text.secondary" variant="body2" sx={{ mb: 2 }}>This is the exact payload approval will send. Pending AI values are excluded; reviewed evidence overrides supplier-entered data.</Typography>
             <Stack divider={<Divider flexItem />}>
-              {proposedErp.map(([label, value]) => <Stack key={label} direction="row" justifyContent="space-between" spacing={2} sx={{ py: 1 }}><Typography variant="body2" color="text.secondary">{label}</Typography><Typography variant="body2" fontWeight={650} textAlign="right" sx={{ overflowWrap: 'anywhere' }}>{String(value)}</Typography></Stack>)}
+              {proposedErp.map((item) => (
+                <Stack key={item.fieldName} direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={1.5} sx={{ py: 1 }}>
+                  <Typography variant="body2" color="text.secondary">{item.label}</Typography>
+                  <Stack alignItems={{ sm: 'flex-end' }} spacing={0.5} sx={{ minWidth: 0 }}>
+                    <Typography variant="body2" fontWeight={650} textAlign={{ sm: 'right' }} sx={{ overflowWrap: 'anywhere' }}>{String(item.value)}</Typography>
+                    <Chip
+                      size="small"
+                      variant="outlined"
+                      color={item.source?.source === 'reviewed_evidence' ? 'success' : item.source?.source === 'supplier_entered' ? 'info' : item.source?.source === 'not_available' ? 'warning' : 'default'}
+                      label={item.source?.label ?? 'Unknown source'}
+                    />
+                  </Stack>
+                </Stack>
+              ))}
             </Stack>
             {supplier.erp_payload && <Alert severity="success" sx={{ mt: 2 }}>The exact ERP payload was retained with this approval for audit.</Alert>}
           </CardContent>
@@ -492,7 +592,7 @@ export function SupplierReviewPage() {
 
       <Dialog open={fieldToEdit !== null} onClose={() => !busy && setFieldToEdit(null)} fullWidth maxWidth="sm">
         <DialogTitle>Correct extracted value</DialogTitle>
-        <DialogContent><Stack spacing={2} sx={{ pt: 1 }}><TextField label={fieldToEdit ? fieldLabels[fieldToEdit.field_name] ?? fieldToEdit.field_name : 'Value'} value={editedValue} onChange={(event) => setEditedValue(event.target.value)} multiline minRows={2} autoFocus /><TextField label="Source page" type="number" value={editedPage} onChange={(event) => setEditedPage(Math.max(1, Number(event.target.value)))} slotProps={{ htmlInput: { min: 1 } }} /><Alert severity="info">The correction is recorded as a human-reviewed value and the checks refresh automatically.</Alert></Stack></DialogContent>
+        <DialogContent><Stack spacing={2} sx={{ pt: 1 }}><TextField label={fieldToEdit ? fieldLabel(fieldToEdit.field_name) : 'Value'} value={editedValue} onChange={(event) => setEditedValue(event.target.value)} multiline minRows={2} autoFocus /><TextField label="Source page" type="number" value={editedPage} onChange={(event) => setEditedPage(Math.max(1, Number(event.target.value)))} slotProps={{ htmlInput: { min: 1 } }} /><Alert severity="info">The correction is recorded as a human-reviewed value and the checks refresh automatically.</Alert></Stack></DialogContent>
         <DialogActions><Button onClick={() => setFieldToEdit(null)} disabled={busy}>Cancel</Button><Button variant="contained" onClick={() => void saveCorrection()} disabled={busy || !editedValue.trim()}>{busy ? 'Saving...' : 'Save correction'}</Button></DialogActions>
       </Dialog>
 
