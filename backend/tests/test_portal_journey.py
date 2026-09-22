@@ -136,10 +136,9 @@ def test_human_review_gates_approval_and_retains_erp_payload(tmp_path):
                     headers=review_headers, json={"action": "verify", "reviewer_name": "Demo reviewer"},
                 )
                 assert reviewed.status_code == 200, reviewed.text
-            field_ids = [field["id"] for field in detail["extracted_fields"]]
-            reviewed_fields = client.post(f"/api/suppliers/{supplier_id}/fields/review", headers=review_headers,
-                json={"ids": field_ids, "action": "verify", "reviewer_name": "Demo reviewer"})
-            assert reviewed_fields.status_code == 200, reviewed_fields.text
+            confirmed_detail = client.get(f"/api/suppliers/{supplier_id}", headers=review_headers).json()
+            assert all(field["review_status"] == "verified" for field in confirmed_detail["extracted_fields"])
+            assert all(not field["needs_review"] for field in confirmed_detail["extracted_fields"])
 
             approved = client.post(approve_url, headers=review_headers, json={
                 "confirmed": True, "reviewer_name": "Demo reviewer",

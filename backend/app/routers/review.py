@@ -200,15 +200,35 @@ def review_evidence(
         raise HTTPException(status_code=404, detail="Evidence document was not found.")
     if payload.action == "dispute" and not (payload.reason or "").strip():
         raise HTTPException(status_code=422, detail="A reason is required when evidence is flagged.")
+    now = datetime.now(UTC)
+    reviewer_name = payload.reviewer_name.strip()
     document.review_status = "verified" if payload.action == "verify" else "disputed"
-    document.review_comment = (payload.reason or "Evidence and numbered checks verified.").strip()
-    document.reviewed_by = payload.reviewer_name.strip()
-    document.reviewed_at = datetime.now(UTC)
+    document.review_comment = (payload.reason or "Requirement confirmed against the original evidence.").strip()
+    document.reviewed_by = reviewer_name
+    document.reviewed_at = now
+    reviewed_fields: list[ExtractedField] = []
+    if payload.action == "verify":
+        reviewed_fields = [
+            field for field in supplier.extracted_fields if field.document_id == document.id
+        ]
+        for field in reviewed_fields:
+            if field.review_status != "corrected":
+                field.review_status = "verified"
+                field.review_comment = "Verified with the source requirement."
+            field.needs_review = False
+            field.reviewed_by = reviewer_name
+            field.reviewed_at = now
     event_action = "verified" if payload.action == "verify" else "disputed"
     db.add(AuditEvent(
         supplier_id=supplier_id, action=f"document.{event_action}",
         entity_type="document", entity_id=str(document.id),
-        details={"reviewer_name": payload.reviewer_name.strip(), "reason": payload.reason},
+        details={
+            "reviewer_name": reviewer_name,
+            "reason": payload.reason,
+            "extracted_field_ids": [str(field.id) for field in reviewed_fields],
+            "extracted_field_count": len(reviewed_fields),
+            "compliance_results_recalculated": True,
+        },
     ))
     persist_compliance_results(db, supplier, evaluate_compliance(supplier))
     db.commit()
