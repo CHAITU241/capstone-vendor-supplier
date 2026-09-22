@@ -234,7 +234,7 @@ def test_ai_policy_findings_distinguish_match_mismatch_and_human_review() -> Non
                     "check_number": 2,
                     "result": "not_matched",
                     "reason": "The deletion interval is 45 days, above the 30-day limit.",
-                    "evidence_fields": ["deletion_interval"],
+                    "evidence_fields": ["Deletion Interval"],
                     "page_number": 1,
                 },
             ],

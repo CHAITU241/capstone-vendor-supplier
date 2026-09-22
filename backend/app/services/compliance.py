@@ -66,6 +66,10 @@ def _normalized_name(value: str) -> str:
     return re.sub(r"[^a-z0-9]+", " ", value.casefold()).strip()
 
 
+def _normalized_field_key(value: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "_", value.casefold()).strip("_")
+
+
 def _policy_value_details(
     supplier: Supplier,
     document_fields: dict[str, ExtractedField],
@@ -191,10 +195,16 @@ def _evaluate_policy_compliance(
                 cited_page = None
             else:
                 assessment = assessment_lookup.get((str(document.id), check_number))
-                cited_fields = [
-                    name for name in (assessment or {}).get("evidence_fields", [])
-                    if isinstance(name, str) and name in document_fields
-                ]
+                field_aliases = {
+                    _normalized_field_key(name): name for name in document_fields
+                }
+                cited_fields = list(dict.fromkeys(
+                    canonical
+                    for name in (assessment or {}).get("evidence_fields", [])
+                    if isinstance(name, str)
+                    for canonical in [field_aliases.get(_normalized_field_key(name))]
+                    if canonical is not None
+                ))
                 cited_page = (assessment or {}).get("page_number")
                 low_confidence = any(
                     document_fields[name].needs_review

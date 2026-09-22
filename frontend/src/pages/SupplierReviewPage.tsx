@@ -70,6 +70,10 @@ function fieldLabel(fieldName: string) {
     ?? fieldName.replaceAll('_', ' ').replace(/\b\w/g, (character) => character.toUpperCase())
 }
 
+function normalizedFieldKey(fieldName: string) {
+  return fieldName.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '')
+}
+
 function failureReason(message?: string) {
   if (!message) return 'AI processing failed for one or more documents.'
   const marker = ' failed. '
@@ -601,12 +605,34 @@ export function SupplierReviewPage() {
                   </Stack>
                   <Stack divider={<Divider flexItem />}>
                     {checks.map((check) => {
-                      const observed = Array.isArray(check.evidence.observed_values)
+                      const savedObserved = Array.isArray(check.evidence.observed_values)
                         ? check.evidence.observed_values as Array<{ field_name?: string; value?: unknown; page_number?: number }>
                         : []
-                      const expected = Array.isArray(check.evidence.expected_values)
+                      const citedFields = Array.isArray(check.evidence.evidence_fields)
+                        ? check.evidence.evidence_fields.map((item) => normalizedFieldKey(String(item)))
+                        : []
+                      const observed = savedObserved.length ? savedObserved : supplier.extracted_fields
+                        .filter((field) => field.document_id === document?.id && citedFields.includes(normalizedFieldKey(field.field_name)))
+                        .map((field) => ({ field_name: field.field_name, value: field.value, page_number: field.page_number }))
+                      const savedExpected = Array.isArray(check.evidence.expected_values)
                         ? check.evidence.expected_values as Array<{ field_name?: string; value?: unknown; source?: string }>
                         : []
+                      const portalExpectedValues: Record<string, unknown> = {
+                        supplier_name: supplier.name,
+                        tax_identifier: supplier.tax_reference,
+                        bank_account_number: supplier.bank_account_number,
+                        bank_ifsc: supplier.bank_ifsc,
+                        contact_email: supplier.contact_email,
+                        country: 'India',
+                      }
+                      const inferredExpected = [...new Set(citedFields)]
+                        .filter((name) => portalExpectedValues[name] != null && portalExpectedValues[name] !== '')
+                        .map((name) => ({ field_name: name, value: portalExpectedValues[name], source: 'Portal value' }))
+                      const expected = savedExpected.length ? savedExpected : inferredExpected.length ? inferredExpected : [{
+                        field_name: 'policy_rule',
+                        value: String(check.evidence.check_text ?? 'Review against the applicable policy check.'),
+                        source: 'Policy check',
+                      }]
                       const reason = String(check.evidence.ai_reason ?? check.message)
                       return (
                         <Box key={check.id} sx={{ px: 1.75, py: 1.5 }}>
