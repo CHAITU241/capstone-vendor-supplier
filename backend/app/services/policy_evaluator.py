@@ -61,10 +61,15 @@ def _duration(value: str | None, target_unit: str) -> float | None:
     if not value:
         return None
     normalized = _norm(value)
+    if "business day" in normalized:
+        return None
     if normalized in {"daily", "every day", "once daily"}:
         number, unit = 1.0, "days"
     else:
-        match = re.search(r"(\d+(?:\.\d+)?)\s*(hours?|hrs?|days?|months?|years?)", normalized)
+        match = re.search(
+            r"(\d+(?:\.\d+)?)\s*(?:calendar\s+)?(hours?|hrs?|days?|months?|years?)",
+            normalized,
+        )
         if not match:
             return None
         number, unit = float(match.group(1)), match.group(2)
