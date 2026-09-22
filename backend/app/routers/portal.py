@@ -4,7 +4,7 @@ import uuid
 import secrets
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Response, UploadFile, status
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import select
@@ -12,7 +12,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.config import Settings, get_settings
-from app.database import get_db
+from app.database import SessionLocal, get_db
 from app.models import Document, DocumentType, PortalAccount, PortalSession, ProcessingStatus, Supplier, SupplierStatus
 from app.routers.documents import delete_document, document_history, original_file_response, upload_document
 from app.schemas import (
@@ -88,6 +88,26 @@ def application_response(db: Session, supplier: Supplier) -> ApplicationRead:
         documents=[DocumentRead.model_validate(item) for item in documents],
         requirements=checklist_for(supplier),
     )
+
+
+def process_submitted_application(supplier_id: uuid.UUID, settings: Settings) -> None:
+    """Run document AI after the submission response has been sent."""
+    with SessionLocal() as db:
+        supplier = db.get(Supplier, supplier_id)
+        if supplier is None or supplier.submitted_at is None:
+            return
+        try:
+            process_supplier_documents(
+                db=db,
+                supplier=supplier,
+                settings=settings,
+                ai=build_openai_service(settings),
+                collection=get_chunk_collection(),
+            )
+        except Exception:
+            # Processing records its safe failure state for the reviewer. Submission
+            # remains valid and must never be rolled back by an AI/provider failure.
+            pass
 
 
 @router.post("/auth/register", response_model=SessionResponse, status_code=201)
@@ -209,6 +229,7 @@ def save_application(payload: ApplicationUpdate, session: PortalSession = Depend
 
 @router.post("/application/submit", response_model=ApplicationRead)
 def submit_application(
+    background_tasks: BackgroundTasks,
     session: PortalSession = Depends(require_supplier), db: Session = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ) -> ApplicationRead:
@@ -237,19 +258,11 @@ def submit_application(
     if supplier.submitted_at is None:
         supplier.requirements_snapshot = checklist_for(supplier).model_dump(mode="json")
         supplier.submitted_at = datetime.now(timezone.utc)
+        supplier.status = SupplierStatus.NEEDS_REVIEW
         db.commit()
         db.refresh(supplier)
         if settings.ai_configured:
-            try:
-                process_supplier_documents(
-                    db=db, supplier=supplier, settings=settings,
-                    ai=build_openai_service(settings), collection=get_chunk_collection(),
-                )
-            except Exception:
-                # The AI run records its safe failure state. Submission remains valid
-                # and the reviewer gets a visible retry action instead of a lost case.
-                pass
-            db.refresh(supplier)
+            background_tasks.add_task(process_submitted_application, supplier.id, settings)
     return application_response(db, supplier)
 
 

@@ -105,7 +105,9 @@ export function SupplierApplicationPage() {
   async function submit() {
     setBusy(true); setError(''); setNotice('')
     try {
-      setApplication(await api.submitApplication())
+      const submittedApplication = await api.submitApplication()
+      setApplication(submittedApplication)
+      setStep(3)
       setNotice('Your application has been submitted to the reviewer workspace.')
     } catch (err) { setError(err instanceof Error ? err.message : 'Could not submit application.') }
     finally { setBusy(false) }
@@ -230,7 +232,9 @@ export function SupplierApplicationPage() {
         </Box>}
         {!submitted && <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={1}>
           <Button startIcon={<ArrowBackRoundedIcon />} onClick={() => setStep(1)}>Edit details</Button>
-          <Button variant="contained" size="large" disabled={busy || application.requirements.documents.length === 0 || missing.length > 0 || extras.length > 0} onClick={() => void submit()}>Submit application for review</Button>
+          <Button variant="contained" size="large" disabled={busy || application.requirements.documents.length === 0 || missing.length > 0 || extras.length > 0} onClick={() => void submit()}>
+            {busy ? 'Submitting application...' : 'Submit application for review'}
+          </Button>
         </Stack>}
       </Stack>}
     </CardContent></Card>

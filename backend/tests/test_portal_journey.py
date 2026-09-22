@@ -64,6 +64,7 @@ def test_supplier_can_resume_and_submit_without_ai(tmp_path):
             submitted = client.post("/api/portal/application/submit", headers=supplier_headers)
             assert submitted.status_code == 200, submitted.text
             assert submitted.json()["submitted_at"] is not None
+            assert submitted.json()["status"] == "needs_review"
             cases = client.get("/api/suppliers", headers=reviewer_headers).json()
             assert len(cases) == 1 and cases[0]["category"] == "GOODS"
             assert client.patch("/api/portal/application", headers=supplier_headers, json={
