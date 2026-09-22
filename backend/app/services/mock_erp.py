@@ -1,15 +1,6 @@
 from dataclasses import dataclass
-from datetime import UTC, datetime
 
 from app.models import DocumentType, ExtractedField, Supplier
-
-
-@dataclass(frozen=True)
-class ErpSupplierResult:
-    supplier_id: str
-    status: str
-    completed_at: datetime
-    payload: dict
 
 
 @dataclass(frozen=True)
@@ -94,20 +85,3 @@ def build_erp_preview(supplier: Supplier) -> ErpPreview:
     reviewed_or_supplier("insurance_expiry_date", "insurance_expiry_date", None)
     reviewed_or_supplier("payment_terms", "payment_terms", None)
     return ErpPreview(payload=payload, sources=sources)
-
-
-class MockERPService:
-    """Deterministic local ERP boundary used by the Phase 3 demo."""
-
-    def create_supplier(self, supplier: Supplier) -> ErpSupplierResult:
-        payload = build_erp_preview(supplier).payload
-        return ErpSupplierResult(
-            supplier_id=f"ERP-{supplier.id.hex[:10].upper()}",
-            status="created",
-            completed_at=datetime.now(UTC),
-            payload=payload,
-        )
-
-
-def get_mock_erp_service() -> MockERPService:
-    return MockERPService()

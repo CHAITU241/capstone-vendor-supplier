@@ -19,7 +19,7 @@ import { Link, useParams } from 'react-router-dom'
 import { api } from '../api/client'
 import { downloadOriginal, openOriginal } from '../api/openOriginal'
 import { evidenceDownloadFilename, supplierReference } from '../api/supplierReference'
-import type { ComplianceResult, DocumentRevision, ExtractedField, ProcessSupplierResponse, SupplierDetail, SupplierDocument } from '../api/types'
+import type { ComplianceResult, DocumentRevision, ErpRecord, ErpValidation, ExtractedField, ProcessSupplierResponse, SupplierDetail, SupplierDocument } from '../api/types'
 import { StatusChip } from '../components/StatusChip'
 
 const fieldLabels: Record<string, string> = {
@@ -82,12 +82,25 @@ export function SupplierReviewPage() {
   const [selectedFilter, setSelectedFilter] = useState<RequirementFilter>('attention')
   const [expandedRequirements, setExpandedRequirements] = useState<Set<string>>(new Set())
   const [checkVisibility, setCheckVisibility] = useState<Record<string, boolean>>({})
+  const [erpValidation, setErpValidation] = useState<ErpValidation | null>(null)
+  const [erpValidationError, setErpValidationError] = useState('')
+  const [erpValidating, setErpValidating] = useState(false)
+  const [erpRecord, setErpRecord] = useState<ErpRecord | null>(null)
+  const [showErpRecord, setShowErpRecord] = useState(false)
 
   const loadSupplier = useCallback(async () => {
     try {
       const [detail, archived] = await Promise.all([api.getSupplier(supplierId), api.reviewerDocumentHistory(supplierId)])
       setSupplier(detail)
       setHistory(archived)
+      setErpValidating(true)
+      try {
+        setErpValidation(await api.validateErpRecord(supplierId))
+        setErpValidationError('')
+      } catch (validationError) {
+        setErpValidation(null)
+        setErpValidationError(validationError instanceof Error ? validationError.message : 'ERP validation could not be completed.')
+      } finally { setErpValidating(false) }
       const policyChecks = detail.compliance_results.filter((result) => result.evidence.kind === 'policy_check')
       const statuses = detail.requirements.documents.map((requirement) => requirementStatus(
         detail.documents.find((document) => document.document_type === requirement.document_type),
@@ -120,7 +133,8 @@ export function SupplierReviewPage() {
 
   const latestProcessingRun = supplier?.ai_runs.find((run) => run.run_type === 'processing')
   const finalized = supplier?.status === 'approved' || supplier?.status === 'rejected'
-  const approvalReady = Boolean(supplier?.compliance_results.length && supplier.compliance_results.every((result) => result.status === 'pass'))
+  const complianceReady = Boolean(supplier?.compliance_results.length && supplier.compliance_results.every((result) => result.status === 'pass'))
+  const approvalReady = complianceReady && Boolean(erpValidation?.valid)
 
   const findings = useMemo(() => {
     if (!supplier) return []
@@ -219,6 +233,20 @@ export function SupplierReviewPage() {
     }
   }
 
+  async function refreshErpValidation() {
+    setErpValidating(true); setErpValidationError('')
+    try { setErpValidation(await api.validateErpRecord(supplierId)) }
+    catch (validationError) { setErpValidation(null); setErpValidationError(validationError instanceof Error ? validationError.message : 'ERP validation could not be completed.') }
+    finally { setErpValidating(false) }
+  }
+
+  async function openErpRecord() {
+    setBusy(true); setError('')
+    try { setErpRecord(await api.getErpRecord(supplierId)); setShowErpRecord(true) }
+    catch (recordError) { setError(recordError instanceof Error ? recordError.message : 'ERP record could not be retrieved.') }
+    finally { setBusy(false) }
+  }
+
   if (loading) return <Box sx={{ display: 'grid', placeItems: 'center', py: 8 }}><CircularProgress /></Box>
   if (!supplier) return <Alert severity="error">{error || 'Supplier was not found.'}</Alert>
 
@@ -305,7 +333,7 @@ export function SupplierReviewPage() {
       </Stack>
       {error && <Alert severity="error" onClose={() => setError('')}>{error}</Alert>}
       {notice && <Alert severity="success" onClose={() => setNotice('')}>{notice}</Alert>}
-      {finalized && <Alert severity={supplier.status === 'approved' ? 'success' : 'error'}>{supplier.status === 'approved' ? `Approved and created in the mock ERP as ${supplier.erp_supplier_id}.` : `Rejected: ${supplier.decision_reason}`}{supplier.decided_at && ` Decision recorded ${new Date(supplier.decided_at).toLocaleString()}.`}</Alert>}
+      {finalized && <Alert severity={supplier.status === 'approved' ? 'success' : 'error'} action={supplier.status === 'approved' ? <Button color="inherit" size="small" onClick={() => void openErpRecord()}>View ERP record</Button> : undefined}>{supplier.status === 'approved' ? `Approved and created in the mock ERP as ${supplier.erp_supplier_id}.` : `Rejected: ${supplier.decision_reason}`}{supplier.decided_at && ` Decision recorded ${new Date(supplier.decided_at).toLocaleString()}.`}</Alert>}
 
       <Card>
         <CardContent sx={{ p: { xs: 2.5, md: 3 } }}>
@@ -378,13 +406,14 @@ export function SupplierReviewPage() {
         </CardContent>
       </Card>
 
-      <Card><CardContent sx={{ p: { xs: 3, md: 4 } }}><Typography variant="h6">Proposed ERP supplier record</Typography><Typography color="text.secondary" variant="body2" sx={{ mb: 2 }}>This is the exact payload approval will send. Only reviewed or corrected evidence overrides supplier-entered data.</Typography><Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'repeat(2, minmax(0, 1fr))' }, gap: 2 }}>{renderErpGroup('Identity and classification', identityErp)}{renderErpGroup('Payment, banking and risk', paymentErp)}</Box>{supplier.erp_payload && <Alert severity="success" sx={{ mt: 2 }}>The exact ERP payload was retained with this approval for audit.</Alert>}</CardContent></Card>
+      <Card><CardContent sx={{ p: { xs: 3, md: 4 } }}><Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={2}><Box><Typography variant="h6">Proposed ERP supplier record</Typography><Typography color="text.secondary" variant="body2">This is the exact payload approval will send. Only reviewed or corrected evidence overrides supplier-entered data.</Typography></Box><Button variant="outlined" size="small" disabled={erpValidating || finalized} onClick={() => void refreshErpValidation()}>{erpValidating ? 'Validating...' : 'Validate with ERP'}</Button></Stack>{erpValidationError && <Alert severity="error" sx={{ my: 2 }}>{erpValidationError} No supplier record was created; retry is safe.</Alert>}{erpValidation?.valid && <Alert severity="success" sx={{ my: 2 }}>ERP validation passed.{erpValidation.warnings.length ? ` ${erpValidation.warnings.length} optional field warning${erpValidation.warnings.length === 1 ? '' : 's'} will not block creation.` : ''}</Alert>}{erpValidation && !erpValidation.valid && <Alert severity="error" sx={{ my: 2 }}><Typography fontWeight={700}>ERP validation must be resolved before approval.</Typography>{erpValidation.errors.map((item) => <Typography key={`${item.field}-${item.code}`} variant="body2">• {item.message}</Typography>)}</Alert>}<Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'repeat(2, minmax(0, 1fr))' }, gap: 2 }}>{renderErpGroup('Identity and classification', identityErp)}{renderErpGroup('Payment, banking and risk', paymentErp)}</Box>{erpValidation?.warnings.length ? <Box sx={{ mt: 1.5 }}>{erpValidation.warnings.map((item) => <Typography key={`${item.field}-${item.code}`} variant="caption" color="text.secondary" display="block">Optional: {item.message}</Typography>)}</Box> : null}{supplier.erp_payload && <Alert severity="success" sx={{ mt: 2 }} action={<Button color="inherit" size="small" onClick={() => void openErpRecord()}>Retrieve from ERP</Button>}>The exact ERP payload was retained with this approval for audit.</Alert>}</CardContent></Card>
 
-      <Card><CardContent sx={{ p: { xs: 3, md: 4 } }}><Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" alignItems={{ md: 'center' }} spacing={2}><Alert severity={approvalReady ? 'success' : 'warning'} sx={{ flex: 1 }}>{approvalReady ? 'Every requirement is confirmed and all checks pass. Approval is enabled.' : 'Approval stays blocked until every requirement is confirmed and all checks pass.'}</Alert><Stack direction="row" spacing={1}><Button color="error" variant="outlined" startIcon={<BlockRoundedIcon />} disabled={finalized || busy} onClick={() => setDecisionAction('reject')}>Reject</Button><Button color="success" variant="contained" startIcon={<HowToRegRoundedIcon />} disabled={!approvalReady || finalized || busy} onClick={() => setDecisionAction('approve')}>Approve and send to ERP</Button></Stack></Stack></CardContent></Card>
+      <Card><CardContent sx={{ p: { xs: 3, md: 4 } }}><Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" alignItems={{ md: 'center' }} spacing={2}><Alert severity={approvalReady ? 'success' : 'warning'} sx={{ flex: 1 }}>{approvalReady ? 'Every requirement is confirmed, policy checks pass, and ERP validation is complete.' : !complianceReady ? 'Approval stays blocked until every requirement is confirmed and all policy checks pass.' : erpValidationError ? 'Policy review is complete, but the ERP is unavailable. Retry validation safely.' : 'Policy review is complete. Resolve the ERP validation results before approval.'}</Alert><Stack direction="row" spacing={1}><Button color="error" variant="outlined" startIcon={<BlockRoundedIcon />} disabled={finalized || busy} onClick={() => setDecisionAction('reject')}>Reject</Button><Button color="success" variant="contained" startIcon={<HowToRegRoundedIcon />} disabled={!approvalReady || finalized || busy} onClick={() => setDecisionAction('approve')}>Approve and create ERP record</Button></Stack></Stack></CardContent></Card>
 
       <Dialog open={fieldToEdit !== null} onClose={() => !busy && setFieldToEdit(null)} fullWidth maxWidth="sm"><DialogTitle>Correct extracted value</DialogTitle><DialogContent><Stack spacing={2} sx={{ pt: 1 }}><TextField label={fieldToEdit ? fieldLabel(fieldToEdit.field_name) : 'Value'} value={editedValue} onChange={(event) => setEditedValue(event.target.value)} multiline minRows={2} autoFocus /><TextField label="Source page" type="number" value={editedPage} onChange={(event) => setEditedPage(Math.max(1, Number(event.target.value)))} slotProps={{ htmlInput: { min: 1 } }} /><Alert severity="info">The correction is recorded as a human-reviewed value and the policy checks refresh automatically.</Alert></Stack></DialogContent><DialogActions><Button onClick={() => setFieldToEdit(null)} disabled={busy}>Cancel</Button><Button variant="contained" onClick={() => void saveCorrection()} disabled={busy || !editedValue.trim()}>{busy ? 'Saving...' : 'Save correction'}</Button></DialogActions></Dialog>
       <Dialog open={flagDocumentId !== null} onClose={() => !busy && setFlagDocumentId(null)} fullWidth maxWidth="sm"><DialogTitle>Flag requirement for follow-up</DialogTitle><DialogContent><Stack spacing={2} sx={{ pt: 1 }}><DialogContentText>Explain what does not match the original evidence or policy. The reason is auditable and blocks approval.</DialogContentText><TextField label="Reason" value={flagReason} onChange={(event) => setFlagReason(event.target.value)} multiline minRows={3} autoFocus /></Stack></DialogContent><DialogActions><Button onClick={() => setFlagDocumentId(null)} disabled={busy}>Cancel</Button><Button color="error" variant="contained" onClick={() => void submitFlag()} disabled={busy || flagReason.trim().length < 5}>{busy ? 'Saving...' : 'Flag requirement'}</Button></DialogActions></Dialog>
       <Dialog open={decisionAction !== null} onClose={() => !busy && setDecisionAction(null)} fullWidth maxWidth="sm"><DialogTitle>{decisionAction === 'approve' ? 'Approve supplier and create ERP record?' : 'Reject supplier?'}</DialogTitle><DialogContent>{decisionAction === 'approve' ? <DialogContentText>This records the human decision, sends the proposed supplier record to the mock ERP, and locks the review.</DialogContentText> : <Stack spacing={2} sx={{ pt: 1 }}><DialogContentText>Provide an auditable rejection reason. No ERP record will be created.</DialogContentText><TextField label="Rejection reason" value={rejectionReason} onChange={(event) => setRejectionReason(event.target.value)} multiline minRows={3} autoFocus /></Stack>}</DialogContent><DialogActions><Button onClick={() => setDecisionAction(null)} disabled={busy}>Cancel</Button><Button color={decisionAction === 'approve' ? 'success' : 'error'} variant="contained" onClick={() => void saveDecision()} disabled={busy || (decisionAction === 'reject' && rejectionReason.trim().length < 10)}>{busy ? 'Saving decision...' : decisionAction === 'approve' ? 'Confirm approval' : 'Confirm rejection'}</Button></DialogActions></Dialog>
+      <Dialog open={showErpRecord} onClose={() => setShowErpRecord(false)} fullWidth maxWidth="md"><DialogTitle>ERP supplier record {erpRecord?.erp_supplier_id}</DialogTitle><DialogContent><Typography color="text.secondary" sx={{ mb: 2 }}>Retrieved from the mock ERP through the MCP get_supplier_record tool.</Typography>{erpRecord && <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 1.5 }}>{Object.entries(erpRecord.payload).map(([name, value]) => <Box key={name} sx={{ p: 1.5, bgcolor: 'action.hover', borderRadius: 1.5 }}><Typography variant="caption" color="text.secondary">{erpLabels[name] ?? fieldLabel(name)}</Typography><Typography variant="body2" fontWeight={650} sx={{ overflowWrap: 'anywhere' }}>{value == null || value === '' ? 'Not provided' : String(value)}</Typography></Box>)}</Box>}</DialogContent><DialogActions><Button onClick={() => setShowErpRecord(false)}>Close</Button></DialogActions></Dialog>
     </Stack>
   )
 }

@@ -1,6 +1,6 @@
 import BusinessRoundedIcon from '@mui/icons-material/BusinessRounded'
 import DescriptionRoundedIcon from '@mui/icons-material/DescriptionRounded'
-import { Alert, Box, Card, CardActionArea, CardContent, CircularProgress, Stack, Typography } from '@mui/material'
+import { Alert, Box, Button, Card, CardActionArea, CardContent, CircularProgress, Stack, Typography } from '@mui/material'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api/client'
@@ -26,6 +26,7 @@ export function DashboardPage() {
           <Typography variant="h4">Reviewer workspace</Typography>
           <Typography color="text.secondary" sx={{ mt: 0.75 }}>Review submitted supplier applications and their documents.</Typography>
         </Box>
+        <Button component={Link} to="/review/erp" variant="outlined">View mock ERP records</Button>
       </Stack>
 
       {error && <Alert severity="error">{error}</Alert>}

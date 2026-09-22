@@ -27,6 +27,7 @@ services:
       UPLOAD_DIR: /app/uploads
       CHROMA_PATH: /app/data/chroma
       FRONTEND_ORIGIN: "http://localhost:${FRONTEND_PORT:-5173}"
+      MOCK_ERP_MCP_URL: http://mock-erp-mcp:8010/mcp
     depends_on:
       database:
         condition: service_healthy
@@ -45,6 +46,27 @@ services:
     volumes:
       - uploads_data:/app/uploads
       - chroma_data:/app/data/chroma
+    restart: unless-stopped
+
+  mock-erp-mcp:
+    build:
+      context: .
+      target: backend
+    environment:
+      SERVICE_ROLE: mock-erp-mcp
+      DATABASE_URL: postgresql+psycopg://vendorlens:vendorlens@database:5432/vendorlens
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import json, urllib.request; data=json.load(urllib.request.urlopen('http://127.0.0.1:8010/health')); raise SystemExit(data['status'] != 'healthy')"
+      interval: 10s
+      timeout: 5s
+      retries: 6
     restart: unless-stopped
 
   frontend:

@@ -44,6 +44,8 @@ class Settings(BaseSettings):
     chunk_overlap_tokens: int = 75
     rag_top_k: int = 4
     rag_max_distance: float = 0.72
+    mock_erp_mcp_url: str | None = None
+    mock_erp_timeout_seconds: float = Field(default=8.0, ge=1.0, le=30.0)
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

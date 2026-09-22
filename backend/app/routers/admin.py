@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.config import Settings, get_settings
 from app.database import get_db
-from app.models import Document, DocumentRevision, PortalAccount, PortalSession, Supplier, SupplierStatus
+from app.models import Document, DocumentRevision, ErpSupplierRecord, ErpToolAttempt, PortalAccount, PortalSession, Supplier, SupplierStatus
 from app.services.portal_auth import hash_password, require_admin
 from app.services.retrieval import delete_supplier_chunks, get_chunk_collection
 
@@ -84,6 +84,8 @@ def delete_profile(supplier_id: uuid.UUID, db: Session = Depends(get_db),
     # Clear vector records before deleting the relational profile. A vector-store
     # failure leaves the profile available so deletion can be retried.
     delete_supplier_chunks(get_chunk_collection(), str(supplier_id))
+    db.execute(delete(ErpToolAttempt).where(ErpToolAttempt.supplier_id == supplier_id))
+    db.execute(delete(ErpSupplierRecord).where(ErpSupplierRecord.source_supplier_id == supplier_id))
     db.execute(delete(DocumentRevision).where(DocumentRevision.supplier_id == supplier_id))
     account = db.get(PortalAccount, supplier.account_id) if supplier.account_id else None
     if account:

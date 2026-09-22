@@ -23,6 +23,8 @@ from app.schemas import (
     DecisionResponse,
     DocumentRead,
     EvidenceReviewRequest,
+    ErpRecordRead,
+    ErpValidationResponse,
     ExtractedFieldRead,
     ExtractedFieldUpdate,
     ReviewSelectionRequest,
@@ -33,7 +35,9 @@ from app.services.compliance import (
     evaluate_compliance,
     persist_compliance_results,
 )
-from app.services.mock_erp import get_mock_erp_service
+from app.services.mock_erp import build_erp_preview
+from app.services.erp_mcp_client import ErpMcpClient, supplier_idempotency_key
+from app.services.erp_tools import ErpToolFailure
 
 router = APIRouter(prefix="/suppliers", tags=["review"], dependencies=[Depends(require_reviewer)])
 
@@ -236,6 +240,42 @@ def review_evidence(
     return DocumentRead.model_validate(document)
 
 
+@router.post("/{supplier_id}/erp/validate", response_model=ErpValidationResponse)
+def validate_erp_record(
+    supplier_id: uuid.UUID,
+    db: Session = Depends(get_db),
+) -> ErpValidationResponse:
+    supplier = _get_review_supplier(db, supplier_id)
+    preview = build_erp_preview(supplier)
+    try:
+        result = ErpMcpClient().call(db, "validate_supplier_record", {
+            "payload": preview.payload,
+            "idempotency_key": supplier_idempotency_key(supplier.id),
+            "source_supplier_id": str(supplier.id),
+        })
+    except ErpToolFailure as exc:
+        raise HTTPException(status_code=503 if exc.retryable else 409, detail=exc.message) from exc
+    return ErpValidationResponse(**result)
+
+
+@router.get("/{supplier_id}/erp/record", response_model=ErpRecordRead)
+def retrieve_erp_record(
+    supplier_id: uuid.UUID,
+    db: Session = Depends(get_db),
+) -> ErpRecordRead:
+    supplier = _get_review_supplier(db, supplier_id)
+    if not supplier.erp_supplier_id:
+        raise HTTPException(status_code=404, detail="This supplier does not have an ERP record yet.")
+    try:
+        result = ErpMcpClient().call(db, "get_supplier_record", {
+            "erp_supplier_id": supplier.erp_supplier_id,
+            "source_supplier_id": str(supplier.id),
+        })
+    except ErpToolFailure as exc:
+        raise HTTPException(status_code=503 if exc.retryable else 404, detail=exc.message) from exc
+    return ErpRecordRead(**result)
+
+
 @router.post("/{supplier_id}/approve", response_model=DecisionResponse)
 def approve_supplier(
     supplier_id: uuid.UUID,
@@ -263,19 +303,42 @@ def approve_supplier(
             detail="All compliance checks must pass before approval.",
         )
 
-    erp_result = get_mock_erp_service().create_supplier(supplier)
+    preview = build_erp_preview(supplier)
+    client = ErpMcpClient()
+    try:
+        validation = client.call(db, "validate_supplier_record", {
+            "payload": preview.payload,
+            "idempotency_key": supplier_idempotency_key(supplier.id),
+            "source_supplier_id": str(supplier.id),
+        })
+        if not validation.get("valid"):
+            problems = "; ".join(str(item.get("message")) for item in validation.get("errors", []))
+            db.commit()
+            raise HTTPException(status_code=409, detail=f"ERP validation failed. {problems}")
+        erp_result = client.call(db, "create_supplier_record", {
+            "payload": preview.payload,
+            "idempotency_key": supplier_idempotency_key(supplier.id),
+            "source_supplier_id": str(supplier.id),
+        })
+    except ErpToolFailure as exc:
+        db.add(AuditEvent(
+            supplier_id=supplier.id, action="erp.supplier.create_failed", entity_type="supplier",
+            entity_id=str(supplier.id), details={"code": exc.code, "retryable": exc.retryable},
+        ))
+        db.commit()
+        raise HTTPException(status_code=503 if exc.retryable else 409, detail=exc.message) from exc
     supplier.status = SupplierStatus.APPROVED
     supplier.decision_reason = "Approved after human review."
-    supplier.decided_at = erp_result.completed_at
-    supplier.erp_supplier_id = erp_result.supplier_id
-    supplier.erp_payload = erp_result.payload
+    supplier.decided_at = datetime.now(UTC)
+    supplier.erp_supplier_id = str(erp_result["erp_supplier_id"])
+    supplier.erp_payload = dict(erp_result["payload"])
     db.add(
         AuditEvent(
             supplier_id=supplier.id,
             action="erp.supplier.created",
             entity_type="supplier",
-            entity_id=erp_result.supplier_id,
-            details={"status": erp_result.status, "payload_fields": sorted(erp_result.payload)},
+            entity_id=supplier.erp_supplier_id,
+            details={"status": erp_result["status"], "payload_fields": sorted(supplier.erp_payload), "idempotent_replay": erp_result.get("idempotent_replay", False), "transport": "mcp"},
         )
     )
     db.add(
@@ -286,7 +349,7 @@ def approve_supplier(
             entity_id=str(supplier.id),
             details={
                 "reviewer_name": payload.reviewer_name.strip(),
-                "erp_supplier_id": erp_result.supplier_id,
+                "erp_supplier_id": supplier.erp_supplier_id,
             },
         )
     )

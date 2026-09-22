@@ -8,7 +8,7 @@ VendorLens is an AI-assisted supplier onboarding application. It turns registrat
 - Extracts selectable PDF text, redacts PII before AI calls, and stores supplier-scoped ChromaDB embeddings.
 - Uses OpenRouter when configured, with Azure OpenAI as the configuration fallback, for structured extraction, embeddings, and cited document Q&A.
 - Shows confidence, source pages, conflicts, compliance checks, and editable fields.
-- Records approval or rejection decisions and a mock ERP handoff in PostgreSQL.
+- Validates and creates supplier master records through a separate mock ERP MCP service, with idempotent retries and retrieval.
 
 ## Architecture
 
@@ -23,6 +23,16 @@ Document text extraction -> PII redaction -> OpenRouter or Azure AI
         |                                  |
 Compliance rules + audit trail -> human decision -> ERP handoff
 ```
+
+## Mock ERP MCP boundary
+
+Docker Compose runs `mock-erp-mcp` as a separate stateless JSON-RPC service. The portal invokes named MCP tools; an LLM never controls supplier creation.
+
+- `validate_supplier_record` checks required master data, category mappings, and duplicate tax/bank references.
+- `create_supplier_record` runs only after explicit reviewer approval and uses the portal supplier reference as an idempotency key.
+- `get_supplier_record` and `list_supplier_records` prove that approved records are independently retrievable from the downstream supplier master.
+
+Every call stores a sanitized tool-attempt audit with status, latency, attempt number, and error code. Raw tax and bank values are not copied into the integration audit log. If the ERP is unavailable, approval remains incomplete and the reviewer can retry safely.
 
 Langfuse traces AI calls, Promptfoo evaluates answer quality, and Prometheus exposes application metrics.
 

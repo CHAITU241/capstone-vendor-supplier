@@ -11,7 +11,7 @@ from app.models import (
 )
 from app.services.compliance import approval_ready, evaluate_compliance
 from app.services.document_policy import checklist_for, extraction_field_names
-from app.services.mock_erp import MockERPService, build_erp_preview
+from app.services.mock_erp import build_erp_preview
 
 
 SUPPLIER_NAME = "Asteron Industrial Components Private Limited"
@@ -164,18 +164,6 @@ def test_invalid_email_fails_deterministically() -> None:
     contact.value = "not-an-email"
 
     assert outcomes_by_code(supplier)["contact_email"].status == ComplianceStatus.FAIL
-
-
-def test_mock_erp_reference_is_deterministic() -> None:
-    supplier = ready_supplier()
-
-    first = MockERPService().create_supplier(supplier)
-    second = MockERPService().create_supplier(supplier)
-
-    assert first.supplier_id == second.supplier_id
-    assert first.supplier_id.startswith("ERP-")
-    assert first.payload["legal_name"] == SUPPLIER_NAME
-    assert first.payload["supplier_reference"].startswith("SUP-")
 
 
 def test_policy_checks_pass_after_human_evidence_review() -> None:
@@ -366,11 +354,8 @@ def test_verified_ai_values_are_the_exact_erp_preview_values() -> None:
     )
 
     preview = build_erp_preview(supplier)
-    result = MockERPService().create_supplier(supplier)
-
     assert preview.payload["tax_reference"] == "VERIFIED-PAN-002"
     assert preview.sources["tax_reference"]["source"] == "reviewed_evidence"
-    assert result.payload == preview.payload
 
 
 def test_aster_cloudworks_style_happy_path_passes_after_human_review() -> None:

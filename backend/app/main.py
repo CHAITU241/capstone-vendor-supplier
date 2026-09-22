@@ -14,7 +14,7 @@ from app.metrics import (
     HTTP_REQUESTS_IN_PROGRESS,
     metrics_asgi_app,
 )
-from app.routers import admin, ai, assistant, documents, health, portal, review, suppliers
+from app.routers import admin, ai, assistant, documents, erp, health, portal, review, suppliers
 from app.services.tracing import get_langfuse_tracer
 
 settings = get_settings()
@@ -92,6 +92,7 @@ app.include_router(documents.router, prefix="/api")
 app.include_router(ai.router, prefix="/api")
 app.include_router(assistant.router, prefix="/api")
 app.include_router(review.router, prefix="/api")
+app.include_router(erp.router, prefix="/api")
 app.mount("/metrics", metrics_asgi_app())
 
 

@@ -193,6 +193,28 @@ class DecisionResponse(BaseModel):
     decided_at: datetime
 
 
+class ErpValidationResponse(BaseModel):
+    valid: bool
+    errors: list[dict]
+    warnings: list[dict]
+    existing_erp_supplier_id: str | None = None
+    idempotent_replay: bool = False
+
+
+class ErpRecordRead(BaseModel):
+    erp_supplier_id: str
+    supplier_reference: str | None = None
+    source_supplier_id: uuid.UUID
+    legal_name: str
+    tax_reference: str
+    category: str
+    subcategory: str
+    status: str
+    payload: dict
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+
 class ProcessSupplierResponse(BaseModel):
     run: AiRunRead
     field_count: int

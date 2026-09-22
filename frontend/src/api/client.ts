@@ -5,6 +5,8 @@ import type {
   DecisionResponse,
   DocumentType,
   DocumentRevision,
+  ErpRecord,
+  ErpValidation,
   GeneralAssistantMessage,
   GeneralAssistantResponse,
   ProcessSupplierResponse,
@@ -165,6 +167,10 @@ export const api = {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action, reason }),
     }),
+  validateErpRecord: (supplierId: string) =>
+    request<ErpValidation>(`/suppliers/${supplierId}/erp/validate`, { method: 'POST' }),
+  getErpRecord: (supplierId: string) => request<ErpRecord>(`/suppliers/${supplierId}/erp/record`),
+  listErpRecords: () => request<ErpRecord[]>('/mock-erp/records'),
   approveSupplier: (supplierId: string, reviewerName = 'Demo reviewer') =>
     request<DecisionResponse>(`/suppliers/${supplierId}/approve`, {
       method: 'POST',

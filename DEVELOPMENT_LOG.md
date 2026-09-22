@@ -293,11 +293,22 @@ frontend/src/theme/theme.ts         Single source for all brand colors
 - Rejection requires a reason of at least 10 characters and stores it in the supplier decision and audit history.
 - Finalized suppliers are locked against document changes, field corrections, and AI reprocessing in the demo workflow.
 
-### Mock ERP boundary
+### Mock ERP boundary (superseded by the MCP integration below)
 
 - Added a deterministic local `MockERPService` used only after a valid human approval.
 - Successful approval creates a stable `ERP-...` supplier reference and separate `erp.supplier.created` and `supplier.approved` audit events.
-- The current implementation is a local service abstraction to keep Phase 3 runnable as a two-process demo; no real ERP is contacted.
+- This was the initial Phase 3 implementation and is retained here as historical context. It was replaced by the persistent mock ERP MCP integration below.
+
+### Persistent mock ERP MCP integration
+
+- Replaced the approval-time local ERP function with a separately deployed MCP JSON-RPC service.
+- Added persistent ERP supplier-master records that can be independently listed and retrieved.
+- Added preflight validation for required ERP fields, India scope, category mappings, duplicate tax references, and duplicate bank accounts.
+- Added idempotent creation keyed by the stable `SUP-...` supplier reference, so timeouts and retries cannot create duplicates.
+- Added sanitized ERP tool-attempt records with operation, status, latency, retry count, and error code.
+- ERP unavailability leaves the supplier unapproved and returns a safe retry message instead of a stack trace.
+- The reviewer workspace now displays ERP validation results before enabling approval and provides a read-only mock ERP supplier-master screen.
+- Verification passed with 65 backend tests, Python compilation, frontend lint, and a production frontend build.
 
 ### Frontend
 

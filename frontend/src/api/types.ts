@@ -197,6 +197,28 @@ export interface DecisionResponse {
   decided_at: string
 }
 
+export interface ErpValidation {
+  valid: boolean
+  errors: Array<{ field: string; code: string; message: string }>
+  warnings: Array<{ field: string; code: string; message: string }>
+  existing_erp_supplier_id: string | null
+  idempotent_replay: boolean
+}
+
+export interface ErpRecord {
+  erp_supplier_id: string
+  supplier_reference: string | null
+  source_supplier_id: string
+  legal_name: string
+  tax_reference: string
+  category: string
+  subcategory: string
+  status: string
+  payload: Record<string, unknown>
+  created_at: string | null
+  updated_at: string | null
+}
+
 export interface ProcessSupplierResponse {
   run: AiRun
   field_count: number
