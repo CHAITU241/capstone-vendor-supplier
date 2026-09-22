@@ -11,6 +11,7 @@ import {
   Alert,
   Box,
   Button,
+  ButtonBase,
   Card,
   CardContent,
   Checkbox,
@@ -51,6 +52,7 @@ const fieldLabels: Record<string, string> = {
 }
 
 type FlagTarget = { kind: 'fields'; ids: string[] } | { kind: 'document'; id: string }
+type PolicyGroupKey = 'matched' | 'not_matched' | 'human_review'
 
 function reviewColor(status: string): 'default' | 'success' | 'warning' | 'error' {
   if (status === 'verified' || status === 'corrected') return 'success'
@@ -73,6 +75,14 @@ function failureReason(message?: string) {
   const marker = ' failed. '
   const index = message.indexOf(marker)
   return index >= 0 ? message.slice(index + marker.length) : message
+}
+
+function policyGroupFor(result: ComplianceResult): PolicyGroupKey {
+  const assessment = String(result.evidence.ai_assessment)
+  if (result.status === 'pass' || assessment === 'human_verified') return 'matched'
+  if (result.status === 'fail' || ['not_matched', 'reviewer_flagged'].includes(assessment)) return 'not_matched'
+  if (assessment === 'matched') return 'matched'
+  return 'human_review'
 }
 
 const erpLabels: Record<string, string> = {
@@ -108,6 +118,7 @@ export function SupplierReviewPage() {
   const [flagReason, setFlagReason] = useState('')
   const [decisionAction, setDecisionAction] = useState<'approve' | 'reject' | null>(null)
   const [rejectionReason, setRejectionReason] = useState('')
+  const [selectedPolicyGroup, setSelectedPolicyGroup] = useState<PolicyGroupKey>('not_matched')
 
   const loadSupplier = useCallback(async () => {
     try {
@@ -116,6 +127,13 @@ export function SupplierReviewPage() {
         api.reviewerDocumentHistory(supplierId),
       ])
       setSupplier(detail)
+      const policyChecks = detail.compliance_results.filter((result) => result.evidence.kind === 'policy_check')
+      setSelectedPolicyGroup((current) => {
+        if (policyChecks.some((result) => policyGroupFor(result) === current)) return current
+        if (policyChecks.some((result) => policyGroupFor(result) === 'not_matched')) return 'not_matched'
+        if (policyChecks.some((result) => policyGroupFor(result) === 'human_review')) return 'human_review'
+        return 'matched'
+      })
       setHistory(archived)
       setSelectedFields((selected) => new Set([...selected].filter((id) => detail.extracted_fields.some((field) => field.id === id))))
     } catch (requestError) {
@@ -191,7 +209,7 @@ export function SupplierReviewPage() {
     if (attentionFields.length) messages.push({ severity: 'warning', text: `${attentionFields.length} extracted field(s) need closer review.` })
     const missing = orderedEvidence.filter((item) => !item.document)
     if (missing.length) messages.push({ severity: 'error', text: `${missing.length} required evidence item(s) are missing.` })
-    if (!messages.length) messages.push({ severity: 'success', text: 'No immediate document or data conflicts were detected. Human verification is still required.' })
+    if (!messages.length) messages.push({ severity: 'info', text: 'Document extraction and search indexing completed. See AI policy assessment for the policy findings.' })
     return messages
   }, [latestProcessingRun, orderedEvidence, supplier])
 
@@ -338,36 +356,35 @@ export function SupplierReviewPage() {
     source: supplier.erp_preview.sources[fieldName],
   }))
   const policyChecks = supplier.compliance_results.filter((result) => result.evidence.kind === 'policy_check')
-  const policyGroupFor = (result: ComplianceResult) => {
-    const assessment = String(result.evidence.ai_assessment)
-    if (result.status === 'pass' || assessment === 'human_verified') return 'matched'
-    if (result.status === 'fail' || ['not_matched', 'reviewer_flagged'].includes(assessment)) return 'not_matched'
-    if (assessment === 'matched') return 'matched'
-    return 'human_review'
-  }
   const policyGroups = [
     {
-      key: 'matched',
+      key: 'matched' as PolicyGroupKey,
       title: 'AI matched',
       description: 'The extracted evidence is consistent with the policy check.',
       color: 'success' as const,
       checks: policyChecks.filter((result) => policyGroupFor(result) === 'matched'),
     },
     {
-      key: 'not_matched',
+      key: 'not_matched' as PolicyGroupKey,
       title: 'Not matched',
       description: 'The evidence is missing, contradicts the rule, or fails an objective threshold.',
       color: 'error' as const,
       checks: policyChecks.filter((result) => policyGroupFor(result) === 'not_matched'),
     },
     {
-      key: 'human_review',
+      key: 'human_review' as PolicyGroupKey,
       title: 'Human review',
       description: 'The evidence is ambiguous, low-confidence, or requires visual or professional judgement.',
       color: 'warning' as const,
       checks: policyChecks.filter((result) => policyGroupFor(result) === 'human_review'),
     },
   ]
+  const activePolicyGroup = policyGroups.find((group) => group.key === selectedPolicyGroup) ?? policyGroups[0]
+  const activePolicyRequirements = supplier.requirements.documents.map((requirement) => ({
+    requirement,
+    document: supplier.documents.find((document) => document.document_type === requirement.document_type),
+    checks: activePolicyGroup.checks.filter((check) => check.evidence.requirement_id === requirement.requirement_id),
+  })).filter((item) => item.checks.length > 0)
   const reviewControls = supplier.compliance_results.filter((result) => result.evidence.kind === 'review_control')
 
   return (
@@ -422,7 +439,7 @@ export function SupplierReviewPage() {
                         <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap" useFlexGap justifyContent={{ md: 'flex-end' }}>
                           <StatusChip status={document.processing_status} />
                           {document.ai_extraction_status === 'failed' && document.ai_index_status === 'failed' ? (
-                            <Tooltip title="See the consolidated AI review summary for the root cause.">
+                            <Tooltip title="See document processing for the root cause.">
                               <Chip size="small" color="error" label="AI unavailable" />
                             </Tooltip>
                           ) : (
@@ -471,9 +488,9 @@ export function SupplierReviewPage() {
           <CardContent sx={{ p: 3 }}>
             <Stack direction="row" spacing={1} alignItems="center">
               <AutoAwesomeRoundedIcon color="primary" />
-              <Typography variant="h6">AI review summary</Typography>
+              <Typography variant="h6">Document processing</Typography>
             </Stack>
-            <Typography color="text.secondary" variant="body2" sx={{ mt: 0.75, mb: 2 }}>A head start for the reviewer—not an approval decision.</Typography>
+            <Typography color="text.secondary" variant="body2" sx={{ mt: 0.75, mb: 2 }}>Extraction, indexing, and technical issues. Policy findings are shown in the assessment below.</Typography>
             <Stack spacing={1.25}>
               {findings.map((finding, index) => (
                 <Alert key={`${finding.text}-${index}`} severity={finding.severity} sx={{ overflowWrap: 'anywhere', '& .MuiAlert-message': { minWidth: 0 } }}>
@@ -517,9 +534,9 @@ export function SupplierReviewPage() {
             )}
           </Box>
           {supplier.extracted_fields.length === 0 ? (
-            <Alert severity="info">No supplier data has been extracted yet. Check the AI review summary.</Alert>
+            <Alert severity="info">No supplier data has been extracted yet. Check document processing.</Alert>
           ) : (
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' }, gap: 2 }}>
+            <Box sx={{ maxHeight: { xs: 'none', md: 'calc(100vh - 260px)' }, minHeight: { md: 280 }, overflowY: { xs: 'visible', md: 'auto' }, pr: { md: 1 }, scrollbarGutter: 'stable', display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' }, gap: 2, alignContent: 'start' }}>
               {supplier.extracted_fields.map((field) => {
                 const source = supplier.documents.find((document) => document.id === field.document_id)
                 return (
@@ -552,50 +569,76 @@ export function SupplierReviewPage() {
             <Typography color="text.secondary" variant="body2">A provisional comparison of the uploaded evidence against every applicable numbered policy check. The reviewer remains the decision-maker.</Typography>
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)' }, gap: 1, my: 2 }}>
               {policyGroups.map((group) => (
-                <Box key={group.key} sx={{ p: 1.5, border: 1, borderColor: `${group.color}.main`, borderRadius: 2, bgcolor: 'action.hover' }}>
+                <ButtonBase
+                  key={group.key}
+                  aria-pressed={selectedPolicyGroup === group.key}
+                  onClick={() => setSelectedPolicyGroup(group.key)}
+                  sx={{ p: 1.5, border: 1, borderColor: `${group.color}.main`, borderRadius: 2, bgcolor: selectedPolicyGroup === group.key ? 'action.selected' : 'action.hover', display: 'block', textAlign: 'left', width: '100%', transition: 'box-shadow 120ms ease', boxShadow: selectedPolicyGroup === group.key ? 2 : 0, '&:hover': { bgcolor: 'action.selected' } }}
+                >
                   <Typography variant="h5" color={`${group.color}.dark`} fontWeight={750}>{group.checks.length}</Typography>
                   <Typography variant="body2" fontWeight={700}>{group.title}</Typography>
-                </Box>
+                </ButtonBase>
               ))}
             </Box>
             <Stack spacing={1.5}>
-              {policyGroups.map((group) => (
-                <Box key={group.key} sx={{ border: 1, borderColor: 'divider', borderRadius: 2, overflow: 'hidden' }}>
-                  <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1} sx={{ px: 1.75, py: 1.25, bgcolor: 'action.hover' }}>
+              <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
+                <Box>
+                  <Typography fontWeight={750}>{activePolicyGroup.title}</Typography>
+                  <Typography variant="caption" color="text.secondary">{activePolicyGroup.description}</Typography>
+                </Box>
+                <Chip size="small" color={activePolicyGroup.color} label={activePolicyGroup.checks.length} />
+              </Stack>
+              {activePolicyRequirements.length === 0 ? (
+                <Alert severity="info">No checks in this group.</Alert>
+              ) : activePolicyRequirements.map(({ requirement, document, checks }) => (
+                <Box key={requirement.requirement_id} sx={{ border: 1, borderColor: 'divider', borderRadius: 2, overflow: 'hidden' }}>
+                  <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ sm: 'center' }} spacing={1} sx={{ px: 1.75, py: 1.25, bgcolor: 'action.hover' }}>
                     <Box>
-                      <Typography fontWeight={750}>{group.title}</Typography>
-                      <Typography variant="caption" color="text.secondary">{group.description}</Typography>
+                      <Typography variant="body2" fontWeight={750}>{requirement.label}</Typography>
+                      <Typography variant="caption" color="text.secondary">{requirement.requirement_id} · {checks.length} check{checks.length === 1 ? '' : 's'}</Typography>
                     </Box>
-                    <Chip size="small" color={group.color} label={group.checks.length} />
+                    {document && <Button size="small" startIcon={<DescriptionRoundedIcon />} onClick={() => void viewOriginal(document.id)}>View document</Button>}
                   </Stack>
-                  {group.checks.length === 0 ? (
-                    <Typography variant="body2" color="text.secondary" sx={{ px: 1.75, py: 1.5 }}>No checks in this group.</Typography>
-                  ) : (
-                    <Stack divider={<Divider flexItem />}>
-                      {group.checks.map((check) => {
-                        const requirement = supplier.requirements.documents.find((item) => item.requirement_id === check.evidence.requirement_id)
-                        const evidenceFields = Array.isArray(check.evidence.evidence_fields) ? check.evidence.evidence_fields.map((item) => fieldLabel(String(item))) : []
-                        return (
-                          <Box key={check.id} sx={{ px: 1.75, py: 1.5 }}>
-                            <Stack direction="row" justifyContent="space-between" spacing={1} alignItems="flex-start">
-                              <Box>
-                                <Typography variant="body2" fontWeight={750}>{requirement?.label ?? String(check.evidence.requirement_label ?? check.evidence.requirement_id)}</Typography>
-                                <Typography variant="caption" color="text.secondary">{String(check.evidence.requirement_id)}.R{String(check.evidence.check_number)}</Typography>
+                  <Stack divider={<Divider flexItem />}>
+                    {checks.map((check) => {
+                      const observed = Array.isArray(check.evidence.observed_values)
+                        ? check.evidence.observed_values as Array<{ field_name?: string; value?: unknown; page_number?: number }>
+                        : []
+                      const expected = Array.isArray(check.evidence.expected_values)
+                        ? check.evidence.expected_values as Array<{ field_name?: string; value?: unknown; source?: string }>
+                        : []
+                      const reason = String(check.evidence.ai_reason ?? check.message)
+                      return (
+                        <Box key={check.id} sx={{ px: 1.75, py: 1.5 }}>
+                          <Stack direction="row" justifyContent="space-between" spacing={1} alignItems="flex-start">
+                            <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>{reason}</Typography>
+                            <Typography variant="caption" color="text.secondary" sx={{ flexShrink: 0 }}>Check {String(check.evidence.check_number)}</Typography>
+                          </Stack>
+                          {selectedPolicyGroup !== 'matched' && (
+                            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1, mt: 1.25 }}>
+                              <Box sx={{ p: 1.25, borderRadius: 1.5, bgcolor: 'rgba(211, 47, 47, 0.06)' }}>
+                                <Typography variant="caption" fontWeight={750} color="error.dark">Observed</Typography>
+                                {observed.length ? observed.map((item, index) => (
+                                  <Typography key={`${item.field_name}-${index}`} variant="caption" display="block" sx={{ mt: 0.4, overflowWrap: 'anywhere' }}>
+                                    {fieldLabel(String(item.field_name ?? 'value'))}: {item.value == null || item.value === '' ? 'Not found' : String(item.value)}{item.page_number ? ` · page ${item.page_number}` : ''}
+                                  </Typography>
+                                )) : <Typography variant="caption" display="block" sx={{ mt: 0.4 }}>No reliable value was extracted.</Typography>}
                               </Box>
-                              {check.status === 'pass' && <Chip size="small" color="success" label="Reviewer verified" />}
-                            </Stack>
-                            <Typography variant="body2" sx={{ mt: 0.75 }}>{String(check.evidence.check_text ?? '')}</Typography>
-                            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75 }}>{String(check.evidence.ai_reason ?? check.message)}</Typography>
-                            {(evidenceFields.length > 0 || Boolean(check.evidence.evidence_page)) && (
-                              <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
-                                Evidence: {evidenceFields.join(', ') || 'document content'}{check.evidence.evidence_page ? ` · page ${String(check.evidence.evidence_page)}` : ''}
-                              </Typography>
-                            )}
-                          </Box>
-                        )
-                      })}
-                    </Stack>
-                  )}
+                              <Box sx={{ p: 1.25, borderRadius: 1.5, bgcolor: 'action.hover' }}>
+                                <Typography variant="caption" fontWeight={750}>Expected</Typography>
+                                {expected.map((item, index) => (
+                                  <Typography key={`${item.field_name}-${index}`} variant="caption" display="block" sx={{ mt: 0.4, overflowWrap: 'anywhere' }}>
+                                    {item.field_name === 'policy_rule' ? '' : `${fieldLabel(String(item.field_name ?? 'value'))}: `}{String(item.value ?? 'Not specified')}
+                                  </Typography>
+                                ))}
+                              </Box>
+                            </Box>
+                          )}
+                          {check.status === 'pass' && <Chip size="small" color="success" label="Reviewer verified" sx={{ mt: 1 }} />}
+                        </Box>
+                      )
+                    })}
+                  </Stack>
                 </Box>
               ))}
               {reviewControls.map((result) => (

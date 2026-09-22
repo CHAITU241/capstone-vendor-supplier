@@ -66,6 +66,43 @@ def _normalized_name(value: str) -> str:
     return re.sub(r"[^a-z0-9]+", " ", value.casefold()).strip()
 
 
+def _policy_value_details(
+    supplier: Supplier,
+    document_fields: dict[str, ExtractedField],
+    cited_fields: list[str],
+    missing_fields: list[str],
+    check_text: str,
+) -> tuple[list[dict], list[dict]]:
+    """Expose reviewer-friendly values without sending portal secrets back to the AI."""
+    observed = [
+        {
+            "field_name": name,
+            "value": document_fields[name].value,
+            "page_number": document_fields[name].page_number,
+        }
+        for name in cited_fields
+        if name in document_fields
+    ]
+    observed.extend({"field_name": name, "value": None, "page_number": None} for name in missing_fields)
+
+    portal_values = {
+        "supplier_name": supplier.name,
+        "tax_identifier": supplier.tax_reference,
+        "bank_account_number": supplier.bank_account_number,
+        "bank_ifsc": supplier.bank_ifsc,
+        "contact_email": supplier.contact_email,
+        "country": "India",
+    }
+    expected = [
+        {"field_name": name, "value": portal_values[name], "source": "Portal value"}
+        for name in dict.fromkeys([*cited_fields, *missing_fields])
+        if name in portal_values and portal_values[name]
+    ]
+    if not expected:
+        expected.append({"field_name": "policy_rule", "value": check_text, "source": "Policy check"})
+    return observed, expected
+
+
 def _policy_assessment_lookup(
     supplier: Supplier,
     current_assessments: list[dict] | None,
@@ -124,13 +161,13 @@ def _evaluate_policy_compliance(
         missing_fields = sorted(set(expected_fields) - found_fields)
 
         for check_number, check_text in enumerate(item.checks, start=1):
+            cited_fields: list[str] = []
+            cited_page = None
             if document is None or document.processing_status != ProcessingStatus.READY:
                 status = ComplianceStatus.FAIL
                 message = "Required evidence is missing or unreadable."
                 ai_assessment = "not_matched"
                 ai_reason = message
-                cited_fields: list[str] = []
-                cited_page = None
             elif document.review_status == "disputed":
                 status = ComplianceStatus.FAIL
                 message = "The reviewer flagged this evidence as not satisfying the requirement."
@@ -196,6 +233,14 @@ def _evaluate_policy_compliance(
                     f"Human review required: {ai_reason}"
                 )
 
+            observed_values, expected_values = _policy_value_details(
+                supplier,
+                document_fields,
+                cited_fields,
+                missing_fields,
+                check_text,
+            )
+
             outcomes.append(RuleOutcome(
                 rule_code=f"{item.requirement_id}.CHECK-{check_number}",
                 status=status,
@@ -216,6 +261,8 @@ def _evaluate_policy_compliance(
                     "evidence_page": cited_page,
                     "expected_fields": expected_fields,
                     "missing_fields": missing_fields,
+                    "observed_values": observed_values,
+                    "expected_values": expected_values,
                 },
             ))
 

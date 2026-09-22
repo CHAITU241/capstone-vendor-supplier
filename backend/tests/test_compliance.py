@@ -249,6 +249,11 @@ def test_ai_policy_findings_distinguish_match_mismatch_and_human_review() -> Non
     assert mismatch.status == ComplianceStatus.FAIL
     assert mismatch.evidence["ai_assessment"] == "not_matched"
     assert "45 days" in mismatch.evidence["ai_reason"]
+    assert mismatch.evidence["observed_values"] == [
+        {"field_name": "deletion_interval", "value": "Demo value", "page_number": 1}
+    ]
+    assert mismatch.evidence["expected_values"][0]["source"] == "Policy check"
+    assert "30 calendar days" in mismatch.evidence["expected_values"][0]["value"]
 
 
 def test_pending_ai_values_do_not_override_supplier_erp_data() -> None:
