@@ -38,6 +38,16 @@ def test_normalizes_null_like_values_and_restores_placeholders() -> None:
     assert normalize_extracted_value("[EMAIL_1]", replacements) == "reviewer@example.com"
 
 
+def test_preserves_policy_valid_none_and_not_applicable_answers() -> None:
+    assert normalize_extracted_value("None", {}, "subprocessors") == "None"
+    assert normalize_extracted_value("None", {}, "data_categories") == "None"
+    assert normalize_extracted_value("None", {}, "supplier_name") is None
+    assert normalize_extracted_value(
+        "Not applicable", {}, "processing_locations",
+    ) == "Not applicable"
+    assert normalize_extracted_value("Not applicable", {}, "supplier_name") is None
+
+
 def test_collapses_exact_duplicates_to_preferred_source() -> None:
     registration = candidate(
         DocumentType.REGISTRATION,

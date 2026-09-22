@@ -66,12 +66,50 @@ def _normalized_name(value: str) -> str:
     return re.sub(r"[^a-z0-9]+", " ", value.casefold()).strip()
 
 
-def _evaluate_policy_compliance(supplier: Supplier) -> list[RuleOutcome]:
-    """Create reviewable outcomes directly from the applicable numbered policy checks."""
+def _policy_assessment_lookup(
+    supplier: Supplier,
+    current_assessments: list[dict] | None,
+) -> dict[tuple[str, int], dict]:
+    """Prefer the current run, then retain the newest finding for untouched documents."""
+    lookup: dict[tuple[str, int], dict] = {}
+
+    def add(items: object) -> None:
+        if not isinstance(items, list):
+            return
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            document_id = item.get("document_id")
+            check_number = item.get("check_number")
+            result = item.get("result")
+            if (
+                isinstance(document_id, str)
+                and isinstance(check_number, int)
+                and result in {"matched", "not_matched", "human_review"}
+            ):
+                lookup.setdefault((document_id, check_number), item)
+
+    add(current_assessments)
+    for run in sorted(
+        getattr(supplier, "ai_runs", []),
+        key=lambda item: item.created_at,
+        reverse=True,
+    ):
+        if run.run_type.value == "processing" and isinstance(run.details, dict):
+            add(run.details.get("policy_assessments"))
+    return lookup
+
+
+def _evaluate_policy_compliance(
+    supplier: Supplier,
+    ai_policy_assessments: list[dict] | None = None,
+) -> list[RuleOutcome]:
+    """Combine provisional AI findings with the authoritative human review state."""
     checklist = checklist_for(supplier)
     fields_by_document: dict = {}
     for field in supplier.extracted_fields:
-        fields_by_document.setdefault(field.document_id, set()).add(field.field_name)
+        fields_by_document.setdefault(field.document_id, {})[field.field_name] = field
+    assessment_lookup = _policy_assessment_lookup(supplier, ai_policy_assessments)
 
     outcomes: list[RuleOutcome] = []
     for item in checklist.documents:
@@ -81,34 +119,82 @@ def _evaluate_policy_compliance(supplier: Supplier) -> list[RuleOutcome]:
             None,
         )
         expected_fields = required_extraction_field_names(item.document_type)
-        found_fields = fields_by_document.get(document.id, set()) if document else set()
+        document_fields = fields_by_document.get(document.id, {}) if document else {}
+        found_fields = set(document_fields)
         missing_fields = sorted(set(expected_fields) - found_fields)
 
         for check_number, check_text in enumerate(item.checks, start=1):
             if document is None or document.processing_status != ProcessingStatus.READY:
                 status = ComplianceStatus.FAIL
                 message = "Required evidence is missing or unreadable."
-                ai_assessment = "evidence_unavailable"
+                ai_assessment = "not_matched"
+                ai_reason = message
+                cited_fields: list[str] = []
+                cited_page = None
             elif document.review_status == "disputed":
                 status = ComplianceStatus.FAIL
                 message = "The reviewer flagged this evidence as not satisfying the requirement."
                 ai_assessment = "reviewer_flagged"
+                ai_reason = message
+                cited_fields = []
+                cited_page = None
             elif document.review_status == "verified":
                 status = ComplianceStatus.PASS
                 message = "Reviewer verified this numbered policy check against the original evidence."
                 ai_assessment = "human_verified"
+                ai_reason = message
+                cited_fields = []
+                cited_page = None
             elif document.ai_extraction_status == "failed":
                 status = ComplianceStatus.NEEDS_REVIEW
                 message = "AI assessment is unavailable; verify this check directly against the original evidence."
-                ai_assessment = "ai_unavailable"
-            elif missing_fields:
-                status = ComplianceStatus.NEEDS_REVIEW
-                message = "AI could not locate every expected field; confirm this check against the original evidence."
-                ai_assessment = "fields_missing"
+                ai_assessment = "human_review"
+                ai_reason = message
+                cited_fields = []
+                cited_page = None
             else:
-                status = ComplianceStatus.NEEDS_REVIEW
-                message = "AI found the expected fields; reviewer confirmation is still required."
-                ai_assessment = "appears_in_order"
+                assessment = assessment_lookup.get((str(document.id), check_number))
+                cited_fields = [
+                    name for name in (assessment or {}).get("evidence_fields", [])
+                    if isinstance(name, str) and name in document_fields
+                ]
+                cited_page = (assessment or {}).get("page_number")
+                low_confidence = any(
+                    document_fields[name].needs_review
+                    or document_fields[name].confidence < 0.75
+                    for name in cited_fields
+                )
+                if assessment is None:
+                    status = ComplianceStatus.NEEDS_REVIEW
+                    ai_assessment = "human_review"
+                    ai_reason = (
+                        f"AI did not produce a check-level conclusion. Missing extracted fields: {', '.join(missing_fields)}."
+                        if missing_fields else
+                        "AI did not produce a check-level conclusion; inspect the original evidence."
+                    )
+                elif assessment["result"] == "not_matched":
+                    status = ComplianceStatus.FAIL
+                    ai_assessment = "not_matched"
+                    ai_reason = str(assessment.get("reason") or "The evidence does not satisfy this check.")
+                elif assessment["result"] == "matched" and not low_confidence:
+                    status = ComplianceStatus.NEEDS_REVIEW
+                    ai_assessment = "matched"
+                    ai_reason = str(assessment.get("reason") or "The evidence appears to satisfy this check.")
+                else:
+                    status = ComplianceStatus.NEEDS_REVIEW
+                    ai_assessment = "human_review"
+                    ai_reason = (
+                        "The cited extracted evidence has low confidence and requires human confirmation."
+                        if low_confidence else
+                        str(assessment.get("reason") or "Human review is required for this check.")
+                    )
+                message = (
+                    f"AI found a policy mismatch: {ai_reason}"
+                    if ai_assessment == "not_matched" else
+                    f"AI found evidence consistent with this check: {ai_reason}"
+                    if ai_assessment == "matched" else
+                    f"Human review required: {ai_reason}"
+                )
 
             outcomes.append(RuleOutcome(
                 rule_code=f"{item.requirement_id}.CHECK-{check_number}",
@@ -125,6 +211,9 @@ def _evaluate_policy_compliance(supplier: Supplier) -> list[RuleOutcome]:
                     "document_id": str(document.id) if document else None,
                     "review_status": document.review_status if document else "missing",
                     "ai_assessment": ai_assessment,
+                    "ai_reason": ai_reason,
+                    "evidence_fields": cited_fields,
+                    "evidence_page": cited_page,
                     "expected_fields": expected_fields,
                     "missing_fields": missing_fields,
                 },
@@ -167,10 +256,11 @@ def evaluate_compliance(
     supplier: Supplier,
     *,
     today: date | None = None,
+    ai_policy_assessments: list[dict] | None = None,
 ) -> list[RuleOutcome]:
     checklist = checklist_for(supplier)
     if checklist.status == "synthetic_demo_policy":
-        return _evaluate_policy_compliance(supplier)
+        return _evaluate_policy_compliance(supplier, ai_policy_assessments)
 
     today = today or datetime.now(UTC).date()
     required_types = required_types_for(supplier)

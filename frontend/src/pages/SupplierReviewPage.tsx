@@ -33,7 +33,7 @@ import { Link, useParams } from 'react-router-dom'
 import { api } from '../api/client'
 import { downloadOriginal, openOriginal } from '../api/openOriginal'
 import { evidenceDownloadFilename, supplierReference } from '../api/supplierReference'
-import type { DocumentRevision, ExtractedField, ProcessSupplierResponse, SupplierDetail, SupplierDocument } from '../api/types'
+import type { ComplianceResult, DocumentRevision, ExtractedField, ProcessSupplierResponse, SupplierDetail, SupplierDocument } from '../api/types'
 import { StatusChip } from '../components/StatusChip'
 
 const fieldLabels: Record<string, string> = {
@@ -337,10 +337,37 @@ export function SupplierReviewPage() {
     value: value ?? 'Not provided',
     source: supplier.erp_preview.sources[fieldName],
   }))
-  const policyAssessments = supplier.requirements.documents.map((requirement) => ({
-    requirement,
-    checks: supplier.compliance_results.filter((result) => result.evidence.requirement_id === requirement.requirement_id),
-  }))
+  const policyChecks = supplier.compliance_results.filter((result) => result.evidence.kind === 'policy_check')
+  const policyGroupFor = (result: ComplianceResult) => {
+    const assessment = String(result.evidence.ai_assessment)
+    if (result.status === 'pass' || assessment === 'human_verified') return 'matched'
+    if (result.status === 'fail' || ['not_matched', 'reviewer_flagged'].includes(assessment)) return 'not_matched'
+    if (assessment === 'matched') return 'matched'
+    return 'human_review'
+  }
+  const policyGroups = [
+    {
+      key: 'matched',
+      title: 'AI matched',
+      description: 'The extracted evidence is consistent with the policy check.',
+      color: 'success' as const,
+      checks: policyChecks.filter((result) => policyGroupFor(result) === 'matched'),
+    },
+    {
+      key: 'not_matched',
+      title: 'Not matched',
+      description: 'The evidence is missing, contradicts the rule, or fails an objective threshold.',
+      color: 'error' as const,
+      checks: policyChecks.filter((result) => policyGroupFor(result) === 'not_matched'),
+    },
+    {
+      key: 'human_review',
+      title: 'Human review',
+      description: 'The evidence is ambiguous, low-confidence, or requires visual or professional judgement.',
+      color: 'warning' as const,
+      checks: policyChecks.filter((result) => policyGroupFor(result) === 'human_review'),
+    },
+  ]
   const reviewControls = supplier.compliance_results.filter((result) => result.evidence.kind === 'review_control')
 
   return (
@@ -521,32 +548,54 @@ export function SupplierReviewPage() {
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 1fr) minmax(0, 1fr)' }, gap: 3 }}>
         <Card>
           <CardContent sx={{ p: { xs: 3, md: 4 } }}>
-            <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.75 }}><FactCheckRoundedIcon color="primary" /><Typography variant="h6">Policy assessment</Typography></Stack>
-            <Typography color="text.secondary" variant="body2" sx={{ mb: 2 }}>These are the numbered checks from the applicable onboarding policy—not generic AI rules.</Typography>
+            <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.75 }}><FactCheckRoundedIcon color="primary" /><Typography variant="h6">AI policy assessment</Typography></Stack>
+            <Typography color="text.secondary" variant="body2">A provisional comparison of the uploaded evidence against every applicable numbered policy check. The reviewer remains the decision-maker.</Typography>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)' }, gap: 1, my: 2 }}>
+              {policyGroups.map((group) => (
+                <Box key={group.key} sx={{ p: 1.5, border: 1, borderColor: `${group.color}.main`, borderRadius: 2, bgcolor: 'action.hover' }}>
+                  <Typography variant="h5" color={`${group.color}.dark`} fontWeight={750}>{group.checks.length}</Typography>
+                  <Typography variant="body2" fontWeight={700}>{group.title}</Typography>
+                </Box>
+              ))}
+            </Box>
             <Stack spacing={1.5}>
-              {policyAssessments.map(({ requirement, checks }) => (
-                <Box key={requirement.requirement_id} sx={{ p: 1.75, border: 1, borderColor: 'divider', borderRadius: 2 }}>
-                  <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1} sx={{ mb: 1 }}>
+              {policyGroups.map((group) => (
+                <Box key={group.key} sx={{ border: 1, borderColor: 'divider', borderRadius: 2, overflow: 'hidden' }}>
+                  <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1} sx={{ px: 1.75, py: 1.25, bgcolor: 'action.hover' }}>
                     <Box>
-                      <Typography fontWeight={750}>{requirement.label}</Typography>
-                      <Typography variant="caption" color="text.secondary">{requirement.requirement_id}</Typography>
+                      <Typography fontWeight={750}>{group.title}</Typography>
+                      <Typography variant="caption" color="text.secondary">{group.description}</Typography>
                     </Box>
-                    {checks.length > 0 && <Chip size="small" color={checks.every((check) => check.status === 'pass') ? 'success' : checks.some((check) => check.status === 'fail') ? 'error' : 'warning'} label={checks.every((check) => check.status === 'pass') ? 'verified' : checks.some((check) => check.status === 'fail') ? 'issue found' : 'review needed'} />}
+                    <Chip size="small" color={group.color} label={group.checks.length} />
                   </Stack>
-                  {checks.length ? (
-                    <Stack spacing={1} divider={<Divider flexItem />}>
-                      {checks.map((check) => (
-                        <Box key={check.id} sx={{ pt: 0.5 }}>
-                          <Stack direction="row" justifyContent="space-between" spacing={1} alignItems="flex-start">
-                            <Typography variant="body2" fontWeight={650}>Check {String(check.evidence.check_number)}</Typography>
-                            <Chip size="small" color={check.status === 'pass' ? 'success' : check.status === 'fail' ? 'error' : 'warning'} label={displayStatus(check.status)} />
-                          </Stack>
-                          <Typography variant="body2" sx={{ mt: 0.5 }}>{String(check.evidence.check_text ?? '')}</Typography>
-                          <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>{check.message}</Typography>
-                        </Box>
-                      ))}
+                  {group.checks.length === 0 ? (
+                    <Typography variant="body2" color="text.secondary" sx={{ px: 1.75, py: 1.5 }}>No checks in this group.</Typography>
+                  ) : (
+                    <Stack divider={<Divider flexItem />}>
+                      {group.checks.map((check) => {
+                        const requirement = supplier.requirements.documents.find((item) => item.requirement_id === check.evidence.requirement_id)
+                        const evidenceFields = Array.isArray(check.evidence.evidence_fields) ? check.evidence.evidence_fields.map((item) => fieldLabel(String(item))) : []
+                        return (
+                          <Box key={check.id} sx={{ px: 1.75, py: 1.5 }}>
+                            <Stack direction="row" justifyContent="space-between" spacing={1} alignItems="flex-start">
+                              <Box>
+                                <Typography variant="body2" fontWeight={750}>{requirement?.label ?? String(check.evidence.requirement_label ?? check.evidence.requirement_id)}</Typography>
+                                <Typography variant="caption" color="text.secondary">{String(check.evidence.requirement_id)}.R{String(check.evidence.check_number)}</Typography>
+                              </Box>
+                              {check.status === 'pass' && <Chip size="small" color="success" label="Reviewer verified" />}
+                            </Stack>
+                            <Typography variant="body2" sx={{ mt: 0.75 }}>{String(check.evidence.check_text ?? '')}</Typography>
+                            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75 }}>{String(check.evidence.ai_reason ?? check.message)}</Typography>
+                            {(evidenceFields.length > 0 || Boolean(check.evidence.evidence_page)) && (
+                              <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
+                                Evidence: {evidenceFields.join(', ') || 'document content'}{check.evidence.evidence_page ? ` · page ${String(check.evidence.evidence_page)}` : ''}
+                              </Typography>
+                            )}
+                          </Box>
+                        )
+                      })}
                     </Stack>
-                  ) : <Alert severity="info">Policy checks will appear after processing or review begins.</Alert>}
+                  )}
                 </Box>
               ))}
               {reviewControls.map((result) => (

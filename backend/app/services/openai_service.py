@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
-from typing import Generic, TypeVar
+from typing import Generic, Literal, TypeVar
 
 from openai import AzureOpenAI, OpenAI
 from pydantic import BaseModel, Field
@@ -32,9 +32,18 @@ class ExtractedValue(BaseModel):
     confidence: float = Field(ge=0, le=1)
 
 
+class PolicyCheckAssessment(BaseModel):
+    check_number: int = Field(ge=1, le=2)
+    result: Literal["matched", "not_matched", "human_review"]
+    reason: str = Field(min_length=1, max_length=300)
+    evidence_fields: list[str] = Field(default_factory=list, max_length=12)
+    page_number: int | None = Field(default=None, ge=1)
+
+
 class DocumentExtraction(BaseModel):
     classified_document_type: DocumentType
     fields: list[ExtractedValue] = Field(max_length=12)
+    policy_checks: list[PolicyCheckAssessment] = Field(min_length=2, max_length=2)
 
 
 class GroundedAnswer(BaseModel):
@@ -82,7 +91,7 @@ class OpenAIService:
         filename: str,
         redacted_text: str,
     ) -> ModelResult[DocumentExtraction]:
-        prompt = _read_prompt("extraction_v3.txt")
+        prompt = _read_prompt("extraction_v4.txt")
         requirement_id = next((code for code, kind in BASE_TYPES.items() if kind == expected_type), expected_type.value)
         definition = load_policy().requirements.get(requirement_id)
         allowed_fields = extraction_field_names(expected_type)
@@ -90,9 +99,17 @@ class OpenAIService:
             prompt += (f"\nExpected policy item: {requirement_id} ({definition.label})."
                        f" Accepted evidence: {definition.accepted_evidence}"
                        f" Required fields: {definition.required_fields}"
+                       f" Policy check 1: {definition.checks[0]}"
+                       f" Policy check 2: {definition.checks[1]}"
                        f" Return only these exact field_name keys: {', '.join(allowed_fields)}."
                        " Return every listed key exactly once and do not add other keys."
-                       " This extracts review evidence; it does not approve the policy checks.")
+                       " Return exactly two policy_checks, numbered 1 and 2."
+                       " Classify a check as matched only when the document contains clear evidence"
+                       " satisfying it, not_matched only for a clear contradiction or threshold"
+                       " failure, and human_review when evidence is missing, ambiguous, subjective,"
+                       " low-confidence, or requires visual authenticity/signature verification."
+                       " Cite only allow-listed field keys in evidence_fields. These are provisional"
+                       " AI findings for a reviewer, never an approval decision.")
         input_metadata = {
             "document_type": expected_type.value,
             "filename": filename,

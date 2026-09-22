@@ -26,6 +26,7 @@ from app.services.chunking import chunk_document
 from app.services.compliance import evaluate_compliance, persist_compliance_results
 from app.services.document_policy import (
     extraction_field_names,
+    requirement_id_for_document_type,
     required_extraction_field_names,
 )
 from app.services.openai_service import AIResponseError, OpenAIService
@@ -48,6 +49,12 @@ NULL_LIKE_VALUES = {
     "not provided",
     "null",
     "unknown",
+}
+POLICY_NONE_FIELDS = {"data_categories", "subprocessors"}
+POLICY_NOT_APPLICABLE_FIELDS = {
+    "processing_locations",
+    "retention_after_service_end",
+    "deletion_interval",
 }
 
 FIELD_SOURCE_PRIORITY: dict[str, tuple[DocumentType, ...]] = {
@@ -125,11 +132,16 @@ class FieldCandidate:
 def normalize_extracted_value(
     value: str | None,
     replacements: dict[str, str],
+    field_name: str | None = None,
 ) -> str | None:
     if value is None:
         return None
     restored = restore_placeholders(value, replacements).strip()
     null_check = restored.strip("\"'").strip().casefold().rstrip(".")
+    if field_name in POLICY_NONE_FIELDS and null_check == "none":
+        return "None"
+    if field_name in POLICY_NOT_APPLICABLE_FIELDS and null_check in {"n/a", "not applicable"}:
+        return "Not applicable"
     return None if null_check in NULL_LIKE_VALUES else restored
 
 
@@ -277,6 +289,7 @@ def _process_supplier_documents(
     chunk_count = 0
     redaction_counts: dict[str, int] = {}
     classification_mismatches: list[str] = []
+    policy_assessments: list[dict] = []
     failed_documents: list[dict[str, str]] = []
     processed_document_ids: set[uuid.UUID] = set()
 
@@ -371,12 +384,26 @@ def _process_supplier_documents(
                     document.review_status = "pending"
                     document.review_comment = None
 
+                requirement_id = requirement_id_for_document_type(document.document_type)
+                for assessment in extraction.value.policy_checks:
+                    policy_assessments.append({
+                        "document_id": str(document.id),
+                        "requirement_id": requirement_id,
+                        "check_number": assessment.check_number,
+                        "result": assessment.result,
+                        "reason": assessment.reason,
+                        "evidence_fields": assessment.evidence_fields,
+                        "page_number": assessment.page_number,
+                    })
+
                 allowed_fields = set(extraction_field_names(document.document_type))
                 best_fields = {}
                 for field in extraction.value.fields:
                     if field.field_name not in allowed_fields:
                         continue
-                    value = normalize_extracted_value(field.value, redaction.replacements)
+                    value = normalize_extracted_value(
+                        field.value, redaction.replacements, field.field_name,
+                    )
                     if value is None:
                         continue
                     page_number = field.page_number or 1
@@ -490,6 +517,7 @@ def _process_supplier_documents(
         "chunk_overlap_tokens": settings.chunk_overlap_tokens,
         "redaction_counts": redaction_counts,
         "classification_mismatches": classification_mismatches,
+        "policy_assessments": policy_assessments,
         "field_conflicts": field_conflicts,
         "failed_documents": failed_documents,
         "missing_required_fields": missing_required_fields,
@@ -512,7 +540,11 @@ def _process_supplier_documents(
     db.refresh(run)
     db.refresh(supplier)
     db.expire(supplier, ["documents", "extracted_fields", "compliance_results"])
-    persist_compliance_results(db, supplier, evaluate_compliance(supplier))
+    persist_compliance_results(
+        db,
+        supplier,
+        evaluate_compliance(supplier, ai_policy_assessments=policy_assessments),
+    )
     db.commit()
     record_processing("partial" if failed_documents else "success")
     return ProcessingOutcome(

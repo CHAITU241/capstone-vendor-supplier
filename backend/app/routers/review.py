@@ -45,6 +45,7 @@ def _get_review_supplier(db: Session, supplier_id: uuid.UUID) -> Supplier:
         .options(
             selectinload(Supplier.documents),
             selectinload(Supplier.extracted_fields),
+            selectinload(Supplier.ai_runs),
             selectinload(Supplier.compliance_results),
         )
     )

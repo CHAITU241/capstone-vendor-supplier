@@ -44,6 +44,8 @@ def field(
 ) -> ExtractedField:
     return ExtractedField(
         id=uuid.uuid4(),
+        supplier_id=supplier.id,
+        document_id=source.id,
         supplier=supplier,
         document=source,
         field_name=field_name,
@@ -188,6 +190,65 @@ def test_policy_checks_pass_after_human_evidence_review() -> None:
     for requirement in ("BASE-001", "BASE-002", "BASE-003"):
         assert outcomes[f"{requirement}.CHECK-1"].status == ComplianceStatus.PASS
         assert outcomes[f"{requirement}.CHECK-2"].status == ComplianceStatus.PASS
+
+
+def test_ai_policy_findings_distinguish_match_mismatch_and_human_review() -> None:
+    supplier = Supplier(
+        id=uuid.uuid4(),
+        name="Brindle Cyber Shield 002 Pvt Ltd",
+        country="India",
+        category="TECH",
+        subcategory="TECH-CYB",
+    )
+    supplier.documents = [
+        document(item.document_type) for item in checklist_for(supplier).documents
+    ]
+    for item in supplier.documents:
+        item.review_status = "pending"
+        item.ai_extraction_status = "ready"
+    privacy = next(
+        item for item in supplier.documents
+        if item.document_type == DocumentType.PRIV_001
+    )
+    supplier.extracted_fields = [
+        field(supplier, privacy, field_name, "None" if field_name == "subprocessors" else "Demo value")
+        for field_name in extraction_field_names(DocumentType.PRIV_001)
+    ]
+
+    outcomes = {
+        item.rule_code: item for item in evaluate_compliance(
+            supplier,
+            ai_policy_assessments=[
+                {
+                    "document_id": str(privacy.id),
+                    "requirement_id": "PRIV-001",
+                    "check_number": 1,
+                    "result": "matched",
+                    "reason": "Every privacy field is answered and subprocessors are explicitly None.",
+                    "evidence_fields": ["subprocessors"],
+                    "page_number": 1,
+                },
+                {
+                    "document_id": str(privacy.id),
+                    "requirement_id": "PRIV-001",
+                    "check_number": 2,
+                    "result": "not_matched",
+                    "reason": "The deletion interval is 45 days, above the 30-day limit.",
+                    "evidence_fields": ["deletion_interval"],
+                    "page_number": 1,
+                },
+            ],
+        )
+    }
+
+    matched = outcomes["PRIV-001.CHECK-1"]
+    mismatch = outcomes["PRIV-001.CHECK-2"]
+    assert matched.status == ComplianceStatus.NEEDS_REVIEW
+    assert matched.evidence["ai_assessment"] == "matched"
+    assert matched.evidence["evidence_fields"] == ["subprocessors"]
+    assert mismatch.status == ComplianceStatus.FAIL
+    assert mismatch.evidence["ai_assessment"] == "not_matched"
+    assert "45 days" in mismatch.evidence["ai_reason"]
 
 
 def test_pending_ai_values_do_not_override_supplier_erp_data() -> None:
