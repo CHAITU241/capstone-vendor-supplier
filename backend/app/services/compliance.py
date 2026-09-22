@@ -172,13 +172,15 @@ def evaluate_compliance(
     if name_field is None:
         name_status = ComplianceStatus.FAIL
         name_message = "Canonical supplier name is missing."
+    elif mismatched_documents:
+        name_status = ComplianceStatus.NEEDS_REVIEW
+        name_message = "The supplier name was not found in one or more uploaded documents."
     elif name_field.needs_review or name_field.review_status not in {"verified", "corrected"}:
         name_status = ComplianceStatus.NEEDS_REVIEW
         name_message = "Supplier name needs review across uploaded documents."
     else:
         name_status = ComplianceStatus.PASS
-        name_message = ("Reviewer verified the canonical supplier name against the evidence."
-                        if mismatched_documents else "Supplier name matches all uploaded documents.")
+        name_message = "Supplier name matches all uploaded documents."
     supplier_name_match = RuleOutcome(
         rule_code="supplier_name_match",
         status=name_status,

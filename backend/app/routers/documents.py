@@ -25,7 +25,7 @@ from app.schemas import DocumentRead, DocumentRevisionRead
 from app.services.portal_auth import require_reviewer
 from app.services.document_policy import required_types_for
 from app.services.documents import DocumentExtractionError, extract_document_text
-from app.services.retrieval import delete_supplier_chunks, get_chunk_collection
+from app.services.retrieval import delete_document_chunks, get_chunk_collection
 
 router = APIRouter(prefix="/suppliers", tags=["documents"], dependencies=[Depends(require_reviewer)])
 ALLOWED_CONTENT_TYPES = {"application/pdf": ".pdf", "text/plain": ".txt"}
@@ -178,12 +178,14 @@ def delete_document(
             detail="A finalized supplier cannot be changed in this demo workflow.",
         )
     db.execute(
-        delete(ExtractedField).where(ExtractedField.supplier_id == supplier_id)
+        delete(ExtractedField).where(ExtractedField.document_id == document_id)
     )
     db.execute(
         delete(ComplianceResult).where(ComplianceResult.supplier_id == supplier_id)
     )
-    delete_supplier_chunks(get_chunk_collection(), str(supplier_id))
+    delete_document_chunks(
+        get_chunk_collection(), str(supplier_id), str(document_id)
+    )
     if supplier is not None:
         supplier.status = SupplierStatus.NEW
         supplier.decision_reason = None
@@ -208,7 +210,7 @@ def delete_document(
                 "filename": document.filename,
                 "document_type": document.document_type.value,
                 "revision": document.revision,
-                "ai_results_cleared": True,
+                "document_ai_results_cleared": True,
             },
         )
     )

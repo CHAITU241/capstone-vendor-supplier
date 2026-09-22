@@ -65,6 +65,19 @@ def delete_supplier_chunks(collection: Collection, supplier_id: str) -> None:
     collection.delete(where={"supplier_id": supplier_id})
 
 
+def delete_document_chunks(
+    collection: Collection,
+    supplier_id: str,
+    document_id: str,
+) -> None:
+    collection.delete(
+        where={"$and": [
+            {"supplier_id": supplier_id},
+            {"document_id": document_id},
+        ]}
+    )
+
+
 def query_supplier_chunks(
     collection: Collection,
     supplier_id: str,

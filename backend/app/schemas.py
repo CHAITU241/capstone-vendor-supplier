@@ -55,6 +55,10 @@ class DocumentRead(BaseModel):
     page_count: int
     processing_status: ProcessingStatus
     error_message: str | None
+    ai_extraction_status: Literal["pending", "processing", "ready", "failed"] = "pending"
+    ai_extraction_error: str | None = None
+    ai_index_status: Literal["pending", "processing", "ready", "failed"] = "pending"
+    ai_index_error: str | None = None
     review_status: str = "pending"
     review_comment: str | None = None
     reviewed_by: str | None = None
@@ -193,6 +197,8 @@ class ProcessSupplierResponse(BaseModel):
     field_count: int
     chunk_count: int
     redaction_counts: dict[str, int]
+    processed_document_count: int = 0
+    failed_document_count: int = 0
 
 
 class SupplierQuestionRequest(BaseModel):

@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 from chromadb.api.models.Collection import Collection
 from openai import APIConnectionError, APIStatusError, AuthenticationError, RateLimitError
-from sqlalchemy import delete
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.config import Settings
@@ -16,7 +16,7 @@ from app.models import (
     AiRunStatus,
     AiRunType,
     AuditEvent,
-    ComplianceResult,
+    Document,
     DocumentType,
     ExtractedField,
     Supplier,
@@ -24,11 +24,11 @@ from app.models import (
 )
 from app.services.chunking import chunk_document
 from app.services.compliance import evaluate_compliance, persist_compliance_results
+from app.services.document_policy import extraction_field_names
 from app.services.openai_service import AIResponseError, OpenAIService
 from app.services.redaction import redact_pii, restore_placeholders
 from app.services.retrieval import (
     RetrievedChunk,
-    delete_supplier_chunks,
     query_supplier_chunks,
     replace_document_chunks,
 )
@@ -96,6 +96,8 @@ class ProcessingOutcome:
     field_count: int
     chunk_count: int
     redaction_counts: dict[str, int]
+    processed_document_count: int = 0
+    failed_document_count: int = 0
 
 
 @dataclass(frozen=True)
@@ -250,12 +252,13 @@ def _fail_run(
     db.commit()
 
 
-def process_supplier_documents(
+def _process_supplier_documents(
     db: Session,
     supplier: Supplier,
     settings: Settings,
     ai: OpenAIService,
     collection: Collection,
+    document_ids: set[uuid.UUID] | None = None,
 ) -> ProcessingOutcome:
     run = _start_run(
         db,
@@ -270,192 +273,291 @@ def process_supplier_documents(
     chunk_count = 0
     redaction_counts: dict[str, int] = {}
     classification_mismatches: list[str] = []
-    field_candidates: list[FieldCandidate] = []
-    current_stage = "Starting AI processing"
-    current_document: str | None = None
+    failed_documents: list[dict[str, str]] = []
+    processed_document_ids: set[uuid.UUID] = set()
 
-    try:
-        supplier.status = SupplierStatus.PROCESSING
-        db.execute(
-            delete(ExtractedField).where(ExtractedField.supplier_id == supplier.id)
-        )
-        db.execute(
-            delete(ComplianceResult).where(
-                ComplianceResult.supplier_id == supplier.id
-            )
-        )
-        supplier.decision_reason = None
-        supplier.decided_at = None
-        supplier.erp_supplier_id = None
-        supplier.erp_payload = None
-        delete_supplier_chunks(collection, str(supplier.id))
+    supplier.status = SupplierStatus.PROCESSING
+    supplier.decision_reason = None
+    supplier.decided_at = None
+    supplier.erp_supplier_id = None
+    supplier.erp_payload = None
+    db.commit()
 
-        for document in sorted(supplier.documents, key=lambda item: item.document_type.value):
-            current_document = document.filename
-            redaction = redact_pii(document.extracted_text or "")
-            document.redacted_text = redaction.text
-            document.redaction_summary = redaction.counts
-            for category, count in redaction.counts.items():
-                redaction_counts[category] = redaction_counts.get(category, 0) + count
+    documents = [
+        document for document in sorted(supplier.documents, key=lambda item: item.document_type.value)
+        if document_ids is None or document.id in document_ids
+    ]
+    if document_ids is None:
+        documents = [
+            document for document in documents
+            if document.ai_extraction_status != "ready" or document.ai_index_status != "ready"
+        ]
 
-            current_stage = "Document extraction"
-            extraction = ai.extract_document(
-                expected_type=document.document_type,
-                filename=document.filename,
-                redacted_text=redaction.text,
-            )
-            input_tokens += extraction.input_tokens
-            output_tokens += extraction.output_tokens
-            type_mismatch = (
-                extraction.value.classified_document_type != document.document_type
-            )
-            if type_mismatch:
-                classification_mismatches.append(document.filename)
-                document.review_status = "attention"
-                document.review_comment = "AI classified this file differently from its selected requirement."
-            else:
-                document.review_status = "pending"
-                document.review_comment = None
-            document.reviewed_by = None
-            document.reviewed_at = None
+    for document in documents:
+        processed_document_ids.add(document.id)
+        redaction = redact_pii(document.extracted_text or "")
+        document.redacted_text = redaction.text
+        document.redaction_summary = redaction.counts
+        for category, count in redaction.counts.items():
+            redaction_counts[category] = redaction_counts.get(category, 0) + count
+        db.commit()
 
-            document_candidates: dict[str, FieldCandidate] = {}
-            for field in extraction.value.fields:
-                field_name = field.field_name.value
-                value = normalize_extracted_value(field.value, redaction.replacements)
-                if value is None:
-                    continue
-                page_number = field.page_number or 1
-                page_out_of_range = page_number > max(document.page_count, 1)
-                page_number = min(page_number, max(document.page_count, 1))
-                candidate = FieldCandidate(
-                    document_id=document.id,
-                    document_type=document.document_type,
-                    field_name=field_name,
-                    value=value,
-                    page_number=page_number,
-                    confidence=field.confidence,
-                    needs_review=(
-                        field.confidence < 0.75
-                        or type_mismatch
-                        or page_out_of_range
-                    ),
+        if document.ai_index_status != "ready":
+            document.ai_index_status = "processing"
+            document.ai_index_error = None
+            db.commit()
+            try:
+                chunks = chunk_document(
+                    redaction.text,
+                    model=settings.active_embedding_model,
+                    chunk_size=settings.chunk_size_tokens,
+                    overlap=settings.chunk_overlap_tokens,
                 )
-                existing = document_candidates.get(field_name)
-                if existing is None or candidate.confidence > existing.confidence:
-                    document_candidates[field_name] = candidate
-            field_candidates.extend(document_candidates.values())
-
-            current_stage = "Search chunking"
-            chunks = chunk_document(
-                redaction.text,
-                model=settings.active_embedding_model,
-                chunk_size=settings.chunk_size_tokens,
-                overlap=settings.chunk_overlap_tokens,
-            )
-            current_stage = "Search indexing (embeddings)"
-            embedding = ai.embed([chunk.text for chunk in chunks])
-            input_tokens += embedding.input_tokens
-            replace_document_chunks(
-                collection=collection,
-                supplier_id=str(supplier.id),
-                document_id=str(document.id),
-                filename=document.filename,
-                chunks=chunks,
-                embeddings=embedding.embeddings,
-            )
-            chunk_count += len(chunks)
-
-        current_document = None
-        current_stage = "Extracted-field consolidation"
-        canonical_fields, field_conflicts = select_canonical_fields(field_candidates)
-        field_by_name = {field.field_name: field for field in canonical_fields}
-        document_filenames = {
-            document.id: document.filename for document in supplier.documents
-        }
-        field_conflict_details = []
-        for field_name in field_conflicts:
-            candidates = [
-                candidate
-                for candidate in field_candidates
-                if candidate.field_name == field_name
-            ]
-            selected = field_by_name[field_name]
-            field_conflict_details.append(
-                {
-                    "field_name": field_name,
-                    "selected_document": document_filenames.get(selected.document_id),
-                    "source_documents": [
-                        document_filenames.get(candidate.document_id)
-                        for candidate in candidates
-                    ],
-                    "source_document_types": sorted(
-                        {candidate.document_type.value for candidate in candidates}
-                    ),
-                }
-            )
-        for field in canonical_fields:
-            db.add(
-                ExtractedField(
+                embedding = ai.embed([chunk.text for chunk in chunks])
+                input_tokens += embedding.input_tokens
+                replace_document_chunks(
+                    collection=collection,
+                    supplier_id=str(supplier.id),
+                    document_id=str(document.id),
+                    filename=document.filename,
+                    chunks=chunks,
+                    embeddings=embedding.embeddings,
+                )
+                chunk_count += len(chunks)
+                document.ai_index_status = "ready"
+                document.ai_index_error = None
+                db.commit()
+            except Exception as exc:
+                db.rollback()
+                document = db.get(Document, document.id)
+                message = _safe_failure_message(
+                    exc, stage="Search indexing", document_name=document.filename,
+                )
+                document.ai_index_status = "failed"
+                document.ai_index_error = message[:500]
+                failed_documents.append({"document_id": str(document.id), "filename": document.filename,
+                                         "stage": "indexing", "message": message})
+                db.add(AuditEvent(
                     supplier_id=supplier.id,
-                    document_id=field.document_id,
-                    field_name=field.field_name,
-                    value=field.value,
-                    page_number=field.page_number,
-                    confidence=field.confidence,
-                    needs_review=field.needs_review,
-                    review_status="attention" if field.needs_review else "pending",
+                    action="ai.document.failed",
+                    entity_type="document",
+                    entity_id=str(document.id),
+                    details={"stage": "indexing", "reason": message[:500]},
+                ))
+                db.commit()
+
+        if document.ai_extraction_status != "ready":
+            document.ai_extraction_status = "processing"
+            document.ai_extraction_error = None
+            db.commit()
+            try:
+                extraction = ai.extract_document(
+                    expected_type=document.document_type,
+                    filename=document.filename,
+                    redacted_text=redaction.text,
                 )
-            )
-        db.flush()
-        field_count = len(canonical_fields)
-        run.status = AiRunStatus.SUCCEEDED
-        run.input_tokens = input_tokens
-        run.output_tokens = output_tokens
-        run.latency_ms = int((time.perf_counter() - started) * 1000)
-        run.retrieval_count = chunk_count
-        run.details = {
-            "ai_provider": settings.ai_provider,
-            "embedding_model": settings.active_embedding_model,
-            "chunk_size_tokens": settings.chunk_size_tokens,
-            "chunk_overlap_tokens": settings.chunk_overlap_tokens,
-            "redaction_counts": redaction_counts,
-            "classification_mismatches": classification_mismatches,
-            "field_conflicts": field_conflicts,
-            "field_conflict_details": field_conflict_details,
-        }
-        supplier.status = SupplierStatus.NEEDS_REVIEW
-        db.add(
-            AuditEvent(
-                supplier_id=supplier.id,
-                action="ai.processing.completed",
-                entity_type="ai_run",
-                entity_id=str(run.id),
-                details={"field_count": field_count, "chunk_count": chunk_count},
-            )
+                input_tokens += extraction.input_tokens
+                output_tokens += extraction.output_tokens
+                type_mismatch = extraction.value.classified_document_type != document.document_type
+                if type_mismatch:
+                    classification_mismatches.append(document.filename)
+                    document.review_status = "attention"
+                    document.review_comment = "AI classified this file differently from its selected requirement."
+                elif document.review_status not in {"verified", "disputed"}:
+                    document.review_status = "pending"
+                    document.review_comment = None
+
+                allowed_fields = set(extraction_field_names(document.document_type))
+                best_fields = {}
+                for field in extraction.value.fields:
+                    if field.field_name not in allowed_fields:
+                        continue
+                    value = normalize_extracted_value(field.value, redaction.replacements)
+                    if value is None:
+                        continue
+                    page_number = field.page_number or 1
+                    page_out_of_range = page_number > max(document.page_count, 1)
+                    page_number = min(page_number, max(document.page_count, 1))
+                    candidate = FieldCandidate(
+                        document_id=document.id,
+                        document_type=document.document_type,
+                        field_name=field.field_name,
+                        value=value,
+                        page_number=page_number,
+                        confidence=field.confidence,
+                        needs_review=field.confidence < 0.75 or type_mismatch or page_out_of_range,
+                    )
+                    existing = best_fields.get(field.field_name)
+                    if existing is None or candidate.confidence > existing.confidence:
+                        best_fields[field.field_name] = candidate
+
+                db.execute(delete(ExtractedField).where(ExtractedField.document_id == document.id))
+                for field in best_fields.values():
+                    db.add(ExtractedField(
+                        supplier_id=supplier.id,
+                        document_id=field.document_id,
+                        field_name=field.field_name,
+                        value=field.value,
+                        page_number=field.page_number,
+                        confidence=field.confidence,
+                        needs_review=field.needs_review,
+                        review_status="attention" if field.needs_review else "pending",
+                    ))
+                document.ai_extraction_status = "ready"
+                document.ai_extraction_error = None
+                db.commit()
+            except Exception as exc:
+                db.rollback()
+                document = db.get(Document, document.id)
+                message = _safe_failure_message(
+                    exc, stage="Document extraction", document_name=document.filename,
+                )
+                document.ai_extraction_status = "failed"
+                document.ai_extraction_error = message[:500]
+                failed_documents.append({"document_id": str(document.id), "filename": document.filename,
+                                         "stage": "extraction", "message": message})
+                db.add(AuditEvent(
+                    supplier_id=supplier.id,
+                    action="ai.document.failed",
+                    entity_type="document",
+                    entity_id=str(document.id),
+                    details={"stage": "extraction", "reason": message[:500]},
+                ))
+                db.commit()
+
+    all_documents = db.scalars(select(Document).where(Document.supplier_id == supplier.id)).all()
+    all_fields = db.scalars(select(ExtractedField).where(ExtractedField.supplier_id == supplier.id)).all()
+    recorded_failures = {
+        (item["document_id"], item["stage"]) for item in failed_documents
+    }
+    for document in all_documents:
+        for stage, status, message in (
+            ("extraction", document.ai_extraction_status, document.ai_extraction_error),
+            ("indexing", document.ai_index_status, document.ai_index_error),
+        ):
+            key = (str(document.id), stage)
+            if status == "failed" and key not in recorded_failures:
+                failed_documents.append({
+                    "document_id": str(document.id),
+                    "filename": document.filename,
+                    "stage": stage,
+                    "message": message or f"{stage.title()} failed for {document.filename}.",
+                })
+                recorded_failures.add(key)
+    document_types = {document.id: document.document_type for document in all_documents}
+    conflict_candidates = [
+        FieldCandidate(field.document_id, document_types[field.document_id], field.field_name,
+                       field.value, field.page_number, field.confidence, field.needs_review)
+        for field in all_fields if field.field_name in FIELD_SOURCE_PRIORITY
+    ]
+    _, field_conflicts = select_canonical_fields(conflict_candidates)
+
+    run.input_tokens = input_tokens
+    run.output_tokens = output_tokens
+    run.latency_ms = int((time.perf_counter() - started) * 1000)
+    run.retrieval_count = chunk_count
+    failed_document_ids = {item["document_id"] for item in failed_documents}
+    missing_required_fields = []
+    fields_by_document: dict[uuid.UUID, set[str]] = defaultdict(set)
+    for field in all_fields:
+        fields_by_document[field.document_id].add(field.field_name)
+    for document in all_documents:
+        missing = sorted(
+            set(extraction_field_names(document.document_type))
+            - fields_by_document[document.id]
         )
-        db.commit()
-        db.refresh(run)
-        db.refresh(supplier)
-        db.expire(supplier, ["documents", "extracted_fields", "compliance_results"])
-        current_stage = "Validation setup"
-        persist_compliance_results(db, supplier, evaluate_compliance(supplier))
-        db.commit()
-        record_processing("success")
-        return ProcessingOutcome(
-            run=run,
-            field_count=field_count,
-            chunk_count=chunk_count,
-            redaction_counts=redaction_counts,
+        if missing and document.ai_extraction_status == "ready":
+            missing_required_fields.append({
+                "document_id": str(document.id),
+                "filename": document.filename,
+                "fields": missing,
+            })
+
+    run.status = AiRunStatus.FAILED if failed_documents else AiRunStatus.SUCCEEDED
+    run.error_message = (
+        f"{len(failed_documents)} document stage(s) failed; successful documents were retained. Retry only the failed evidence."
+        if failed_documents else None
+    )
+    run.details = {
+        "ai_provider": settings.ai_provider,
+        "embedding_model": settings.active_embedding_model,
+        "chunk_size_tokens": settings.chunk_size_tokens,
+        "chunk_overlap_tokens": settings.chunk_overlap_tokens,
+        "redaction_counts": redaction_counts,
+        "classification_mismatches": classification_mismatches,
+        "field_conflicts": field_conflicts,
+        "failed_documents": failed_documents,
+        "missing_required_fields": missing_required_fields,
+        "processed_document_ids": [str(item) for item in sorted(processed_document_ids, key=str)],
+        "ready_extractions": sum(document.ai_extraction_status == "ready" for document in all_documents),
+        "ready_indexes": sum(document.ai_index_status == "ready" for document in all_documents),
+        "total_documents": len(all_documents),
+    }
+    supplier = db.get(Supplier, supplier.id)
+    supplier.status = SupplierStatus.NEEDS_REVIEW
+    db.add(AuditEvent(
+        supplier_id=supplier.id,
+        action="ai.processing.partial" if failed_documents else "ai.processing.completed",
+        entity_type="ai_run",
+        entity_id=str(run.id),
+        details={"field_count": len(all_fields), "chunk_count": chunk_count,
+                 "failed_document_count": len(failed_document_ids)},
+    ))
+    db.commit()
+    db.refresh(run)
+    db.refresh(supplier)
+    db.expire(supplier, ["documents", "extracted_fields", "compliance_results"])
+    persist_compliance_results(db, supplier, evaluate_compliance(supplier))
+    db.commit()
+    record_processing("partial" if failed_documents else "success")
+    return ProcessingOutcome(
+        run=run,
+        field_count=len(all_fields),
+        chunk_count=chunk_count,
+        redaction_counts=redaction_counts,
+        processed_document_count=len(processed_document_ids),
+        failed_document_count=len(failed_document_ids),
+    )
+
+
+def process_supplier_documents(
+    db: Session,
+    supplier: Supplier,
+    settings: Settings,
+    ai: OpenAIService,
+    collection: Collection,
+    document_ids: set[uuid.UUID] | None = None,
+) -> ProcessingOutcome:
+    """Process evidence independently while still closing unexpected run failures."""
+    supplier_id = supplier.id
+    try:
+        return _process_supplier_documents(
+            db=db,
+            supplier=supplier,
+            settings=settings,
+            ai=ai,
+            collection=collection,
+            document_ids=document_ids,
         )
     except Exception as exc:
-        latency_ms = int((time.perf_counter() - started) * 1000)
-        delete_supplier_chunks(collection, str(supplier.id))
-        _fail_run(
-            db, supplier.id, run.id,
-            _safe_failure_message(exc, stage=current_stage, document_name=current_document),
-            latency_ms,
+        db.rollback()
+        failed_run = db.scalar(
+            select(AiRun)
+            .where(
+                AiRun.supplier_id == supplier_id,
+                AiRun.run_type == AiRunType.PROCESSING,
+                AiRun.status == AiRunStatus.PROCESSING,
+            )
+            .order_by(AiRun.created_at.desc())
         )
+        if failed_run is not None:
+            _fail_run(
+                db,
+                supplier_id,
+                failed_run.id,
+                _safe_failure_message(exc, stage="Processing finalization"),
+                0,
+            )
         record_processing("error")
         raise
 

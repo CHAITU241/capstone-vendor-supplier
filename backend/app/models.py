@@ -184,6 +184,10 @@ class Document(Base):
         index=True,
     )
     error_message: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    ai_extraction_status: Mapped[str] = mapped_column(String(20), default="pending", index=True)
+    ai_extraction_error: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    ai_index_status: Mapped[str] = mapped_column(String(20), default="pending", index=True)
+    ai_index_error: Mapped[str | None] = mapped_column(String(500), nullable=True)
     review_status: Mapped[str] = mapped_column(String(20), default="pending")
     review_comment: Mapped[str | None] = mapped_column(Text, nullable=True)
     reviewed_by: Mapped[str | None] = mapped_column(String(100), nullable=True)

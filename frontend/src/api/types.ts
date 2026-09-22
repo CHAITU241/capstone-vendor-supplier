@@ -90,6 +90,10 @@ export interface SupplierDocument {
   page_count: number
   processing_status: ProcessingStatus
   error_message: string | null
+  ai_extraction_status: 'pending' | 'processing' | 'ready' | 'failed'
+  ai_extraction_error: string | null
+  ai_index_status: 'pending' | 'processing' | 'ready' | 'failed'
+  ai_index_error: string | null
   review_status: 'pending' | 'attention' | 'verified' | 'disputed'
   review_comment: string | null
   reviewed_by: string | null
@@ -188,6 +192,8 @@ export interface ProcessSupplierResponse {
   field_count: number
   chunk_count: number
   redaction_counts: Record<string, number>
+  processed_document_count: number
+  failed_document_count: number
 }
 
 export interface QuestionCitation {

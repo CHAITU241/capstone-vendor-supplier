@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from enum import Enum
 from functools import lru_cache
 from pathlib import Path
 from typing import Generic, TypeVar
@@ -10,7 +9,7 @@ from pydantic import BaseModel, Field
 from app.config import Settings, get_settings
 from app.metrics import observe_ai_call
 from app.models import DocumentType
-from app.services.document_policy import BASE_TYPES, load_policy
+from app.services.document_policy import BASE_TYPES, extraction_field_names, load_policy
 from app.services.tracing import get_langfuse_tracer
 
 
@@ -22,22 +21,11 @@ class AIResponseError(RuntimeError):
     pass
 
 
-class FieldName(str, Enum):
-    SUPPLIER_NAME = "supplier_name"
-    ADDRESS = "address"
-    COUNTRY = "country"
-    TAX_IDENTIFIER = "tax_identifier"
-    CONTACT_NAME = "contact_name"
-    CONTACT_EMAIL = "contact_email"
-    INSURANCE_PROVIDER = "insurance_provider"
-    INSURANCE_EXPIRY_DATE = "insurance_expiry_date"
-    PAYMENT_TERMS = "payment_terms"
-
-
 class ExtractedValue(BaseModel):
-    field_name: FieldName
+    field_name: str = Field(min_length=1, max_length=100)
     value: str | None = Field(
         default=None,
+        max_length=300,
         description="A concise scalar copied from the document; never a paragraph or explanation.",
     )
     page_number: int | None = Field(default=None, ge=1)
@@ -46,7 +34,7 @@ class ExtractedValue(BaseModel):
 
 class DocumentExtraction(BaseModel):
     classified_document_type: DocumentType
-    fields: list[ExtractedValue]
+    fields: list[ExtractedValue] = Field(max_length=12)
 
 
 class GroundedAnswer(BaseModel):
@@ -97,11 +85,14 @@ class OpenAIService:
         prompt = _read_prompt("extraction_v3.txt")
         requirement_id = next((code for code, kind in BASE_TYPES.items() if kind == expected_type), expected_type.value)
         definition = load_policy().requirements.get(requirement_id)
+        allowed_fields = extraction_field_names(expected_type)
         if definition:
             prompt += (f"\nExpected policy item: {requirement_id} ({definition.label})."
                        f" Accepted evidence: {definition.accepted_evidence}"
                        f" Required fields: {definition.required_fields}"
-                       " Extract only the supported general fields; this does not validate the policy checks.")
+                       f" Return only these exact field_name keys: {', '.join(allowed_fields)}."
+                       " Return every listed key exactly once and do not add other keys."
+                       " This extracts review evidence; it does not approve the policy checks.")
         input_metadata = {
             "document_type": expected_type.value,
             "filename": filename,
@@ -146,7 +137,7 @@ class OpenAIService:
                 generation.update(
                     output={
                         "classified_document_type": parsed.classified_document_type.value,
-                        "field_names": [field.field_name.value for field in parsed.fields],
+                        "field_names": [field.field_name for field in parsed.fields],
                         "field_count": len(parsed.fields),
                     },
                     usage_details={"input": result.input_tokens, "output": result.output_tokens},

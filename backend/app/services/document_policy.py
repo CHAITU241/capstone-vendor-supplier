@@ -1,5 +1,6 @@
 """Deterministic applicability from the frozen synthetic policy v1.1 corpus."""
 
+import re
 from functools import lru_cache
 from pathlib import Path
 
@@ -131,3 +132,52 @@ def checklist_for(supplier: Supplier) -> Checklist:
 
 def required_types_for(supplier: Supplier) -> set[DocumentType]:
     return {item.document_type for item in checklist_for(supplier).documents}
+
+
+GENERIC_EXTRACTION_FIELDS: dict[DocumentType, tuple[str, ...]] = {
+    DocumentType.REGISTRATION: ("supplier_name", "address", "country", "contact_name", "contact_email"),
+    DocumentType.TAX: ("supplier_name", "tax_identifier"),
+    DocumentType.BANK: ("supplier_name", "bank_account_number", "bank_ifsc"),
+    DocumentType.INSURANCE: ("supplier_name", "insurance_provider", "insurance_expiry_date"),
+    DocumentType.INS_CYB_001: ("supplier_name", "insurance_provider", "insurance_expiry_date"),
+    DocumentType.INS_PI_001: ("supplier_name", "insurance_provider", "insurance_expiry_date"),
+}
+
+
+def _field_key(label: str, document_type: DocumentType) -> str:
+    key = re.sub(r"[^a-z0-9]+", "_", label.casefold()).strip("_")
+    aliases = {
+        "legal_name": "supplier_name",
+        "supplier_legal_name": "supplier_name",
+        "beneficiary_legal_name": "supplier_name",
+        "policyholder_legal_name": "supplier_name",
+        "pan_tax_reference": "tax_identifier",
+        "full_account_number": "bank_account_number",
+        "ifsc": "bank_ifsc",
+        "insurer": "insurance_provider",
+    }
+    if document_type in {
+        DocumentType.INSURANCE,
+        DocumentType.INS_CYB_001,
+        DocumentType.INS_PI_001,
+    }:
+        aliases["expiry_date"] = "insurance_expiry_date"
+    return aliases.get(key, key)[:100]
+
+
+def extraction_field_names(document_type: DocumentType) -> list[str]:
+    """Return a small, deterministic field allow-list for one evidence requirement."""
+    requirement_id = next(
+        (code for code, kind in BASE_TYPES.items() if kind == document_type),
+        document_type.value,
+    )
+    definition = load_policy().requirements.get(requirement_id)
+    policy_fields = (
+        [
+            _field_key(label, document_type)
+            for label in definition.required_fields.split(";")
+            if label.strip()
+        ]
+        if definition else []
+    )
+    return list(dict.fromkeys((*GENERIC_EXTRACTION_FIELDS.get(document_type, ()), *policy_fields)))

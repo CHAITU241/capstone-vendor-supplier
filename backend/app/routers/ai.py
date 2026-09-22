@@ -102,6 +102,42 @@ def process_supplier(
         field_count=outcome.field_count,
         chunk_count=outcome.chunk_count,
         redaction_counts=outcome.redaction_counts,
+        processed_document_count=outcome.processed_document_count,
+        failed_document_count=outcome.failed_document_count,
+    )
+
+
+@router.post("/{supplier_id}/documents/{document_id}/process", response_model=ProcessSupplierResponse)
+def process_one_supplier_document(
+    supplier_id: uuid.UUID,
+    document_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> ProcessSupplierResponse:
+    supplier = _get_supplier_with_documents(db, supplier_id)
+    if supplier.status in {SupplierStatus.APPROVED, SupplierStatus.REJECTED}:
+        raise HTTPException(status_code=409, detail="A finalized supplier cannot be reprocessed.")
+    document = next((item for item in supplier.documents if item.id == document_id), None)
+    if document is None:
+        raise HTTPException(status_code=404, detail="Document was not found for this supplier.")
+    if document.processing_status != ProcessingStatus.READY or not document.extracted_text:
+        raise HTTPException(status_code=409, detail="The document is not ready for AI processing.")
+
+    outcome = process_supplier_documents(
+        db=db,
+        supplier=supplier,
+        settings=settings,
+        ai=_get_ai_service(),
+        collection=get_chunk_collection(),
+        document_ids={document.id},
+    )
+    return ProcessSupplierResponse(
+        run=AiRunRead.model_validate(outcome.run),
+        field_count=outcome.field_count,
+        chunk_count=outcome.chunk_count,
+        redaction_counts=outcome.redaction_counts,
+        processed_document_count=outcome.processed_document_count,
+        failed_document_count=outcome.failed_document_count,
     )
 
 

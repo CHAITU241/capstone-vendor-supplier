@@ -119,6 +119,10 @@ export const api = {
     request<ProcessSupplierResponse>(`/suppliers/${supplierId}/process`, {
       method: 'POST',
     }),
+  processSupplierDocument: (supplierId: string, documentId: string) =>
+    request<ProcessSupplierResponse>(`/suppliers/${supplierId}/documents/${documentId}/process`, {
+      method: 'POST',
+    }),
   askSupplierQuestion: (supplierId: string, question: string) =>
     request<SupplierQuestionResponse>(`/suppliers/${supplierId}/questions`, {
       method: 'POST',

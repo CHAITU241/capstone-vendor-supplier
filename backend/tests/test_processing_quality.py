@@ -1,6 +1,8 @@
 import uuid
 
 from app.models import DocumentType
+from app.services.document_policy import extraction_field_names
+from app.services.openai_service import DocumentExtraction
 from app.services.processing import (
     FieldCandidate,
     comparison_key,
@@ -121,3 +123,34 @@ def test_ignores_name_punctuation_when_checking_conflicts() -> None:
     )
     assert selected[0].needs_review is False
     assert conflicts == []
+
+
+def test_confidentiality_extraction_uses_requirement_specific_fields() -> None:
+    fields = extraction_field_names(DocumentType.CONF_001)
+
+    assert fields == [
+        "supplier_name",
+        "buyer_name",
+        "signatory_names",
+        "both_signatures",
+        "execution_date",
+    ]
+
+
+def test_extraction_schema_rejects_runaway_field_values() -> None:
+    payload = {
+        "classified_document_type": "CONF-001",
+        "fields": [{
+            "field_name": "buyer_name",
+            "value": "x" * 301,
+            "page_number": 1,
+            "confidence": 0.9,
+        }],
+    }
+
+    try:
+        DocumentExtraction.model_validate(payload)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("The structured extraction schema accepted a runaway value.")

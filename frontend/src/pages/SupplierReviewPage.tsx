@@ -130,15 +130,29 @@ export function SupplierReviewPage() {
       return messages
     }
     if (latestProcessingRun.status === 'failed') {
-      messages.push({ severity: 'error', text: latestProcessingRun.error_message || 'The AI review failed. Retry before making a decision.' })
-      return messages
+      const total = Number(latestProcessingRun.details.total_documents ?? supplier.documents.length)
+      const extracted = Number(latestProcessingRun.details.ready_extractions ?? 0)
+      const indexed = Number(latestProcessingRun.details.ready_indexes ?? 0)
+      messages.push({ severity: 'warning', text: `${extracted}/${total} documents were extracted and ${indexed}/${total} were indexed. Successful work was retained.` })
+      const failures = Array.isArray(latestProcessingRun.details.failed_documents)
+        ? latestProcessingRun.details.failed_documents as Array<{ filename?: string; stage?: string; message?: string }> : []
+      failures.forEach((failure) => messages.push({
+        severity: 'error',
+        text: failure.message || `${failure.stage || 'AI processing'} failed for ${failure.filename || 'a document'}.`,
+      }))
     }
     const mismatches = Array.isArray(latestProcessingRun.details.classification_mismatches)
       ? latestProcessingRun.details.classification_mismatches as string[] : []
     const conflicts = Array.isArray(latestProcessingRun.details.field_conflicts)
       ? latestProcessingRun.details.field_conflicts as string[] : []
+    const missingFields = Array.isArray(latestProcessingRun.details.missing_required_fields)
+      ? latestProcessingRun.details.missing_required_fields as Array<{ filename?: string; fields?: string[] }> : []
     if (mismatches.length) messages.push({ severity: 'warning', text: `${mismatches.length} file(s) may not match the evidence type selected by the supplier.` })
     if (conflicts.length) messages.push({ severity: 'warning', text: `Conflicting values were detected for: ${conflicts.join(', ')}.` })
+    missingFields.forEach((item) => messages.push({
+      severity: 'warning',
+      text: `${item.filename || 'A document'} is missing or did not expose: ${(item.fields || []).map((field) => field.replaceAll('_', ' ')).join(', ')}.`,
+    }))
     const attentionDocuments = supplier.documents.filter((document) => document.review_status === 'attention' || document.review_status === 'disputed')
     if (attentionDocuments.length) messages.push({ severity: 'warning', text: `${attentionDocuments.length} evidence item(s) need attention.` })
     const attentionFields = supplier.extracted_fields.filter((field) => field.review_status === 'attention' || field.review_status === 'disputed' || field.needs_review)
@@ -188,7 +202,14 @@ export function SupplierReviewPage() {
   }
 
   async function retryProcessing() {
-    await runAction(() => api.processSupplier(supplierId), 'AI review completed. Review the refreshed findings and proposed supplier record.')
+    await runAction(() => api.processSupplier(supplierId), 'AI processing finished. Successful results were retained; check the summary for any remaining failures.')
+  }
+
+  async function retryDocument(document: SupplierDocument) {
+    await runAction(
+      () => api.processSupplierDocument(supplierId, document.id),
+      `${document.filename} was processed again. Check its extraction and search-index status.`,
+    )
   }
 
   async function verifyEvidence(document: SupplierDocument) {
@@ -314,11 +335,21 @@ export function SupplierReviewPage() {
                       <Stack spacing={1} alignItems={{ md: 'flex-end' }} sx={{ flexShrink: 0 }}>
                         <Stack direction="row" spacing={0.75} alignItems="center">
                           <StatusChip status={document.processing_status} />
+                          <Chip size="small" color={document.ai_extraction_status === 'ready' ? 'success' : document.ai_extraction_status === 'failed' ? 'error' : 'default'} label={`Extraction: ${displayStatus(document.ai_extraction_status)}`} />
+                          <Chip size="small" color={document.ai_index_status === 'ready' ? 'success' : document.ai_index_status === 'failed' ? 'error' : 'default'} label={`Q&A index: ${displayStatus(document.ai_index_status)}`} />
                           <Chip size="small" color={reviewColor(document.review_status)} label={displayStatus(document.review_status)} />
                         </Stack>
+                        {(document.ai_extraction_error || document.ai_index_error) && (
+                          <Typography variant="caption" color="error" sx={{ maxWidth: 360 }}>
+                            {document.ai_extraction_error || document.ai_index_error}
+                          </Typography>
+                        )}
                         <Stack direction="row" spacing={0.5}>
                           <Button size="small" onClick={() => void viewOriginal(document.id)}>View original</Button>
                           <Button size="small" onClick={() => void downloadFile(document)}>Download</Button>
+                          {!finalized && (document.ai_extraction_status === 'failed' || document.ai_index_status === 'failed') && (
+                            <Button size="small" disabled={busy} onClick={() => void retryDocument(document)}>Retry AI</Button>
+                          )}
                         </Stack>
                         {!finalized && (
                           <Stack direction="row" spacing={1}>
