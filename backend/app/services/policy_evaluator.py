@@ -219,8 +219,22 @@ def evaluate_objective_check(
         observed_account, observed_ifsc = _text(fields, "bank_account_number"), _text(fields, "bank_ifsc")
         if not all((observed_account, observed_ifsc, portal_bank_account, portal_bank_ifsc)):
             return _review("Bank account and IFSC cannot both be compared with the portal values.", "supplier_name", "bank_account_number", "bank_ifsc")
-        if observed_account != portal_bank_account or _norm(observed_ifsc) != _norm(portal_bank_ifsc):
-            return _failed("Bank account number or IFSC does not exactly match the portal payment fields.", "supplier_name", "bank_account_number", "bank_ifsc")
+        account_mismatch = observed_account != portal_bank_account
+        ifsc_mismatch = _norm(observed_ifsc) != _norm(portal_bank_ifsc)
+        if account_mismatch or ifsc_mismatch:
+            mismatches = []
+            if account_mismatch:
+                mismatches.append("bank account number")
+            if ifsc_mismatch:
+                mismatches.append("IFSC")
+            mismatch_label = " and ".join(mismatches)
+            return _failed(
+                f"The {mismatch_label} does not exactly match the portal payment field"
+                f"{'s' if len(mismatches) > 1 else ''}.",
+                "supplier_name",
+                "bank_account_number",
+                "bank_ifsc",
+            )
         return _matched("Beneficiary name matches BASE-001 and the account number and IFSC match the portal fields.", "supplier_name", "bank_account_number", "bank_ifsc")
     if key == ("BASE-003", 2):
         return _date_window(fields, "document_date", evaluation_date, 90)

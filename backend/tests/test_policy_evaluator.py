@@ -80,3 +80,40 @@ def test_privacy_threshold_leaves_business_days_for_human_review() -> None:
 
     assert result is not None
     assert result.result == "human_review"
+
+
+def test_bank_check_identifies_the_exact_mismatching_payment_field() -> None:
+    common = {
+        "requirement_id": "BASE-003",
+        "check_number": 1,
+        "baseline_name": "Demo Supplier",
+        "portal_name": "Demo Supplier",
+        "portal_tax_reference": None,
+        "portal_bank_account": "990000000069",
+        "portal_bank_ifsc": "DEMO001234",
+        "evaluation_date": date(2026, 9, 22),
+    }
+
+    account_mismatch = evaluate_objective_check(
+        fields={
+            "supplier_name": "Demo Supplier",
+            "bank_account_number": "888888888888",
+            "bank_ifsc": "DEMO001234",
+        },
+        **common,
+    )
+    ifsc_mismatch = evaluate_objective_check(
+        fields={
+            "supplier_name": "Demo Supplier",
+            "bank_account_number": "990000000069",
+            "bank_ifsc": "WRONG001234",
+        },
+        **common,
+    )
+
+    assert account_mismatch is not None
+    assert account_mismatch.result == "not_matched"
+    assert account_mismatch.reason == "The bank account number does not exactly match the portal payment field."
+    assert ifsc_mismatch is not None
+    assert ifsc_mismatch.result == "not_matched"
+    assert ifsc_mismatch.reason == "The IFSC does not exactly match the portal payment field."

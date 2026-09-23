@@ -38,6 +38,40 @@ function displayStatus(status: string) { return status.replaceAll('_', ' ') }
 function fieldLabel(name: string) { return fieldLabels[name] ?? name.replaceAll('_', ' ').replace(/\b\w/g, (character) => character.toUpperCase()) }
 function normalizedFieldKey(name: string) { return name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') }
 
+function comparisonValueMatches(fieldName: string, observed: unknown, expected: unknown) {
+  if (observed == null || observed === '' || expected == null || expected === '') return false
+  const left = String(observed).trim()
+  const right = String(expected).trim()
+  if (fieldName === 'bank_account_number') return left === right
+  if (['supplier_name', 'tax_identifier', 'bank_ifsc'].includes(fieldName)) {
+    const normalize = (value: string) => value.toLocaleLowerCase().replace(/[^a-z0-9]+/g, '')
+    return normalize(left) === normalize(right)
+  }
+  return left.toLocaleLowerCase() === right.toLocaleLowerCase()
+}
+
+function ComparedValue({ value, comparison, highlight }: { value: unknown; comparison: unknown; highlight: boolean }) {
+  if (value == null || value === '') return <Typography component="span" variant="caption" color="error.dark" fontWeight={700}>Not found</Typography>
+  const displayed = String(value)
+  const compared = comparison == null ? '' : String(comparison)
+  if (!highlight || displayed.length !== compared.length) {
+    return <Typography component="span" variant="caption" fontFamily="monospace" fontWeight={highlight ? 700 : 500} sx={{ overflowWrap: 'anywhere' }}>{displayed}</Typography>
+  }
+  return (
+    <Typography component="span" variant="caption" fontFamily="monospace" fontWeight={500} sx={{ overflowWrap: 'anywhere' }}>
+      {[...displayed].map((character, index) => (
+        <Box
+          component="span"
+          key={`${character}-${index}`}
+          sx={character === compared[index] ? undefined : { bgcolor: 'error.light', color: 'error.contrastText', borderRadius: .5, px: .15, fontWeight: 800 }}
+        >
+          {character}
+        </Box>
+      ))}
+    </Typography>
+  )
+}
+
 function policyOutcome(result: ComplianceResult): 'matched' | 'not_matched' | 'human_review' {
   const assessment = String(result.evidence.ai_assessment)
   if (result.status === 'pass' || assessment === 'human_verified' || assessment === 'matched') return 'matched'
@@ -278,6 +312,14 @@ export function SupplierReviewPage() {
     const portalValues: Record<string, unknown> = { supplier_name: reviewSupplier.name, tax_identifier: reviewSupplier.tax_reference, bank_account_number: reviewSupplier.bank_account_number, bank_ifsc: reviewSupplier.bank_ifsc, contact_email: reviewSupplier.contact_email, country: 'India' }
     const inferredExpected = [...new Set(citedFields)].filter((name) => portalValues[name] != null && portalValues[name] !== '').map((name) => ({ field_name: name, value: portalValues[name] }))
     const expected = savedExpected.length ? savedExpected : inferredExpected.length ? inferredExpected : [{ field_name: 'policy_rule', value: String(check.evidence.check_text ?? 'Review against the policy check.') }]
+    const expectedByField = new Map(expected
+      .filter((item) => item.field_name && item.field_name !== 'policy_rule')
+      .map((item) => [normalizedFieldKey(String(item.field_name)), item]))
+    const observedByField = new Map(observed
+      .filter((item) => item.field_name)
+      .map((item) => [normalizedFieldKey(String(item.field_name)), item]))
+    const comparisonFields = [...new Set([...observedByField.keys(), ...expectedByField.keys()])]
+      .filter((fieldName) => expectedByField.has(fieldName))
     const method = String(check.evidence.assessment_method ?? 'ai_semantic')
     const methodLabel = method === 'deterministic' ? 'Calculated from extracted values' : method === 'human_required' ? 'Human judgement required' : method === 'reviewer' ? 'Confirmed by reviewer' : 'AI-assisted comparison'
     const checkText = String(check.evidence.check_text ?? check.message)
@@ -293,7 +335,50 @@ export function SupplierReviewPage() {
             {method !== 'reviewer' && <Typography variant="caption" color="text.secondary">{methodLabel}</Typography>}
           </Stack>
         </Stack>
-        {outcome !== 'matched' && (
+        {outcome !== 'matched' && comparisonFields.length > 0 && (
+          <Box sx={{ mt: 1.25, border: 1, borderColor: 'divider', borderRadius: 1.5, overflow: 'hidden' }}>
+            <Box sx={{ display: { xs: 'none', sm: 'grid' }, gridTemplateColumns: 'minmax(130px, .7fr) minmax(0, 1fr) minmax(0, 1fr)', gap: 1.5, px: 1.25, py: .75, bgcolor: 'action.hover' }}>
+              <Typography variant="caption" fontWeight={750}>Field comparison</Typography>
+              <Typography variant="caption" fontWeight={750}>Document value</Typography>
+              <Typography variant="caption" fontWeight={750}>Portal / expected value</Typography>
+            </Box>
+            <Stack divider={<Divider flexItem />}>
+              {comparisonFields.map((fieldName) => {
+                const observedItem = observedByField.get(fieldName)
+                const expectedItem = expectedByField.get(fieldName)
+                const matches = comparisonValueMatches(fieldName, observedItem?.value, expectedItem?.value)
+                return (
+                  <Box
+                    key={fieldName}
+                    sx={{
+                      display: 'grid',
+                      gridTemplateColumns: { xs: '1fr', sm: 'minmax(130px, .7fr) minmax(0, 1fr) minmax(0, 1fr)' },
+                      gap: { xs: .6, sm: 1.5 },
+                      px: 1.25,
+                      py: 1,
+                      bgcolor: matches ? 'background.paper' : 'rgba(211,47,47,.055)',
+                    }}
+                  >
+                    <Stack direction="row" spacing={.75} alignItems="center">
+                      <Typography variant="caption" fontWeight={750}>{fieldLabel(fieldName)}</Typography>
+                      <Typography variant="caption" fontWeight={750} color={matches ? 'success.dark' : 'error.dark'}>{matches ? '✓ Match' : 'Mismatch'}</Typography>
+                    </Stack>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary" display={{ xs: 'block', sm: 'none' }}>Document value</Typography>
+                      <ComparedValue value={observedItem?.value} comparison={expectedItem?.value} highlight={!matches} />
+                      {observedItem?.page_number && <Typography component="span" variant="caption" color="text.secondary"> · page {observedItem.page_number}</Typography>}
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary" display={{ xs: 'block', sm: 'none' }}>Portal / expected value</Typography>
+                      <ComparedValue value={expectedItem?.value} comparison={observedItem?.value} highlight={!matches} />
+                    </Box>
+                  </Box>
+                )
+              })}
+            </Stack>
+          </Box>
+        )}
+        {outcome !== 'matched' && comparisonFields.length === 0 && (
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1, mt: 1.25 }}>
             <Box sx={{ p: 1.25, borderRadius: 1.5, bgcolor: 'rgba(211,47,47,.06)' }}><Typography variant="caption" fontWeight={750} color="error.dark">Observed</Typography>{observed.length ? observed.map((item, index) => <Typography key={`${item.field_name}-${index}`} variant="caption" display="block" sx={{ mt: .4, overflowWrap: 'anywhere' }}>{fieldLabel(String(item.field_name ?? 'value'))}: {item.value == null || item.value === '' ? 'Not found' : String(item.value)}{item.page_number ? ` · page ${item.page_number}` : ''}</Typography>) : <Typography variant="caption" display="block" sx={{ mt: .4 }}>No reliable value was extracted.</Typography>}</Box>
             <Box sx={{ p: 1.25, borderRadius: 1.5, bgcolor: 'action.hover' }}><Typography variant="caption" fontWeight={750}>Expected</Typography>{expected.map((item, index) => <Typography key={`${item.field_name}-${index}`} variant="caption" display="block" sx={{ mt: .4, overflowWrap: 'anywhere' }}>{item.field_name === 'policy_rule' ? '' : `${fieldLabel(String(item.field_name ?? 'value'))}: `}{String(item.value ?? 'Not specified')}</Typography>)}</Box>
