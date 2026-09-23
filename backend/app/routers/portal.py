@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.config import Settings, get_settings
 from app.database import SessionLocal, get_db
-from app.models import Document, DocumentType, PortalAccount, PortalSession, ProcessingStatus, Supplier, SupplierStatus
+from app.models import AuditEvent, Document, DocumentType, PortalAccount, PortalSession, ProcessingStatus, Supplier, SupplierStatus
 from app.routers.documents import delete_document, document_history, original_file_response, upload_document
 from app.schemas import (
     DocumentRead, DocumentRevisionRead, GeneralAssistantRequest,
@@ -28,6 +28,7 @@ from app.services.openai_service import build_openai_service
 from app.services.processing import process_supplier_documents
 from app.services.policy_retrieval import application_answer_for, application_context_for
 from app.services.retrieval import get_chunk_collection
+from app.services.compliance import evaluate_compliance, persist_compliance_results
 
 router = APIRouter(prefix="/portal", tags=["portal"])
 
@@ -87,6 +88,16 @@ def application_response(db: Session, supplier: Supplier) -> ApplicationRead:
         submitted_at=supplier.submitted_at, status=supplier.status,
         documents=[DocumentRead.model_validate(item) for item in documents],
         requirements=checklist_for(supplier),
+    )
+
+
+def correction_open(supplier: Supplier) -> bool:
+    return bool(
+        supplier.submitted_at
+        and (
+            supplier.status == SupplierStatus.NEW
+            or any(document.review_status == "disputed" for document in supplier.documents)
+        )
     )
 
 
@@ -203,10 +214,18 @@ def application_assistant(
 @router.patch("/application", response_model=ApplicationRead)
 def save_application(payload: ApplicationUpdate, session: PortalSession = Depends(require_supplier), db: Session = Depends(get_db)) -> ApplicationRead:
     supplier = get_application(db, session)
-    if supplier.submitted_at or supplier.status in {SupplierStatus.APPROVED, SupplierStatus.REJECTED}:
+    if supplier.status in {SupplierStatus.APPROVED, SupplierStatus.REJECTED}:
         raise HTTPException(status_code=409, detail="This application has already been submitted.")
+    correcting = correction_open(supplier)
+    if supplier.submitted_at and not correcting:
+        raise HTTPException(status_code=409, detail="Submitted details can only be changed after a reviewer requests corrections.")
     if not subcategory_for(payload.category, payload.subcategory):
         raise HTTPException(status_code=422, detail="Choose a primary category and subcategory from the policy list.")
+    if correcting and (
+        payload.category.strip() != supplier.category
+        or payload.subcategory.strip() != supplier.subcategory
+    ):
+        raise HTTPException(status_code=409, detail="Category and subcategory cannot be changed during a correction cycle.")
     if payload.country is not None and payload.country.strip() != "India":
         raise HTTPException(status_code=422, detail="This application is available to India-based suppliers.")
     supplier.category = payload.category.strip()
@@ -222,8 +241,64 @@ def save_application(payload: ApplicationUpdate, session: PortalSession = Depend
         value = getattr(payload, field)
         if value is not None:
             setattr(supplier, field, value.strip())
+    if correcting:
+        supplier.status = SupplierStatus.NEW
+        supplier.decision_reason = "Supplier is preparing reviewer-requested corrections."
+        db.add(AuditEvent(
+            supplier_id=supplier.id,
+            action="application.corrections_saved",
+            entity_type="supplier",
+            entity_id=str(supplier.id),
+            details={"supplier_updated_fields": [
+                "name", "contact_email", "tax_reference", "bank_account_number", "bank_ifsc",
+            ]},
+        ))
     db.commit()
     db.refresh(supplier)
+    return application_response(db, supplier)
+
+
+@router.post("/application/resubmit", response_model=ApplicationRead)
+def resubmit_application(
+    background_tasks: BackgroundTasks,
+    session: PortalSession = Depends(require_supplier), db: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> ApplicationRead:
+    supplier = get_application(db, session)
+    if supplier.status in {SupplierStatus.APPROVED, SupplierStatus.REJECTED}:
+        raise HTTPException(status_code=409, detail="A finalized application cannot be resubmitted.")
+    if not correction_open(supplier):
+        raise HTTPException(status_code=409, detail="There are no reviewer-requested corrections to resubmit.")
+    required = required_types_for(supplier)
+    documents = list(db.scalars(select(Document).where(Document.supplier_id == supplier.id)).all())
+    uploaded = {document.document_type for document in documents}
+    ready = {
+        document.document_type for document in documents
+        if document.processing_status == ProcessingStatus.READY
+    }
+    if uploaded != required or ready != required:
+        raise HTTPException(status_code=422, detail="Upload a ready document for every required item before resubmitting.")
+    for document in documents:
+        if document.review_status == "disputed":
+            document.review_status = "pending"
+            document.review_comment = None
+            document.reviewed_by = None
+            document.reviewed_at = None
+    supplier.status = SupplierStatus.NEEDS_REVIEW
+    supplier.submitted_at = datetime.now(timezone.utc)
+    supplier.decision_reason = None
+    db.add(AuditEvent(
+        supplier_id=supplier.id,
+        action="application.corrections_resubmitted",
+        entity_type="supplier",
+        entity_id=str(supplier.id),
+        details={"document_count": len(documents)},
+    ))
+    persist_compliance_results(db, supplier, evaluate_compliance(supplier))
+    db.commit()
+    db.refresh(supplier)
+    if settings.ai_configured:
+        background_tasks.add_task(process_submitted_application, supplier.id, settings)
     return application_response(db, supplier)
 
 
@@ -273,11 +348,35 @@ async def upload_application_document(
     settings: Settings = Depends(get_settings),
 ):
     supplier = get_application(db, session)
-    if supplier.submitted_at or not supplier.category or supplier.country != "India":
+    correcting = correction_open(supplier)
+    if (supplier.submitted_at and not correcting) or not supplier.category or supplier.country != "India":
         raise HTTPException(status_code=409, detail="Complete your details before uploading, or this application is already submitted.")
     if document_type not in required_types_for(supplier):
         raise HTTPException(status_code=422, detail="This document type is not in your current checklist.")
-    return await upload_document(supplier.id, document_type, file, db, settings)
+    if supplier.submitted_at:
+        existing = db.scalar(select(Document).where(
+            Document.supplier_id == supplier.id,
+            Document.document_type == document_type,
+        ))
+        if existing is not None and existing.review_status != "disputed":
+            raise HTTPException(status_code=409, detail="Only evidence flagged by the reviewer can be replaced.")
+        if existing is not None:
+            delete_document(supplier.id, existing.id, db, settings)
+    document = await upload_document(supplier.id, document_type, file, db, settings)
+    if supplier.submitted_at:
+        supplier = get_application(db, session)
+        supplier.status = SupplierStatus.NEW
+        supplier.decision_reason = "Supplier is preparing reviewer-requested corrections."
+        db.add(AuditEvent(
+            supplier_id=supplier.id,
+            action="application.flagged_document_replaced",
+            entity_type="document",
+            entity_id=str(document.id),
+            details={"document_type": document_type.value, "revision": document.revision},
+        ))
+        db.commit()
+        db.refresh(document)
+    return document
 
 
 @router.delete("/application/documents/{document_id}", status_code=204)

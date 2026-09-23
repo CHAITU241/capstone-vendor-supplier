@@ -85,6 +85,7 @@ export const api = {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
     }),
   submitApplication: () => request<SupplierApplication>('/portal/application/submit', { method: 'POST' }),
+  resubmitApplication: () => request<SupplierApplication>('/portal/application/resubmit', { method: 'POST' }),
   uploadApplicationDocument: (documentType: DocumentType, file: File) => {
     const formData = new FormData()
     formData.append('document_type', documentType)

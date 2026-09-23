@@ -150,6 +150,58 @@ def test_human_review_gates_approval_and_retains_erp_payload(tmp_path):
             assert supplier_registration["review_status"] == "disputed"
             assert supplier_registration["review_comment"] == "Please replace this document with a clearer copy."
 
+            corrected = client.patch("/api/portal/application", headers=supplier_headers, json={
+                "category": "GOODS", "subcategory": "GOODS-OFF",
+                "name": "Review Gate Supplies Corrected Ltd",
+                "contact_email": "review-gate@example.com", "tax_reference": "DEMO-PAN-900",
+                "bank_account_number": "DEMO-ACCOUNT-900", "bank_ifsc": "DEMO0123456",
+            })
+            assert corrected.status_code == 200, corrected.text
+            assert corrected.json()["status"] == "new"
+            assert corrected.json()["name"] == "Review Gate Supplies Corrected Ltd"
+            category_change = client.patch("/api/portal/application", headers=supplier_headers, json={
+                "category": "GOODS", "subcategory": "GOODS-ITE",
+                "name": "Review Gate Supplies Corrected Ltd",
+                "contact_email": "review-gate@example.com", "tax_reference": "DEMO-PAN-900",
+                "bank_account_number": "DEMO-ACCOUNT-900", "bank_ifsc": "DEMO0123456",
+            })
+            assert category_change.status_code == 409
+
+            resubmitted = client.post("/api/portal/application/resubmit", headers=supplier_headers)
+            assert resubmitted.status_code == 200, resubmitted.text
+            assert resubmitted.json()["status"] == "needs_review"
+            corrected_view = next(
+                item for item in resubmitted.json()["documents"] if item["document_type"] == "registration"
+            )
+            assert corrected_view["id"] == registration_document["id"]
+            assert corrected_view["review_status"] == "pending"
+            assert corrected_view["review_comment"] is None
+
+            flagged_again = client.post(
+                f"/api/suppliers/{supplier_id}/documents/{corrected_view['id']}/review",
+                headers=review_headers,
+                json={
+                    "action": "dispute",
+                    "reviewer_name": "Demo reviewer",
+                    "reason": "The business details are fixed; now provide a clearer scan.",
+                },
+            )
+            assert flagged_again.status_code == 200, flagged_again.text
+            replacement = client.post(
+                "/api/portal/application/documents", headers=supplier_headers,
+                data={"document_type": "registration"},
+                files={"file": ("registration-corrected.txt", b"Review Gate Supplies Corrected Ltd", "text/plain")},
+            )
+            assert replacement.status_code == 201, replacement.text
+            assert replacement.json()["revision"] == 2
+            replaced_resubmission = client.post("/api/portal/application/resubmit", headers=supplier_headers)
+            assert replaced_resubmission.status_code == 200, replaced_resubmission.text
+            assert replaced_resubmission.json()["status"] == "needs_review"
+            history = client.get("/api/portal/application/documents/history", headers=supplier_headers)
+            assert history.status_code == 200, history.text
+            assert history.json()[0]["revision"] == 1
+
+            detail = client.get(f"/api/suppliers/{supplier_id}", headers=review_headers).json()
             for document in detail["documents"]:
                 reviewed = client.post(
                     f"/api/suppliers/{supplier_id}/documents/{document['id']}/review",
@@ -166,7 +218,7 @@ def test_human_review_gates_approval_and_retains_erp_payload(tmp_path):
             assert approved.status_code == 200, approved.text
             assert approved.json()["erp_supplier_id"].startswith("ERP-")
             final = client.get(f"/api/suppliers/{supplier_id}", headers=review_headers).json()
-            assert final["erp_payload"]["legal_name"] == "Review Gate Supplies Ltd"
+            assert final["erp_payload"]["legal_name"] == "Review Gate Supplies Corrected Ltd"
             assert final["erp_payload"]["tax_reference"] == "DEMO-PAN-900"
     finally:
         app.dependency_overrides.clear()

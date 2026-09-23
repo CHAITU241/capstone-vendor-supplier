@@ -55,7 +55,8 @@ export function SupplierApplicationPage() {
   }, [load])
 
   useEffect(() => {
-    if (!application?.submitted_at || ['approved', 'rejected'].includes(application.status)) return
+    const correcting = application?.status === 'new' || application?.documents.some((document) => document.review_status === 'disputed')
+    if (!application?.submitted_at || correcting || ['approved', 'rejected'].includes(application.status)) return
     const timer = window.setInterval(() => {
       void load().catch((err: Error) => setError(err.message))
     }, 10_000)
@@ -83,7 +84,7 @@ export function SupplierApplicationPage() {
     try {
       const result = await api.saveApplication({ category, subcategory, name: name.trim(), contact_email: email.trim(),
         tax_reference: taxReference.trim(), bank_account_number: bankAccountNumber.trim(), bank_ifsc: bankIfsc.trim() })
-      setApplication(result); setStep(2); setNotice('Details saved. Next, upload the documents.')
+      setApplication(result); setStep(2); setNotice(application?.submitted_at ? 'Corrected business details saved. Review the evidence below, then resubmit.' : 'Details saved. Next, upload the documents.')
     } catch (err) { setError(err instanceof Error ? err.message : 'Could not save details.') }
     finally { setBusy(false) }
   }
@@ -121,6 +122,17 @@ export function SupplierApplicationPage() {
     finally { setBusy(false) }
   }
 
+  async function resubmit() {
+    setBusy(true); setError(''); setNotice('')
+    try {
+      const result = await api.resubmitApplication()
+      setApplication(result)
+      await load()
+      setNotice('Your corrections have been resubmitted to the reviewer.')
+    } catch (err) { setError(err instanceof Error ? err.message : 'Could not resubmit the application.') }
+    finally { setBusy(false) }
+  }
+
   async function viewOriginal(id: string) {
     try { await openOriginal(() => api.applicationOriginal(id)) }
     catch (err) { setError(err instanceof Error ? err.message : 'Could not open the original document.') }
@@ -151,6 +163,7 @@ export function SupplierApplicationPage() {
   const extras = application.documents.filter((document) => !required.has(document.document_type))
   const missing = application.requirements.documents.filter((item) => documents.get(item.document_type)?.processing_status !== 'ready')
   const flaggedDocuments = application.documents.filter((document) => document.review_status === 'disputed')
+  const correctionMode = submitted && (flaggedDocuments.length > 0 || application.status === 'new')
 
   return <Stack spacing={3} maxWidth={860} mx="auto">
     <Box><Typography variant="h4">Your supplier application</Typography>
@@ -163,8 +176,8 @@ export function SupplierApplicationPage() {
     </Stepper>
     {error && <Alert severity="error" onClose={() => setError('')}>{error}</Alert>}
     {notice && <Alert severity="success" onClose={() => setNotice('')}>{notice}</Alert>}
-    {submitted ? flaggedDocuments.length > 0
-      ? <Alert severity="warning"><strong>Reviewer changes requested.</strong> {flaggedDocuments.length} document{flaggedDocuments.length === 1 ? '' : 's'} need{flaggedDocuments.length === 1 ? 's' : ''} attention. Read the reviewer feedback highlighted below. This page refreshes automatically.</Alert>
+    {submitted ? correctionMode
+      ? <Alert severity="warning"><strong>{flaggedDocuments.length > 0 ? 'Reviewer changes requested.' : 'Corrections in progress.'}</strong> You can correct the submitted business details below and replace evidence specifically flagged by the reviewer. Resubmit when the application is ready.</Alert>
       : <Alert severity="success">Application submitted. A reviewer can now see your details and documents. Your current status is <strong>{application.status.replace('_', ' ')}</strong>.</Alert>
       : null}
 
@@ -196,6 +209,18 @@ export function SupplierApplicationPage() {
         <Box><Typography variant="h5">{submitted ? 'Application summary' : '3. Upload your documents'}</Typography>
           <Typography color="text.secondary" sx={{ mt: 0.75 }}>{application.name} · {selectedCategory?.label ?? application.category} / {selectedSubcategory?.label ?? application.subcategory}</Typography></Box>
         <Divider />
+        {correctionMode && <Box sx={{ p: 2, border: '1px solid', borderColor: 'warning.main', bgcolor: 'rgba(237,108,2,.04)', borderRadius: 2 }}>
+          <Typography variant="h6">Correct submitted business details</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>Category remains locked because changing it would change the evidence checklist.</Typography>
+          <Stack spacing={2}>
+            <TextField label="Registered business name" required value={name} onChange={(event) => setName(event.target.value)} inputProps={{ maxLength: 200 }} />
+            <TextField label="Contact email" type="email" required value={email} onChange={(event) => setEmail(event.target.value)} />
+            <TextField label="PAN / tax reference" required value={taxReference} onChange={(event) => setTaxReference(event.target.value)} />
+            <TextField label="Bank account number" required value={bankAccountNumber} onChange={(event) => setBankAccountNumber(event.target.value)} />
+            <TextField label="Bank IFSC" required value={bankIfsc} onChange={(event) => setBankIfsc(event.target.value)} />
+            <Button variant="outlined" disabled={busy || name.trim().length < 2 || !email.trim() || !taxReference.trim() || !bankAccountNumber.trim() || !bankIfsc.trim()} onClick={() => void saveDetails()}>Save corrected details</Button>
+          </Stack>
+        </Box>}
         <Alert severity="info">These documents are based on the service you selected. A reviewer will check their contents after you submit.</Alert>
         <Typography variant="body2" color="text.secondary">Upload one text-based PDF or UTF-8 text file (up to 10 MB) for each item. If an item asks for two pieces of evidence, combine them into one PDF. Scanned images and image-only PDFs are not supported yet.</Typography>
         {application.requirements.documents.map(({ document_type: type, requirement_id: requirementId, label, why, accepted_evidence, required_fields, checks }) => {
@@ -215,13 +240,25 @@ export function SupplierApplicationPage() {
               <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>{document ? document.filename : selected?.type === type ? selected.file.name : 'Not uploaded yet'}</Typography>
               {flagged && <Alert severity="warning" sx={{ mt: 1, py: 0.25 }}><strong>Reviewer feedback:</strong> {document.review_comment || 'The reviewer requested changes to this evidence.'}</Alert>}
             </Box>
-            {document ? <Stack direction="row" alignItems="center" spacing={1}>
-              {flagged && <Chip label="Changes requested" color="warning" size="small" />}
-              <Chip label={document.processing_status === 'ready' ? 'Uploaded' : document.processing_status} color={document.processing_status === 'ready' ? 'success' : 'warning'} size="small" />
-              <Button size="small" onClick={() => void viewOriginal(document.id)}>View original</Button>
-              <Button size="small" onClick={() => void downloadFile(document)}>Download</Button>
-              {!submitted && <IconButton aria-label={`Remove ${label}`} disabled={busy} onClick={() => void removeDocument(document.id)}><DeleteOutlineRoundedIcon /></IconButton>}
-            </Stack> : !submitted && <Stack direction="row" spacing={1}>
+            {document ? <Stack alignItems={{ sm: 'flex-end' }} spacing={1}>
+              <Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap" useFlexGap>
+                {flagged && <Chip label="Changes requested" color="warning" size="small" />}
+                <Chip label={document.processing_status === 'ready' ? 'Uploaded' : document.processing_status} color={document.processing_status === 'ready' ? 'success' : 'warning'} size="small" />
+                <Button size="small" onClick={() => void viewOriginal(document.id)}>View original</Button>
+                <Button size="small" onClick={() => void downloadFile(document)}>Download</Button>
+                {!submitted && <IconButton aria-label={`Remove ${label}`} disabled={busy} onClick={() => void removeDocument(document.id)}><DeleteOutlineRoundedIcon /></IconButton>}
+              </Stack>
+              {flagged && correctionMode && <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+                <Button component="label" size="small" variant="outlined" startIcon={<CloudUploadRoundedIcon />}>Choose replacement
+                  <input hidden type="file" accept="application/pdf,text/plain,.pdf,.txt" onChange={(event: ChangeEvent<HTMLInputElement>) => {
+                    const file = event.target.files?.[0]; if (file) setSelected({ type, file })
+                    event.target.value = ''
+                  }} />
+                </Button>
+                {selected?.type === type && <Typography variant="caption" sx={{ maxWidth: 220, overflowWrap: 'anywhere' }}>{selected.file.name}</Typography>}
+                <Button size="small" variant="contained" disabled={busy || selected?.type !== type} onClick={() => void uploadDocument(type)}>Replace flagged document</Button>
+              </Stack>}
+            </Stack> : (!submitted || correctionMode) && <Stack direction="row" spacing={1}>
               <Button component="label" variant="outlined" startIcon={<CloudUploadRoundedIcon />}>Choose file
                 <input hidden type="file" accept="application/pdf,text/plain,.pdf,.txt" onChange={(event: ChangeEvent<HTMLInputElement>) => {
                   const file = event.target.files?.[0]; if (file) setSelected({ type, file })
@@ -250,6 +287,11 @@ export function SupplierApplicationPage() {
           <Button startIcon={<ArrowBackRoundedIcon />} onClick={() => setStep(1)}>Edit details</Button>
           <Button variant="contained" size="large" disabled={busy || application.requirements.documents.length === 0 || missing.length > 0 || extras.length > 0} onClick={() => void submit()}>
             {busy ? 'Submitting application...' : 'Submit application for review'}
+          </Button>
+        </Stack>}
+        {correctionMode && <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="flex-end" spacing={1}>
+          <Button variant="contained" size="large" disabled={busy || application.requirements.documents.length === 0 || missing.length > 0 || extras.length > 0} onClick={() => void resubmit()}>
+            {busy ? 'Resubmitting corrections...' : 'Resubmit corrections for review'}
           </Button>
         </Stack>}
       </Stack>}
