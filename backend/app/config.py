@@ -22,6 +22,10 @@ class Settings(BaseSettings):
     ocr_min_native_words: int = Field(default=5, ge=0, le=200)
     ocr_image_coverage_threshold: float = Field(default=0.5, ge=0.1, le=1.0)
     ocr_max_pages: int = Field(default=30, ge=1, le=200)
+    reviewer_auth_enabled: bool = False
+    reviewer_email: str | None = None
+    reviewer_password: SecretStr | None = None
+    admin_auth_enabled: bool = False
     admin_email: str | None = None
     admin_password: SecretStr | None = None
     openrouter_api_key: SecretStr | None = None

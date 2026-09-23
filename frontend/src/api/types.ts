@@ -51,6 +51,11 @@ export interface PortalSession {
   email: string | null
 }
 
+export interface AccessConfig {
+  reviewer_auth_enabled: boolean
+  admin_auth_enabled: boolean
+}
+
 export interface AdminProfile {
   id: string
   name: string

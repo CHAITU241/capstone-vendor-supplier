@@ -1,18 +1,46 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useLocation } from 'react-router-dom'
 import { api } from '../api/client'
 import type { PortalSession } from '../api/types'
 
-const STORAGE_KEY = 'vendorlens.session'
+type PortalRole = PortalSession['role']
+type Sessions = Partial<Record<PortalRole, PortalSession>>
 
-function initialSession(): PortalSession | null {
+const LEGACY_STORAGE_KEY = 'vendorlens.session'
+const storageKey = (role: PortalRole) => `vendorlens.session.${role}`
+
+function readSession(key: string): PortalSession | undefined {
   try {
-    const value = localStorage.getItem(STORAGE_KEY)
-    return value ? JSON.parse(value) as PortalSession : null
-  } catch { return null }
+    const value = localStorage.getItem(key)
+    return value ? JSON.parse(value) as PortalSession : undefined
+  } catch { return undefined }
+}
+
+function initialSessions(): Sessions {
+  const sessions: Sessions = {}
+  for (const role of ['supplier', 'reviewer', 'admin'] as const) {
+    const saved = readSession(storageKey(role))
+    if (saved?.role === role) sessions[role] = saved
+  }
+  const legacy = readSession(LEGACY_STORAGE_KEY)
+  if (legacy?.role && !sessions[legacy.role]) {
+    sessions[legacy.role] = legacy
+    localStorage.setItem(storageKey(legacy.role), JSON.stringify(legacy))
+  }
+  localStorage.removeItem(LEGACY_STORAGE_KEY)
+  return sessions
+}
+
+function roleForPath(pathname: string): PortalRole | undefined {
+  if (pathname.startsWith('/supplier')) return 'supplier'
+  if (pathname.startsWith('/review')) return 'reviewer'
+  if (pathname.startsWith('/admin')) return 'admin'
+  return undefined
 }
 
 type AuthState = {
   session: PortalSession | null
+  getSession: (role: PortalRole) => PortalSession | null
   setSession: (session: PortalSession) => void
   signOut: () => Promise<void>
 }
@@ -20,28 +48,35 @@ type AuthState = {
 const AuthContext = createContext<AuthState | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [session, updateSession] = useState<PortalSession | null>(initialSession)
+  const location = useLocation()
+  const [sessions, setSessions] = useState<Sessions>(initialSessions)
+  const routeRole = roleForPath(location.pathname)
+  const session = routeRole ? sessions[routeRole] ?? null : null
 
   useEffect(() => {
-    if (!session?.token) return
-    void api.session().catch(() => {
-      localStorage.removeItem(STORAGE_KEY)
-      updateSession(null)
+    if (!routeRole || !session?.token) return
+    void api.session(routeRole).catch(() => {
+      localStorage.removeItem(storageKey(routeRole))
+      setSessions((current) => ({ ...current, [routeRole]: undefined }))
     })
-  }, [session?.token])
+  }, [routeRole, session?.token])
 
-  function setSession(value: PortalSession) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(value))
-    updateSession(value)
-  }
+  const value = useMemo<AuthState>(() => ({
+    session,
+    getSession: (role) => sessions[role] ?? null,
+    setSession: (nextSession) => {
+      localStorage.setItem(storageKey(nextSession.role), JSON.stringify(nextSession))
+      setSessions((current) => ({ ...current, [nextSession.role]: nextSession }))
+    },
+    signOut: async () => {
+      if (!session) return
+      try { await api.logout(session.role) } catch { /* Expired sessions can still be cleared locally. */ }
+      localStorage.removeItem(storageKey(session.role))
+      setSessions((current) => ({ ...current, [session.role]: undefined }))
+    },
+  }), [session, sessions])
 
-  async function signOut() {
-    try { await api.logout() } catch { /* Expired sessions can still be cleared locally. */ }
-    localStorage.removeItem(STORAGE_KEY)
-    updateSession(null)
-  }
-
-  return <AuthContext.Provider value={{ session, setSession, signOut }}>{children}</AuthContext.Provider>
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 
 export function useAuth() {

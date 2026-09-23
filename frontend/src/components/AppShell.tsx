@@ -24,8 +24,8 @@ export function AppShell() {
             </Box>
             {session && <Stack direction="row" spacing={1} alignItems="center">
               {location.pathname !== workspace && <Button component={Link} to={workspace} variant="text">{session.role === 'reviewer' ? 'Review workspace' : session.role === 'admin' ? 'Admin' : 'My application'}</Button>}
-              <Button onClick={() => { void signOut().then(() => navigate('/')) }} startIcon={<LogoutRoundedIcon />} color="inherit" sx={{ display: { xs: 'none', sm: 'inline-flex' } }}>Sign out</Button>
-              <Button onClick={() => { void signOut().then(() => navigate('/')) }} color="inherit" sx={{ display: { xs: 'inline-flex', sm: 'none' } }}>Exit</Button>
+              <Button onClick={() => { const destination = session.role === 'supplier' ? '/supplier/login' : '/'; void signOut().then(() => navigate(destination)) }} startIcon={<LogoutRoundedIcon />} color="inherit" sx={{ display: { xs: 'none', sm: 'inline-flex' } }}>Sign out</Button>
+              <Button onClick={() => { const destination = session.role === 'supplier' ? '/supplier/login' : '/'; void signOut().then(() => navigate(destination)) }} color="inherit" sx={{ display: { xs: 'inline-flex', sm: 'none' } }}>Exit</Button>
             </Stack>}
           </Toolbar>
         </Container>

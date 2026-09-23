@@ -458,6 +458,16 @@ frontend/src/theme/theme.ts         Single source for all brand colors
 - Added `LANGFUSE_DASHBOARD_URL` for the admin-only deep link and documented the recommended VendorLens dashboard widgets.
 - Verification: 77 backend tests passed; frontend production build passed; frontend lint completed with zero errors and two pre-existing warnings.
 
+## Demo Authentication Flow (2026-09-24)
+
+- Supplier authentication now defaults to **Sign in** unless the user explicitly selects **Create account**.
+- Removed the hidden admin link from the supplier sign-in page; reviewer and administrator entry now live only on the three-workspace landing page.
+- Added independent `REVIEWER_AUTH_ENABLED` and `ADMIN_AUTH_ENABLED` runtime flags. Both default to `false` for one-click demo access; either role can independently require its configured email and password.
+- Added a reviewer credential endpoint/page and an admin demo-session endpoint while retaining role-protected reviewer and admin APIs.
+- Replaced the browser's single active login with separate supplier, reviewer, and administrator sessions. Entering a staff workspace no longer discards the supplier login.
+- Updated Docker and demo documentation to match the current staff entry and OCR behavior.
+- Verification: 79 backend tests passed; frontend production build passed; frontend lint completed with zero errors and two pre-existing warnings.
+
 ## Resume Commands
 
 Preferred combined command from the repository root:

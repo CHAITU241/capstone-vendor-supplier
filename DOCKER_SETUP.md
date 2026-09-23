@@ -50,7 +50,14 @@ cp backend/.env.example backend/.env
 
 `backend/.env` is ignored by Git. Never commit API keys or replace the blank values in `.env.example` with real credentials.
 
-For the optional admin maintenance page, set `ADMIN_EMAIL` and a strong `ADMIN_PASSWORD` in `backend/.env`. Recreate the backend after changing these values. Sign in through the small **Admin** link below the supplier sign in form. Leave both blank to disable admin login.
+Reviewer and administrator workspaces use one-click access by default for the capstone demo:
+
+```env
+REVIEWER_AUTH_ENABLED=false
+ADMIN_AUTH_ENABLED=false
+```
+
+To require credentials for either role, set its flag to `true` and configure that role's email and password. The two switches are independent. Recreate the backend after changing them. Supplier sign-in always remains enabled because supplier profiles must stay separate.
 
 The Compose file overrides `DATABASE_URL`, `UPLOAD_DIR`, `CHROMA_PATH`, and `FRONTEND_ORIGIN` with container-safe values. You do not need to edit those entries.
 

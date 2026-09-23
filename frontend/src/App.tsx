@@ -7,6 +7,7 @@ import { SupplierApplicationPage } from './pages/SupplierApplicationPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { SupplierReviewPage } from './pages/SupplierReviewPage'
 import { AdminLoginPage } from './pages/AdminLoginPage'
+import { ReviewerLoginPage } from './pages/ReviewerLoginPage'
 import { AdminDashboardPage } from './pages/AdminDashboardPage'
 import { ErpRecordsPage } from './pages/ErpRecordsPage'
 
@@ -22,6 +23,7 @@ export default function App() {
         <Route index element={<HomePage />} />
         <Route path="supplier/login" element={<SupplierLoginPage />} />
         <Route path="admin/login" element={<AdminLoginPage />} />
+        <Route path="reviewer/login" element={<ReviewerLoginPage />} />
         <Route path="admin" element={<RequireRole role="admin"><AdminDashboardPage /></RequireRole>} />
         <Route path="supplier/application" element={<RequireRole role="supplier"><SupplierApplicationPage /></RequireRole>} />
         <Route path="review" element={<RequireRole role="reviewer"><DashboardPage /></RequireRole>} />

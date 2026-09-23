@@ -9,7 +9,7 @@ export function SupplierLoginPage() {
   const { session, setSession } = useAuth()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
-  const [mode, setMode] = useState<'login' | 'register'>(() => searchParams.get('mode') === 'login' ? 'login' : 'register')
+  const [mode, setMode] = useState<'login' | 'register'>(() => searchParams.get('mode') === 'register' ? 'register' : 'login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -49,6 +49,5 @@ export function SupplierLoginPage() {
         </Button>
       </Stack>
     </CardContent></Card>
-    <Button component={Link} to="/admin/login" size="small" color="inherit" sx={{ alignSelf: 'flex-end', color: 'text.disabled', fontSize: 12 }}>Admin</Button>
   </Stack>
 }

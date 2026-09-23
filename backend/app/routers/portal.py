@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Response, UploadFile, status
 from fastapi.responses import FileResponse
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, SecretStr
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -44,6 +44,11 @@ class SessionResponse(BaseModel):
     token: str
     role: str
     email: str | None = None
+
+
+class AccessConfig(BaseModel):
+    reviewer_auth_enabled: bool
+    admin_auth_enabled: bool
 
 
 class ApplicationUpdate(BaseModel):
@@ -149,18 +154,52 @@ def login(payload: Credentials, db: Session = Depends(get_db)) -> SessionRespons
     return SessionResponse(token=create_session(db, "supplier", account.id), role="supplier", email=email)
 
 
+@router.get("/auth/config", response_model=AccessConfig)
+def access_config(settings: Settings = Depends(get_settings)) -> AccessConfig:
+    """Expose only the switches needed to render the correct staff entry flow."""
+    return AccessConfig(
+        reviewer_auth_enabled=settings.reviewer_auth_enabled,
+        admin_auth_enabled=settings.admin_auth_enabled,
+    )
+
+
+def _staff_credentials_match(payload: Credentials, email: str | None, password: SecretStr | None) -> bool:
+    configured_password = password.get_secret_value() if password else ""
+    return bool(
+        email and configured_password
+        and secrets.compare_digest(str(payload.email).lower(), email.strip().lower())
+        and secrets.compare_digest(payload.password, configured_password)
+    )
+
+
 @router.post("/auth/reviewer-demo", response_model=SessionResponse)
-def reviewer_demo(db: Session = Depends(get_db)) -> SessionResponse:
-    # Intentionally open for the capstone demo. Replace with company SSO before real use.
+def reviewer_demo(db: Session = Depends(get_db), settings: Settings = Depends(get_settings)) -> SessionResponse:
+    if settings.reviewer_auth_enabled:
+        raise HTTPException(status_code=403, detail="Reviewer sign-in is required.")
     return SessionResponse(token=create_session(db, "reviewer"), role="reviewer")
+
+
+@router.post("/auth/reviewer", response_model=SessionResponse)
+def reviewer_login(payload: Credentials, db: Session = Depends(get_db), settings: Settings = Depends(get_settings)) -> SessionResponse:
+    if not settings.reviewer_auth_enabled:
+        raise HTTPException(status_code=403, detail="Reviewer credential sign-in is disabled for this demo.")
+    if not _staff_credentials_match(payload, settings.reviewer_email, settings.reviewer_password):
+        raise HTTPException(status_code=401, detail="Reviewer credentials are incorrect or not configured.")
+    return SessionResponse(token=create_session(db, "reviewer"), role="reviewer", email=settings.reviewer_email)
+
+
+@router.post("/auth/admin-demo", response_model=SessionResponse)
+def admin_demo(db: Session = Depends(get_db), settings: Settings = Depends(get_settings)) -> SessionResponse:
+    if settings.admin_auth_enabled:
+        raise HTTPException(status_code=403, detail="Admin sign-in is required.")
+    return SessionResponse(token=create_session(db, "admin"), role="admin")
 
 
 @router.post("/auth/admin", response_model=SessionResponse)
 def admin_login(payload: Credentials, db: Session = Depends(get_db), settings: Settings = Depends(get_settings)) -> SessionResponse:
-    configured_password = settings.admin_password.get_secret_value() if settings.admin_password else ""
-    if (not settings.admin_email or not configured_password
-        or not secrets.compare_digest(str(payload.email).lower(), settings.admin_email.strip().lower())
-        or not secrets.compare_digest(payload.password, configured_password)):
+    if not settings.admin_auth_enabled:
+        raise HTTPException(status_code=403, detail="Admin credential sign-in is disabled for this demo.")
+    if not _staff_credentials_match(payload, settings.admin_email, settings.admin_password):
         raise HTTPException(status_code=401, detail="Admin credentials are incorrect or not configured.")
     return SessionResponse(token=create_session(db, "admin"), role="admin", email=settings.admin_email)
 

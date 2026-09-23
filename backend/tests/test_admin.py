@@ -27,6 +27,7 @@ def test_admin_reset_and_full_profile_removal(tmp_path, monkeypatch):
     app.dependency_overrides[get_db] = db_override
     app.dependency_overrides[get_settings] = lambda: Settings(
         upload_dir=tmp_path / "uploads", chroma_path=tmp_path / "chroma",
+        admin_auth_enabled=True,
         admin_email="owner@example.com", admin_password="strong-admin-password",
     )
     try:

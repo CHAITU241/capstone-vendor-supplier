@@ -1,4 +1,5 @@
 import type {
+  AccessConfig,
   ApiErrorBody,
   AdminObservability,
   AdminProfile,
@@ -24,16 +25,30 @@ import type {
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api'
 
+type PortalRole = PortalSession['role']
+const storageKey = (role: PortalRole) => `vendorlens.session.${role}`
+
+function roleForApiPath(path: string): PortalRole | undefined {
+  if (path.startsWith('/admin')) return 'admin'
+  if (path.startsWith('/suppliers') || path.startsWith('/mock-erp')) return 'reviewer'
+  if (path.startsWith('/portal/application')) return 'supplier'
+  return undefined
+}
+
+function savedToken(role?: PortalRole): string {
+  if (!role) return ''
+  const saved = localStorage.getItem(storageKey(role))
+  try { return saved ? (JSON.parse(saved) as PortalSession).token : '' } catch { return '' }
+}
+
 export class ApiError extends Error {
   constructor(message: string, public readonly status: number) {
     super(message)
   }
 }
 
-async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const saved = localStorage.getItem('vendorlens.session')
-  let token = ''
-  try { token = saved ? (JSON.parse(saved) as PortalSession).token : '' } catch { /* Ignore stale storage. */ }
+async function request<T>(path: string, options?: RequestInit, authRole?: PortalRole): Promise<T> {
+  const token = savedToken(authRole ?? roleForApiPath(path))
   const headers = new Headers(options?.headers)
   if (token) headers.set('Authorization', `Bearer ${token}`)
   const response = await fetch(`${API_URL}${path}`, { ...options, headers })
@@ -52,9 +67,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 async function originalFile(path: string): Promise<Blob> {
-  const saved = localStorage.getItem('vendorlens.session')
-  let token = ''
-  try { token = saved ? (JSON.parse(saved) as PortalSession).token : '' } catch { /* Ignore stale storage. */ }
+  const token = savedToken(roleForApiPath(path))
   const response = await fetch(`${API_URL}${path}`, { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' })
   if (!response.ok) {
     let message = 'The original document could not be opened.'
@@ -65,6 +78,7 @@ async function originalFile(path: string): Promise<Blob> {
 }
 
 export const api = {
+  accessConfig: () => request<AccessConfig>('/portal/auth/config'),
   register: (email: string, password: string) => request<PortalSession>('/portal/auth/register', {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }),
   }),
@@ -72,6 +86,10 @@ export const api = {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }),
   }),
   reviewerDemo: () => request<PortalSession>('/portal/auth/reviewer-demo', { method: 'POST' }),
+  reviewerLogin: (email: string, password: string) => request<PortalSession>('/portal/auth/reviewer', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }),
+  }),
+  adminDemo: () => request<PortalSession>('/portal/auth/admin-demo', { method: 'POST' }),
   adminLogin: (email: string, password: string) => request<PortalSession>('/portal/auth/admin', {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }),
   }),
@@ -79,8 +97,8 @@ export const api = {
   adminObservability: (days = 30) => request<AdminObservability>(`/admin/observability?days=${days}`),
   adminResetPassword: (id: string) => request<{ password: string }>(`/admin/profiles/${id}/reset-password`, { method: 'POST' }),
   adminDeleteProfile: (id: string) => request<void>(`/admin/profiles/${id}`, { method: 'DELETE' }),
-  session: () => request<PortalSession>('/portal/auth/session'),
-  logout: () => request<void>('/portal/auth/logout', { method: 'POST' }),
+  session: (role: PortalRole) => request<PortalSession>('/portal/auth/session', undefined, role),
+  logout: (role: PortalRole) => request<void>('/portal/auth/logout', { method: 'POST' }, role),
   getApplication: () => request<SupplierApplication>('/portal/application'),
   getPolicy: () => request<PolicyCatalog>('/portal/policy'),
   saveApplication: (payload: { category: string; subcategory: string; name?: string; country?: string; contact_email?: string; tax_reference?: string; bank_account_number?: string; bank_ifsc?: string }) =>
