@@ -179,6 +179,10 @@ class Document(Base):
     revision: Mapped[int] = mapped_column(Integer, default=1)
     page_count: Mapped[int] = mapped_column(default=0)
     extracted_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    text_extraction_method: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    ocr_pages: Mapped[list[int]] = mapped_column(JSON, default=list)
+    ocr_language: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    ocr_warnings: Mapped[list[str]] = mapped_column(JSON, default=list)
     redacted_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     redaction_summary: Mapped[dict[str, int] | None] = mapped_column(JSON, nullable=True)
     processing_status: Mapped[ProcessingStatus] = mapped_column(

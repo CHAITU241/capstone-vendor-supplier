@@ -55,6 +55,10 @@ class DocumentRead(BaseModel):
     page_count: int
     processing_status: ProcessingStatus
     error_message: str | None
+    text_extraction_method: Literal["native", "ocr", "mixed"] | None = None
+    ocr_pages: list[int] = Field(default_factory=list)
+    ocr_language: str | None = None
+    ocr_warnings: list[str] = Field(default_factory=list)
     ai_extraction_status: Literal["pending", "processing", "ready", "failed"] = "pending"
     ai_extraction_error: str | None = None
     ai_index_status: Literal["pending", "processing", "ready", "failed"] = "pending"

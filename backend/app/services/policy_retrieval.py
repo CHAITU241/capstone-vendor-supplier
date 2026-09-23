@@ -139,8 +139,9 @@ def application_answer_for(supplier: Supplier, question: str) -> str | None:
                 if extracted_names:
                     lines.append(f"  - Name entered in the portal: **{supplier.name}**")
                     for field in extracted_names:
+                        extraction_note = " via OCR" if field.page_number in (document.ocr_pages or []) else ""
                         lines.append(
-                            f"  - Name extracted from **{document.filename}, page {field.page_number}**: "
+                            f"  - Name extracted{extraction_note} from **{document.filename}, page {field.page_number}**: "
                             f"**{field.value}**"
                         )
                     if any(field.value.strip().casefold() != supplier.name.strip().casefold() for field in extracted_names):
@@ -243,9 +244,13 @@ def _case_facts(supplier: Supplier, *, reviewer: bool) -> list[str]:
     labels = {item.document_type: item.label for item in checklist.documents}
     lines = ["Evidence and review state:"]
     for document in supplier.documents:
+        ocr_note = (
+            f"; OCR-derived pages {', '.join(str(page) for page in document.ocr_pages)}"
+            if document.ocr_pages else ""
+        )
         lines.append(
             f"- {labels.get(document.document_type, document.document_type.value)}: file {document.filename}; "
-            f"processing {document.processing_status.value}; reviewer status {document.review_status}."
+            f"processing {document.processing_status.value}; reviewer status {document.review_status}{ocr_note}."
         )
         if document.review_comment:
             lines.append(f"  Reviewer feedback shown to the supplier: {document.review_comment}")
@@ -256,7 +261,8 @@ def _case_facts(supplier: Supplier, *, reviewer: bool) -> list[str]:
         if not reviewer and field_key in SENSITIVE_FIELDS:
             continue
         document = documents.get(field.document_id)
-        source = f"{document.filename}, page {field.page_number}" if document else f"page {field.page_number}"
+        ocr_note = " (OCR-derived)" if document and field.page_number in (document.ocr_pages or []) else ""
+        source = f"{document.filename}, page {field.page_number}{ocr_note}" if document else f"page {field.page_number}"
         fields.append(
             f"- {field.field_name}: {field.value} (AI-extracted from {source}; "
             f"confidence {field.confidence:.0%}; review status {field.review_status})."

@@ -94,6 +94,8 @@ export const api = {
     return request<SupplierDocument>('/portal/application/documents', { method: 'POST', body: formData })
   },
   deleteApplicationDocument: (id: string) => request<void>(`/portal/application/documents/${id}`, { method: 'DELETE' }),
+  retryApplicationTextExtraction: (id: string) =>
+    request<SupplierDocument>(`/portal/application/documents/${id}/text-extraction/retry`, { method: 'POST' }),
   applicationDocumentHistory: () => request<DocumentRevision[]>('/portal/application/documents/history'),
   applicationOriginal: (id: string) => originalFile(`/portal/application/documents/${id}/content`),
   listSuppliers: () => request<SupplierSummary[]>('/suppliers'),
@@ -117,6 +119,8 @@ export const api = {
     request<void>(`/suppliers/${supplierId}/documents/${documentId}`, {
       method: 'DELETE',
     }),
+  retryReviewerTextExtraction: (supplierId: string, documentId: string) =>
+    request<SupplierDocument>(`/suppliers/${supplierId}/documents/${documentId}/text-extraction/retry`, { method: 'POST' }),
   reviewerDocumentHistory: (supplierId: string) => request<DocumentRevision[]>(`/suppliers/${supplierId}/documents/history`),
   reviewerOriginal: (supplierId: string, id: string) => originalFile(`/suppliers/${supplierId}/documents/${id}/content`),
   processSupplier: (supplierId: string, refresh = false) =>

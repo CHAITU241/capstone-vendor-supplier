@@ -90,6 +90,10 @@ export interface SupplierDocument {
   page_count: number
   processing_status: ProcessingStatus
   error_message: string | null
+  text_extraction_method: 'native' | 'ocr' | 'mixed' | null
+  ocr_pages: number[]
+  ocr_language: string | null
+  ocr_warnings: string[]
   ai_extraction_status: 'pending' | 'processing' | 'ready' | 'failed'
   ai_extraction_error: string | null
   ai_index_status: 'pending' | 'processing' | 'ready' | 'failed'

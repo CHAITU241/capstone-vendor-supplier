@@ -15,6 +15,13 @@ class Settings(BaseSettings):
     upload_dir: Path = Path("uploads")
     chroma_path: Path = Path("data/chroma")
     max_upload_size_mb: int = 10
+    ocr_enabled: bool = True
+    ocr_language: str = "eng"
+    ocr_dpi: int = Field(default=300, ge=150, le=600)
+    ocr_min_native_alphanumeric_chars: int = Field(default=30, ge=0, le=1000)
+    ocr_min_native_words: int = Field(default=5, ge=0, le=200)
+    ocr_image_coverage_threshold: float = Field(default=0.5, ge=0.1, le=1.0)
+    ocr_max_pages: int = Field(default=30, ge=1, le=200)
     admin_email: str | None = None
     admin_password: SecretStr | None = None
     openrouter_api_key: SecretStr | None = None

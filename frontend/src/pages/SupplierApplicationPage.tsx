@@ -111,6 +111,17 @@ export function SupplierApplicationPage() {
     finally { setBusy(false) }
   }
 
+  async function retryTextExtraction(id: string) {
+    setBusy(true); setError(''); setNotice('')
+    try {
+      const document = await api.retryApplicationTextExtraction(id)
+      await load()
+      if (document.processing_status === 'failed') throw new Error(document.error_message || 'OCR could not read this document.')
+      setNotice(`${document.filename} is ready.${document.ocr_pages.length ? ` OCR was used on page${document.ocr_pages.length === 1 ? '' : 's'} ${document.ocr_pages.join(', ')}.` : ''}`)
+    } catch (err) { setError(err instanceof Error ? err.message : 'Could not retry text extraction.') }
+    finally { setBusy(false) }
+  }
+
   async function submit() {
     setBusy(true); setError(''); setNotice('')
     try {
@@ -222,7 +233,7 @@ export function SupplierApplicationPage() {
           </Stack>
         </Box>}
         <Alert severity="info">These documents are based on the service you selected. A reviewer will check their contents after you submit.</Alert>
-        <Typography variant="body2" color="text.secondary">Upload one text-based PDF or UTF-8 text file (up to 10 MB) for each item. If an item asks for two pieces of evidence, combine them into one PDF. Scanned images and image-only PDFs are not supported yet.</Typography>
+        <Typography variant="body2" color="text.secondary">Upload one PDF, PNG, JPEG or UTF-8 text file (up to 10 MB) for each item. Scanned pages are read with OCR. If an item asks for two pieces of evidence, combine them into one PDF.</Typography>
         {application.requirements.documents.map(({ document_type: type, requirement_id: requirementId, label, why, accepted_evidence, required_fields, checks }) => {
           const document = documents.get(type)
           const flagged = document?.review_status === 'disputed'
@@ -238,6 +249,9 @@ export function SupplierApplicationPage() {
               {checks.length > 0 && <Box component="details" sx={{ mt: 0.5 }}><Typography component="summary" variant="body2" sx={{ cursor: 'pointer' }}>What reviewers will check</Typography>
                 {checks.map((check) => <Typography key={check} variant="body2">{plainLanguage(check)}</Typography>)}</Box>}
               <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>{document ? document.filename : selected?.type === type ? selected.file.name : 'Not uploaded yet'}</Typography>
+              {document?.ocr_pages.length ? <Typography variant="caption" color="info.dark" display="block">OCR used on page{document.ocr_pages.length === 1 ? '' : 's'} {document.ocr_pages.join(', ')}</Typography> : null}
+              {document?.ocr_warnings.map((warning) => <Typography key={warning} variant="caption" color="warning.dark" display="block">{warning}</Typography>)}
+              {document?.processing_status === 'failed' && <Alert severity="error" sx={{ mt: 1, py: .25 }}>{document.error_message || 'Text extraction failed.'}</Alert>}
               {flagged && <Alert severity="warning" sx={{ mt: 1, py: 0.25 }}><strong>Reviewer feedback:</strong> {document.review_comment || 'The reviewer requested changes to this evidence.'}</Alert>}
             </Box>
             {document ? <Stack alignItems={{ sm: 'flex-end' }} spacing={1}>
@@ -246,11 +260,12 @@ export function SupplierApplicationPage() {
                 <Chip label={document.processing_status === 'ready' ? 'Uploaded' : document.processing_status} color={document.processing_status === 'ready' ? 'success' : 'warning'} size="small" />
                 <Button size="small" onClick={() => void viewOriginal(document.id)}>View original</Button>
                 <Button size="small" onClick={() => void downloadFile(document)}>Download</Button>
+                {!submitted && document.processing_status === 'failed' && <Button size="small" disabled={busy} onClick={() => void retryTextExtraction(document.id)}>Retry OCR</Button>}
                 {!submitted && <IconButton aria-label={`Remove ${label}`} disabled={busy} onClick={() => void removeDocument(document.id)}><DeleteOutlineRoundedIcon /></IconButton>}
               </Stack>
               {flagged && correctionMode && <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
                 <Button component="label" size="small" variant="outlined" startIcon={<CloudUploadRoundedIcon />}>Choose replacement
-                  <input hidden type="file" accept="application/pdf,text/plain,.pdf,.txt" onChange={(event: ChangeEvent<HTMLInputElement>) => {
+                  <input hidden type="file" accept="application/pdf,image/png,image/jpeg,text/plain,.pdf,.png,.jpg,.jpeg,.txt" onChange={(event: ChangeEvent<HTMLInputElement>) => {
                     const file = event.target.files?.[0]; if (file) setSelected({ type, file })
                     event.target.value = ''
                   }} />
@@ -260,7 +275,7 @@ export function SupplierApplicationPage() {
               </Stack>}
             </Stack> : (!submitted || correctionMode) && <Stack direction="row" spacing={1}>
               <Button component="label" variant="outlined" startIcon={<CloudUploadRoundedIcon />}>Choose file
-                <input hidden type="file" accept="application/pdf,text/plain,.pdf,.txt" onChange={(event: ChangeEvent<HTMLInputElement>) => {
+                <input hidden type="file" accept="application/pdf,image/png,image/jpeg,text/plain,.pdf,.png,.jpg,.jpeg,.txt" onChange={(event: ChangeEvent<HTMLInputElement>) => {
                   const file = event.target.files?.[0]; if (file) setSelected({ type, file })
                   event.target.value = ''
                 }} />

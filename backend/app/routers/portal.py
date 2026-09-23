@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 from app.config import Settings, get_settings
 from app.database import SessionLocal, get_db
 from app.models import AuditEvent, Document, DocumentType, PortalAccount, PortalSession, ProcessingStatus, Supplier, SupplierStatus
-from app.routers.documents import delete_document, document_history, original_file_response, upload_document
+from app.routers.documents import delete_document, document_history, original_file_response, retry_text_extraction, upload_document
 from app.schemas import (
     AssistantHistoryMessage, DocumentRead, DocumentRevisionRead, GeneralAssistantMessage, GeneralAssistantRequest,
     GeneralAssistantResponse, GeneralAssistantRun,
@@ -421,6 +421,25 @@ def delete_application_document(
     if supplier.submitted_at:
         raise HTTPException(status_code=409, detail="This application has already been submitted.")
     return delete_document(supplier.id, document_id, db, settings)
+
+
+@router.post("/application/documents/{document_id}/text-extraction/retry", response_model=DocumentRead)
+def retry_application_document_text_extraction(
+    document_id: uuid.UUID,
+    session: PortalSession = Depends(require_supplier),
+    db: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> Document:
+    supplier = get_application(db, session)
+    if supplier.submitted_at is not None:
+        raise HTTPException(status_code=409, detail="A submitted application cannot retry document ingestion.")
+    document = db.scalar(select(Document).where(
+        Document.id == document_id,
+        Document.supplier_id == supplier.id,
+    ))
+    if document is None:
+        raise HTTPException(status_code=404, detail="Document was not found.")
+    return retry_text_extraction(document, db, settings, actor="supplier")
 
 
 @router.get("/application/documents/history", response_model=list[DocumentRevisionRead])

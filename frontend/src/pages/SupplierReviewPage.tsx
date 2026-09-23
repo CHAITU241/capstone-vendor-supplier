@@ -242,6 +242,21 @@ export function SupplierReviewPage() {
     await runProcessing(() => api.processSupplierDocument(supplierId, document.id), `${document.filename} was extracted and indexed successfully.`)
   }
 
+  async function retryTextExtraction(document: SupplierDocument) {
+    setBusy(true); setError(''); setNotice('')
+    try {
+      const recovered = await api.retryReviewerTextExtraction(supplierId, document.id)
+      if (recovered.processing_status === 'failed') throw new Error(recovered.error_message || 'OCR could not read this document.')
+      const outcome = await api.processSupplierDocument(supplierId, document.id)
+      await loadSupplier()
+      if (outcome.failed_document_count) throw new Error('OCR succeeded, but AI extraction or indexing still requires a retry.')
+      setNotice(`${document.filename} was recovered with OCR, extracted, and indexed successfully.`)
+    } catch (requestError) {
+      await loadSupplier()
+      setError(requestError instanceof Error ? requestError.message : 'Text extraction could not be retried.')
+    } finally { setBusy(false) }
+  }
+
   async function confirmRequirement(document: SupplierDocument, requirement: RequirementItem) {
     await runAction(
       () => api.reviewEvidence(supplierId, document.id, 'verify'),
@@ -469,12 +484,14 @@ export function SupplierReviewPage() {
                         <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap><Typography fontWeight={750}>{requirement.label}</Typography><Typography variant="caption" color="text.secondary">{requirement.requirement_id}</Typography><Chip size="small" color={status === 'verified' ? 'success' : status === 'flagged' ? 'error' : status === 'attention' ? 'warning' : 'info'} label={statusLabel} /></Stack>
                         <Typography variant="body2" color="text.secondary" sx={{ mt: .5 }}>{requirement.accepted_evidence}</Typography>
                         {document && <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: .5, overflowWrap: 'anywhere' }}>{document.filename} · {document.page_count} page(s) · version {document.revision}</Typography>}
+                        {document?.ocr_pages.length ? <Typography variant="caption" color="info.dark" display="block">OCR-derived page{document.ocr_pages.length === 1 ? '' : 's'}: {document.ocr_pages.join(', ')}{document.ocr_language ? ` · ${document.ocr_language}` : ''}</Typography> : null}
+                        {document?.ocr_warnings.map((warning) => <Typography key={warning} variant="caption" color="warning.dark" display="block">OCR warning: {warning}</Typography>)}
                         {document?.review_status === 'disputed' && document.review_comment && <Typography variant="caption" color="error" display="block">Flag reason: {document.review_comment}</Typography>}
                       </Box>
                       <Stack alignItems={{ md: 'flex-end' }} spacing={.5} sx={{ flexShrink: 0 }}>
                         <Button size="small" color="inherit" endIcon={checksExpanded ? <ExpandLessRoundedIcon /> : <ExpandMoreRoundedIcon />} onClick={() => setCheckVisibility((current) => ({ ...current, [requirement.requirement_id]: !checksExpanded }))}>{checksExpanded ? 'Hide checks' : `Show checks (${checks.length})`}</Button>
                         {document && <Typography variant="caption" color={document.ai_extraction_status === 'failed' || document.processing_status === 'failed' ? 'error' : 'text.secondary'}>Document {displayStatus(document.processing_status)} · extraction {displayStatus(document.ai_extraction_status)}</Typography>}
-                        {document ? <Stack direction="row" spacing={.5}><Button size="small" startIcon={<DescriptionRoundedIcon />} onClick={() => void viewOriginal(document.id)}>View original</Button><Button size="small" onClick={() => void downloadFile(document)}>Download</Button>{!finalized && (document.ai_extraction_status === 'failed' || document.ai_index_status === 'failed') && <Button size="small" disabled={busy} onClick={() => void retryDocument(document)}>Retry AI</Button>}</Stack> : <Typography variant="caption" color="error">Required document missing</Typography>}
+                        {document ? <Stack direction="row" spacing={.5}><Button size="small" startIcon={<DescriptionRoundedIcon />} onClick={() => void viewOriginal(document.id)}>View original</Button><Button size="small" onClick={() => void downloadFile(document)}>Download</Button>{!finalized && document.processing_status === 'failed' && <Button size="small" disabled={busy} onClick={() => void retryTextExtraction(document)}>Retry OCR</Button>}{!finalized && document.processing_status === 'ready' && (document.ai_extraction_status === 'failed' || document.ai_index_status === 'failed') && <Button size="small" disabled={busy} onClick={() => void retryDocument(document)}>Retry AI</Button>}</Stack> : <Typography variant="caption" color="error">Required document missing</Typography>}
                       </Stack>
                     </Stack>
                   </Box>
@@ -482,7 +499,7 @@ export function SupplierReviewPage() {
                   <Divider />
                   <Box sx={{ px: 2, py: 1.25 }}>
                     <Button size="small" endIcon={extractedExpanded ? <ExpandLessRoundedIcon /> : <ExpandMoreRoundedIcon />} onClick={() => setExpandedRequirements((current) => { const next = new Set(current); if (next.has(requirement.requirement_id)) next.delete(requirement.requirement_id); else next.add(requirement.requirement_id); return next })}>Extracted values ({fields.length})</Button>
-                    {extractedExpanded && <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' }, gap: 1, mt: 1.25 }}>{fields.length ? fields.map((field) => <Box key={field.id} sx={{ p: 1.25, border: 1, borderColor: field.review_status === 'disputed' ? 'error.main' : 'divider', borderRadius: 1.5 }}><Stack direction="row" justifyContent="space-between" spacing={1}><Typography variant="caption" color="text.secondary" fontWeight={700}>{fieldLabel(field.field_name)}</Typography><Stack direction="row" spacing={.25} alignItems="center"><Typography variant="caption" color={field.review_status === 'disputed' ? 'error' : 'text.secondary'}>{displayStatus(field.review_status)}</Typography>{!finalized && <Tooltip title="Correct value"><IconButton size="small" onClick={() => openFieldEditor(field)}><EditRoundedIcon fontSize="small" /></IconButton></Tooltip>}</Stack></Stack><Typography variant="body2" fontWeight={650} sx={{ mt: .75, overflowWrap: 'anywhere' }}>{field.value}</Typography><Typography variant="caption" color="text.secondary">page {field.page_number} · {Math.round(field.confidence * 100)}% AI confidence</Typography></Box>) : <Alert severity="info">No values were extracted from this document.</Alert>}</Box>}
+                    {extractedExpanded && <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' }, gap: 1, mt: 1.25 }}>{fields.length ? fields.map((field) => <Box key={field.id} sx={{ p: 1.25, border: 1, borderColor: field.review_status === 'disputed' ? 'error.main' : 'divider', borderRadius: 1.5 }}><Stack direction="row" justifyContent="space-between" spacing={1}><Typography variant="caption" color="text.secondary" fontWeight={700}>{fieldLabel(field.field_name)}</Typography><Stack direction="row" spacing={.25} alignItems="center"><Typography variant="caption" color={field.review_status === 'disputed' ? 'error' : 'text.secondary'}>{displayStatus(field.review_status)}</Typography>{!finalized && <Tooltip title="Correct value"><IconButton size="small" onClick={() => openFieldEditor(field)}><EditRoundedIcon fontSize="small" /></IconButton></Tooltip>}</Stack></Stack><Typography variant="body2" fontWeight={650} sx={{ mt: .75, overflowWrap: 'anywhere' }}>{field.value}</Typography><Typography variant="caption" color={document?.ocr_pages.includes(field.page_number) ? 'info.dark' : 'text.secondary'}>page {field.page_number}{document?.ocr_pages.includes(field.page_number) ? ' · OCR-derived' : ''} · {Math.round(field.confidence * 100)}% AI confidence</Typography></Box>) : <Alert severity="info">No values were extracted from this document.</Alert>}</Box>}
                   </Box>
                   {!finalized && document && status !== 'verified' && <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="flex-end" spacing={1} sx={{ px: 2, pb: 2 }}><Button color="error" variant="outlined" startIcon={<FlagRoundedIcon />} disabled={busy} onClick={() => setFlagDocumentId(document.id)}>Flag with reason</Button><Tooltip title={canConfirm ? 'Confirm the document, extracted values, and policy checks together.' : blockedReason}><span><Button color="success" variant="contained" startIcon={<CheckCircleRoundedIcon />} disabled={!canConfirm || busy} onClick={() => void confirmRequirement(document, requirement)}>Confirm requirement</Button></span></Tooltip></Stack>}
                   {status === 'verified' && document?.reviewed_at && <Typography variant="caption" color="text.secondary" display="block" textAlign="right" sx={{ px: 2, pb: 1.5 }}>Confirmed {new Date(document.reviewed_at).toLocaleString()}{document.reviewed_by ? ` by ${document.reviewed_by}` : ''}</Typography>}

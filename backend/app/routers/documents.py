@@ -28,7 +28,36 @@ from app.services.documents import DocumentExtractionError, extract_document_tex
 from app.services.retrieval import delete_document_chunks, get_chunk_collection
 
 router = APIRouter(prefix="/suppliers", tags=["documents"], dependencies=[Depends(require_reviewer)])
-ALLOWED_CONTENT_TYPES = {"application/pdf": ".pdf", "text/plain": ".txt"}
+ALLOWED_CONTENT_TYPES = {
+    "application/pdf": ".pdf",
+    "text/plain": ".txt",
+    "image/jpeg": ".jpg",
+    "image/png": ".png",
+}
+
+
+def _apply_text_extraction(document: Document, file_path: Path, settings: Settings) -> dict:
+    extracted = extract_document_text(file_path, document.content_type, settings)
+    document.extracted_text = extracted.text
+    document.page_count = extracted.page_count
+    document.text_extraction_method = extracted.text_extraction_method
+    document.ocr_pages = list(extracted.ocr_pages)
+    document.ocr_language = extracted.ocr_language
+    document.ocr_warnings = list(extracted.ocr_warnings)
+    document.processing_status = ProcessingStatus.READY
+    document.error_message = None
+    document.ai_extraction_status = "pending"
+    document.ai_extraction_error = None
+    document.ai_index_status = "pending"
+    document.ai_index_error = None
+    return {
+        "filename": document.filename,
+        "pages": document.page_count,
+        "text_extraction_method": document.text_extraction_method,
+        "ocr_pages": document.ocr_pages,
+        "ocr_language": document.ocr_language,
+        "ocr_warnings": document.ocr_warnings,
+    }
 
 
 @router.post(
@@ -71,7 +100,7 @@ async def upload_document(
 
     content_type = file.content_type or ""
     if content_type not in ALLOWED_CONTENT_TYPES:
-        raise HTTPException(status_code=415, detail="Only PDF and plain-text files are supported.")
+        raise HTTPException(status_code=415, detail="Only PDF, PNG, JPEG and plain-text files are supported.")
 
     contents = await file.read(settings.max_upload_size_bytes + 1)
     await file.close()
@@ -109,12 +138,8 @@ async def upload_document(
     db.add(document)
 
     try:
-        extracted = extract_document_text(file_path, content_type)
-        document.extracted_text = extracted.text
-        document.page_count = extracted.page_count
-        document.processing_status = ProcessingStatus.READY
+        audit_details = _apply_text_extraction(document, file_path, settings)
         audit_action = "document.ready"
-        audit_details = {"filename": document.filename, "pages": document.page_count}
     except DocumentExtractionError as exc:
         document.processing_status = ProcessingStatus.FAILED
         document.error_message = str(exc)
@@ -144,6 +169,70 @@ async def upload_document(
         ) from exc
     db.refresh(document)
     return document
+
+
+def retry_text_extraction(
+    document: Document, db: Session, settings: Settings, *, actor: str,
+) -> Document:
+    if document.processing_status != ProcessingStatus.FAILED:
+        raise HTTPException(status_code=409, detail="Text extraction can only be retried for a failed document.")
+    file_path = _private_file_path(document.storage_path, settings)
+    if not file_path.is_file():
+        raise HTTPException(status_code=503, detail="The original document is unavailable in file storage.")
+    if document.sha256 and hashlib.sha256(file_path.read_bytes()).hexdigest() != document.sha256:
+        raise HTTPException(status_code=409, detail="The stored original failed its integrity check.")
+
+    document.processing_status = ProcessingStatus.PROCESSING
+    document.error_message = None
+    db.commit()
+    try:
+        details = _apply_text_extraction(document, file_path, settings)
+        details.update({"actor": actor, "retry": True})
+        db.add(AuditEvent(
+            supplier_id=document.supplier_id,
+            action="document.text_extraction_retried",
+            entity_type="document",
+            entity_id=str(document.id),
+            details=details,
+        ))
+        db.commit()
+    except DocumentExtractionError as exc:
+        document.processing_status = ProcessingStatus.FAILED
+        document.error_message = str(exc)
+        db.add(AuditEvent(
+            supplier_id=document.supplier_id,
+            action="document.text_extraction_retry_failed",
+            entity_type="document",
+            entity_id=str(document.id),
+            details={"actor": actor, "filename": document.filename, "reason": str(exc)},
+        ))
+        db.commit()
+    db.refresh(document)
+    return document
+
+
+@router.post(
+    "/{supplier_id}/documents/{document_id}/text-extraction/retry",
+    response_model=DocumentRead,
+)
+def retry_reviewer_document_text_extraction(
+    supplier_id: uuid.UUID,
+    document_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> Document:
+    supplier = db.get(Supplier, supplier_id)
+    if supplier is None or (supplier.account_id is not None and supplier.submitted_at is None):
+        raise HTTPException(status_code=404, detail="Supplier was not found.")
+    if supplier.status in {SupplierStatus.APPROVED, SupplierStatus.REJECTED}:
+        raise HTTPException(status_code=409, detail="A finalized supplier cannot be reprocessed.")
+    document = db.scalar(select(Document).where(
+        Document.id == document_id,
+        Document.supplier_id == supplier_id,
+    ))
+    if document is None:
+        raise HTTPException(status_code=404, detail="Document was not found.")
+    return retry_text_extraction(document, db, settings, actor="reviewer")
 
 
 @router.delete(
