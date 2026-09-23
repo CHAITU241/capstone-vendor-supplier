@@ -146,7 +146,7 @@ def _evaluate_policy_compliance(
     evaluation_date: date,
     ai_policy_assessments: list[dict] | None = None,
 ) -> list[RuleOutcome]:
-    """Combine provisional AI findings with the authoritative human review state."""
+    """Calculate policy findings without conflating them with reviewer workflow state."""
     checklist = checklist_for(supplier)
     fields_by_document: dict = {}
     for field in supplier.extracted_fields:
@@ -182,22 +182,6 @@ def _evaluate_policy_compliance(
                 message = "Required evidence is missing or unreadable."
                 ai_assessment = "not_matched"
                 ai_reason = message
-            elif document.review_status == "disputed":
-                assessment_method = "reviewer"
-                status = ComplianceStatus.FAIL
-                message = "The reviewer flagged this evidence as not satisfying the requirement."
-                ai_assessment = "reviewer_flagged"
-                ai_reason = message
-                cited_fields = []
-                cited_page = None
-            elif document.review_status == "verified":
-                assessment_method = "reviewer"
-                status = ComplianceStatus.PASS
-                message = "Reviewer verified this numbered policy check against the original evidence."
-                ai_assessment = "human_verified"
-                ai_reason = message
-                cited_fields = []
-                cited_page = None
             elif document.ai_extraction_status == "failed":
                 assessment_method = "human_required"
                 status = ComplianceStatus.NEEDS_REVIEW
@@ -268,6 +252,17 @@ def _evaluate_policy_compliance(
                     f"Human review required: {ai_reason}"
                 )
 
+                # A reviewer decision controls the workflow, but it must not erase
+                # the calculated finding or the evidence shown beside it. A verified
+                # document promotes the check to pass; a flagged document is blocked
+                # separately by REVIEW.FLAGGED_DOCUMENTS below.
+                if document.review_status == "verified":
+                    assessment_method = "reviewer"
+                    status = ComplianceStatus.PASS
+                    message = "Reviewer verified this numbered policy check against the original evidence."
+                    ai_assessment = "human_verified"
+                    ai_reason = message
+
             observed_values, expected_values = _policy_value_details(
                 supplier,
                 document_fields,
@@ -301,6 +296,29 @@ def _evaluate_policy_compliance(
                     "expected_values": expected_values,
                 },
             ))
+
+    flagged_documents = [
+        document for document in supplier.documents
+        if document.review_status == "disputed"
+    ]
+    if flagged_documents:
+        outcomes.append(RuleOutcome(
+            rule_code="REVIEW.FLAGGED_DOCUMENTS",
+            status=ComplianceStatus.FAIL,
+            message="One or more requirements were flagged by the reviewer and must be resolved before approval.",
+            evidence={
+                "kind": "review_control",
+                "blocking": True,
+                "flagged_documents": [
+                    {
+                        "document_id": str(document.id),
+                        "document_type": document.document_type.value,
+                        "reason": document.review_comment,
+                    }
+                    for document in flagged_documents
+                ],
+            },
+        ))
 
     if supplier.extracted_fields:
         disputed = [

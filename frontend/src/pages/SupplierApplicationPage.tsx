@@ -55,6 +55,14 @@ export function SupplierApplicationPage() {
   }, [load])
 
   useEffect(() => {
+    if (!application?.submitted_at || ['approved', 'rejected'].includes(application.status)) return
+    const timer = window.setInterval(() => {
+      void load().catch((err: Error) => setError(err.message))
+    }, 10_000)
+    return () => window.clearInterval(timer)
+  }, [application?.status, application?.submitted_at, load])
+
+  useEffect(() => {
     if (application?.category && !application.submitted_at && catalog &&
         !catalog.categories.some((item) => item.code === application.category && item.subcategories.some((sub) => sub.code === application.subcategory))) {
       setStep(0) // Existing drafts made with the old illustrative taxonomy need a new primary code.
@@ -142,6 +150,7 @@ export function SupplierApplicationPage() {
   const required = new Set(application.requirements.documents.map((item) => item.document_type))
   const extras = application.documents.filter((document) => !required.has(document.document_type))
   const missing = application.requirements.documents.filter((item) => documents.get(item.document_type)?.processing_status !== 'ready')
+  const flaggedDocuments = application.documents.filter((document) => document.review_status === 'disputed')
 
   return <Stack spacing={3} maxWidth={860} mx="auto">
     <Box><Typography variant="h4">Your supplier application</Typography>
@@ -154,7 +163,10 @@ export function SupplierApplicationPage() {
     </Stepper>
     {error && <Alert severity="error" onClose={() => setError('')}>{error}</Alert>}
     {notice && <Alert severity="success" onClose={() => setNotice('')}>{notice}</Alert>}
-    {submitted ? <Alert severity="success">Application submitted. A reviewer can now see your details and documents. Your current status is <strong>{application.status.replace('_', ' ')}</strong>.</Alert> : null}
+    {submitted ? flaggedDocuments.length > 0
+      ? <Alert severity="warning"><strong>Reviewer changes requested.</strong> {flaggedDocuments.length} document{flaggedDocuments.length === 1 ? '' : 's'} need{flaggedDocuments.length === 1 ? 's' : ''} attention. Read the reviewer feedback highlighted below. This page refreshes automatically.</Alert>
+      : <Alert severity="success">Application submitted. A reviewer can now see your details and documents. Your current status is <strong>{application.status.replace('_', ' ')}</strong>.</Alert>
+      : null}
 
     <Card><CardContent sx={{ p: { xs: 3, md: 4 }, '&:last-child': { pb: 4 } }}>
       {!submitted && step === 0 && <Stack spacing={3}>
@@ -188,7 +200,8 @@ export function SupplierApplicationPage() {
         <Typography variant="body2" color="text.secondary">Upload one text-based PDF or UTF-8 text file (up to 10 MB) for each item. If an item asks for two pieces of evidence, combine them into one PDF. Scanned images and image-only PDFs are not supported yet.</Typography>
         {application.requirements.documents.map(({ document_type: type, requirement_id: requirementId, label, why, accepted_evidence, required_fields, checks }) => {
           const document = documents.get(type)
-          return <Stack key={type} direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ sm: 'center' }} spacing={1.5} sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
+          const flagged = document?.review_status === 'disputed'
+          return <Stack key={type} direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ sm: 'center' }} spacing={1.5} sx={{ p: 2, border: '1px solid', borderColor: flagged ? 'warning.main' : 'divider', bgcolor: flagged ? 'rgba(237,108,2,.06)' : 'transparent', borderRadius: 2 }}>
             <Box sx={{ flex: 1 }}><Stack direction="row" alignItems="center" spacing={0.5}>
               <Typography fontWeight={700}>{label}</Typography>
               <Tooltip title={requirementId ? `Policy requirement: ${requirementId}` : 'Legacy document requirement'} arrow>
@@ -199,8 +212,11 @@ export function SupplierApplicationPage() {
               {required_fields && <Typography variant="body2"><strong>Include:</strong> {plainLanguage(required_fields)}</Typography>}
               {checks.length > 0 && <Box component="details" sx={{ mt: 0.5 }}><Typography component="summary" variant="body2" sx={{ cursor: 'pointer' }}>What reviewers will check</Typography>
                 {checks.map((check) => <Typography key={check} variant="body2">{plainLanguage(check)}</Typography>)}</Box>}
-              <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>{document ? document.filename : selected?.type === type ? selected.file.name : 'Not uploaded yet'}</Typography></Box>
+              <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>{document ? document.filename : selected?.type === type ? selected.file.name : 'Not uploaded yet'}</Typography>
+              {flagged && <Alert severity="warning" sx={{ mt: 1, py: 0.25 }}><strong>Reviewer feedback:</strong> {document.review_comment || 'The reviewer requested changes to this evidence.'}</Alert>}
+            </Box>
             {document ? <Stack direction="row" alignItems="center" spacing={1}>
+              {flagged && <Chip label="Changes requested" color="warning" size="small" />}
               <Chip label={document.processing_status === 'ready' ? 'Uploaded' : document.processing_status} color={document.processing_status === 'ready' ? 'success' : 'warning'} size="small" />
               <Button size="small" onClick={() => void viewOriginal(document.id)}>View original</Button>
               <Button size="small" onClick={() => void downloadFile(document)}>Download</Button>

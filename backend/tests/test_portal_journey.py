@@ -130,6 +130,26 @@ def test_human_review_gates_approval_and_retains_erp_payload(tmp_path):
             assert blocked.status_code == 409
 
             detail = client.get(f"/api/suppliers/{supplier_id}", headers=review_headers).json()
+            registration_document = next(
+                item for item in detail["documents"] if item["document_type"] == "registration"
+            )
+            flagged = client.post(
+                f"/api/suppliers/{supplier_id}/documents/{registration_document['id']}/review",
+                headers=review_headers,
+                json={
+                    "action": "dispute",
+                    "reviewer_name": "Demo reviewer",
+                    "reason": "Please replace this document with a clearer copy.",
+                },
+            )
+            assert flagged.status_code == 200, flagged.text
+            supplier_view = client.get("/api/portal/application", headers=supplier_headers).json()
+            supplier_registration = next(
+                item for item in supplier_view["documents"] if item["document_type"] == "registration"
+            )
+            assert supplier_registration["review_status"] == "disputed"
+            assert supplier_registration["review_comment"] == "Please replace this document with a clearer copy."
+
             for document in detail["documents"]:
                 reviewed = client.post(
                     f"/api/suppliers/{supplier_id}/documents/{document['id']}/review",

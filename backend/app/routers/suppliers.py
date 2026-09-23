@@ -80,6 +80,7 @@ def get_supplier(supplier_id: uuid.UUID, db: Session = Depends(get_db)) -> Suppl
         not supplier.compliance_results
         or any(
             result.evidence.get("kind") not in {"policy_check", "review_control"}
+            or result.evidence.get("ai_assessment") == "reviewer_flagged"
             for result in supplier.compliance_results
         )
     ):

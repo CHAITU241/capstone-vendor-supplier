@@ -180,6 +180,45 @@ def test_policy_checks_pass_after_human_evidence_review() -> None:
         assert outcomes[f"{requirement}.CHECK-2"].status == ComplianceStatus.PASS
 
 
+def test_flagged_document_blocks_approval_without_erasing_policy_evidence() -> None:
+    supplier = ready_supplier()
+    supplier.category = "GOODS"
+    supplier.subcategory = "GOODS-OFF"
+    supplier.submitted_at = None
+    supplier.documents = [
+        document(DocumentType.REGISTRATION),
+        document(DocumentType.TAX),
+        document(DocumentType.BANK),
+    ]
+    for item in supplier.documents:
+        item.review_status = "pending"
+        item.ai_extraction_status = "ready"
+
+    registration = supplier.documents[0]
+    registration.review_status = "disputed"
+    registration.review_comment = "Redo this requirement"
+    supplier.extracted_fields = [
+        field(supplier, registration, "supplier_name", supplier.name),
+        field(supplier, registration, "registration_date", "2021-04-12"),
+        field(supplier, registration, "status", "Active"),
+    ]
+    for item in supplier.extracted_fields:
+        item.review_status = "pending"
+
+    outcomes = outcomes_by_code(supplier)
+    name_check = outcomes["BASE-001.CHECK-1"]
+
+    assert name_check.evidence["ai_assessment"] == "matched"
+    assert {
+        "field_name": "supplier_name",
+        "value": supplier.name,
+        "page_number": 1,
+    } in name_check.evidence["observed_values"]
+    assert outcomes["REVIEW.FLAGGED_DOCUMENTS"].status == ComplianceStatus.FAIL
+    assert outcomes["REVIEW.FLAGGED_DOCUMENTS"].evidence["flagged_documents"][0]["reason"] == "Redo this requirement"
+    assert approval_ready(list(outcomes.values())) is False
+
+
 def test_objective_privacy_rules_override_model_policy_opinions() -> None:
     supplier = Supplier(
         id=uuid.uuid4(),
