@@ -27,7 +27,7 @@ export function AdminLoginPage() {
   }
 
   return <Stack spacing={3} maxWidth={480} mx="auto">
-    <Button component={Link} to="/supplier/login" startIcon={<ArrowBackRoundedIcon />} sx={{ alignSelf: 'flex-start' }}>Back</Button>
+    <Button component={Link} to="/" startIcon={<ArrowBackRoundedIcon />} sx={{ alignSelf: 'flex-start' }}>Back to workspaces</Button>
     <Typography variant="h5">Admin sign in</Typography>
     <Card><CardContent sx={{ p: 4 }}>
       <Stack component="form" spacing={2.5} onSubmit={(event) => void signIn(event)}>

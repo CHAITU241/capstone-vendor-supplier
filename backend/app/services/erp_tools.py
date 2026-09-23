@@ -8,6 +8,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.models import ErpSupplierRecord, ErpToolAttempt
+from app.services.tracing import get_langfuse_tracer, telemetry_subject_id
 
 
 TOOL_NAMES = (
@@ -143,29 +144,49 @@ def execute_erp_tool(db: Session, tool_name: str, arguments: dict[str, Any]) -> 
         "erp_supplier_id": arguments.get("erp_supplier_id"),
         "payload_fields": sorted((arguments.get("payload") or {}).keys()),
     }
-    try:
-        if tool_name == "validate_supplier_record":
-            result = validate_supplier_record(db, arguments["payload"], arguments["idempotency_key"])
-        elif tool_name == "create_supplier_record":
-            result = create_supplier_record(db, arguments["payload"], arguments["idempotency_key"], supplier_id)
-        elif tool_name == "get_supplier_record":
-            result = get_supplier_record(db, arguments["erp_supplier_id"])
-        else:
-            result = list_supplier_records(db)
-        db.add(ErpToolAttempt(
-            supplier_id=supplier_id, operation=tool_name, status="succeeded", attempt_number=attempt_number,
-            latency_ms=round((time.perf_counter() - started) * 1000), request_summary=request_summary,
-            response_summary={"valid": result.get("valid"), "erp_supplier_id": result.get("erp_supplier_id"), "record_count": result.get("count")},
-        ))
-        db.commit()
-        return result
-    except ErpToolFailure as exc:
-        db.rollback()
-        db.add(ErpToolAttempt(
-            supplier_id=supplier_id, operation=tool_name, status="failed", attempt_number=attempt_number,
-            latency_ms=round((time.perf_counter() - started) * 1000), error_code=exc.code,
-            error_message=exc.message, request_summary=request_summary,
-            response_summary={"detail_count": len(exc.details or [])},
-        ))
-        db.commit()
-        raise
+    tracer = get_langfuse_tracer()
+    with tracer.trace(
+        name=f"erp.mcp.{tool_name}",
+        input_data={"operation": tool_name, "attempt_number": attempt_number},
+        metadata={"feature": "mcp_erp", "operation": tool_name, "attempt_number": attempt_number},
+        subject_id=telemetry_subject_id(supplier_id),
+        session_id=f"{telemetry_subject_id(supplier_id)}-erp",
+        tags=["mcp", "erp"],
+    ) as trace:
+        try:
+            if tool_name == "validate_supplier_record":
+                result = validate_supplier_record(db, arguments["payload"], arguments["idempotency_key"])
+            elif tool_name == "create_supplier_record":
+                result = create_supplier_record(db, arguments["payload"], arguments["idempotency_key"], supplier_id)
+            elif tool_name == "get_supplier_record":
+                result = get_supplier_record(db, arguments["erp_supplier_id"])
+            else:
+                result = list_supplier_records(db)
+            latency_ms = round((time.perf_counter() - started) * 1000)
+            trace.update(output={
+                "status": "succeeded",
+                "latency_ms": latency_ms,
+                "valid": result.get("valid"),
+                "record_count": result.get("count"),
+            })
+            trace.score_trace(name="tool_success", value=1)
+            db.add(ErpToolAttempt(
+                supplier_id=supplier_id, operation=tool_name, status="succeeded", attempt_number=attempt_number,
+                latency_ms=latency_ms, request_summary=request_summary,
+                response_summary={"valid": result.get("valid"), "erp_supplier_id": result.get("erp_supplier_id"), "record_count": result.get("count")},
+            ))
+            db.commit()
+            return result
+        except ErpToolFailure as exc:
+            db.rollback()
+            latency_ms = round((time.perf_counter() - started) * 1000)
+            trace.update(output={"status": "failed", "latency_ms": latency_ms, "error_code": exc.code})
+            trace.score_trace(name="tool_success", value=0)
+            db.add(ErpToolAttempt(
+                supplier_id=supplier_id, operation=tool_name, status="failed", attempt_number=attempt_number,
+                latency_ms=latency_ms, error_code=exc.code,
+                error_message=exc.message, request_summary=request_summary,
+                response_summary={"detail_count": len(exc.details or [])},
+            ))
+            db.commit()
+            raise

@@ -36,6 +36,7 @@ from app.services.assistant_history import clear_history, conversation_history, 
 from app.services.assistant_scope import is_reviewer_case_question
 from app.services.policy_retrieval import policy_context_for, reviewer_context_for
 from app.services.redaction import redact_pii
+from app.services.tracing import get_langfuse_tracer, telemetry_subject_id
 
 router = APIRouter(prefix="/suppliers", tags=["ai"], dependencies=[Depends(require_reviewer)])
 
@@ -214,7 +215,35 @@ def ask_reviewer_assistant(
 
     started = time.perf_counter()
     try:
-        result = ai.answer_reviewer_question(sanitized_messages, context_redaction.text)
+        with get_langfuse_tracer().trace(
+            name="reviewer.assistant.conversation",
+            input_data={"message_count": len(sanitized_messages), "question_chars": len(question)},
+            metadata={
+                "feature": "reviewer_assistant",
+                "provider": settings.ai_provider,
+                "model": settings.active_answer_model,
+                "embedding_model": settings.active_embedding_model,
+                "prompt_version": "reviewer-assistant-v1",
+                "retrieval_count": len(retrieved),
+            },
+            subject_id=telemetry_subject_id(supplier.id),
+            session_id=f"{telemetry_subject_id(supplier.id)}-reviewer-assistant",
+            tags=["assistant", "reviewer", settings.ai_provider],
+        ) as trace:
+            result = ai.answer_reviewer_question(sanitized_messages, context_redaction.text)
+            valid_citations = sum(
+                label in evidence_by_label for label in result.value.cited_chunk_ids
+            )
+            trace.update(output={
+                "answer_chars": len(result.value.answer),
+                "retrieval_count": len(retrieved),
+                "citation_count": valid_citations,
+                "redaction_count": sum(redaction_counts.values()),
+            })
+            trace.score_trace(
+                name="citation_guard",
+                value=1 if not retrieved or valid_citations > 0 else 0,
+            )
     except Exception as exc:
         raise HTTPException(status_code=502, detail="The reviewer assistant could not answer this question.") from exc
 

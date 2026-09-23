@@ -447,6 +447,17 @@ frontend/src/theme/theme.ts         Single source for all brand colors
 - Static Compose YAML parsing passed, backend compilation and all 28 tests passed, and frontend lint and production build passed with 954 transformed modules.
 - Docker was not available in the development environment, so an actual image build and live Compose smoke test remain to be run on a Docker-enabled machine.
 
+## Admin AI Observability and Correlated Langfuse Tracing (2026-09-23)
+
+- Added Administrator as the third landing-page workspace while retaining separately authenticated, admin-only access.
+- Added an admin AI-observability dashboard with configurable time windows, run success, tokens, P95 latency, model/operation/prompt usage, RAG grounding, OCR coverage, ERP tool health, and privacy-safe recent runs.
+- Added correlated Langfuse workflow traces for OCR/text extraction, document processing, supplier RAG, supplier/reviewer assistants, and MCP ERP tools.
+- Added hashed telemetry subjects, assistant/workflow sessions, provider/model/prompt/release metadata, and quality scores for processing, grounding, citations, OCR, and ERP tool success.
+- Removed original filenames from extraction telemetry and the LLM extraction prompt; only the file extension and document type are retained.
+- Normalized OpenRouter model slugs for Langfuse pricing lookup while preserving the complete provider model in metadata.
+- Added `LANGFUSE_DASHBOARD_URL` for the admin-only deep link and documented the recommended VendorLens dashboard widgets.
+- Verification: 77 backend tests passed; frontend production build passed; frontend lint completed with zero errors and two pre-existing warnings.
+
 ## Resume Commands
 
 Preferred combined command from the repository root:

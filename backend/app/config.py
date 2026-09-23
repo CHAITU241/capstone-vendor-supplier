@@ -45,6 +45,7 @@ class Settings(BaseSettings):
     langfuse_public_key: str | None = None
     langfuse_secret_key: SecretStr | None = None
     langfuse_base_url: str = "https://cloud.langfuse.com"
+    langfuse_dashboard_url: str | None = None
     langfuse_capture_content: bool = False
     langfuse_release: str | None = None
     chunk_size_tokens: int = 500

@@ -1,5 +1,6 @@
 import type {
   ApiErrorBody,
+  AdminObservability,
   AdminProfile,
   AssistantHistoryMessage,
   ComplianceRunResponse,
@@ -75,6 +76,7 @@ export const api = {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }),
   }),
   adminProfiles: () => request<AdminProfile[]>('/admin/profiles'),
+  adminObservability: (days = 30) => request<AdminObservability>(`/admin/observability?days=${days}`),
   adminResetPassword: (id: string) => request<{ password: string }>(`/admin/profiles/${id}/reset-password`, { method: 'POST' }),
   adminDeleteProfile: (id: string) => request<void>(`/admin/profiles/${id}`, { method: 'DELETE' }),
   session: () => request<PortalSession>('/portal/auth/session'),

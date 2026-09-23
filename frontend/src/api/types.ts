@@ -62,6 +62,66 @@ export interface AdminProfile {
   archived_count: number
 }
 
+export interface AdminMetricGroup {
+  label: string
+  calls: number
+  input_tokens: number
+  output_tokens: number
+  average_latency_ms: number
+  failures: number
+}
+
+export interface AdminObservability {
+  generated_at: string
+  window_days: number
+  provider: string
+  extraction_model: string
+  answer_model: string
+  embedding_model: string
+  ai_configured: boolean
+  langfuse_enabled: boolean
+  langfuse_configured: boolean
+  langfuse_content_capture: boolean
+  langfuse_dashboard_url: string | null
+  total_runs: number
+  successful_runs: number
+  failed_runs: number
+  in_progress_runs: number
+  success_rate: number
+  input_tokens: number
+  output_tokens: number
+  average_latency_ms: number
+  p95_latency_ms: number
+  question_runs: number
+  grounded_answers: number
+  guarded_not_found_answers: number
+  average_retrieval_count: number
+  documents: number
+  native_documents: number
+  ocr_assisted_documents: number
+  failed_text_extractions: number
+  ocr_pages: number
+  erp_attempts: number
+  erp_failures: number
+  erp_average_latency_ms: number
+  by_model: AdminMetricGroup[]
+  by_operation: AdminMetricGroup[]
+  by_prompt_version: AdminMetricGroup[]
+  recent_runs: Array<{
+    id: string
+    supplier_reference: string
+    run_type: string
+    status: string
+    model: string
+    prompt_version: string
+    input_tokens: number
+    output_tokens: number
+    latency_ms: number
+    retrieval_count: number
+    created_at: string
+  }>
+}
+
 export interface SupplierApplication {
   id: string
   category: string | null

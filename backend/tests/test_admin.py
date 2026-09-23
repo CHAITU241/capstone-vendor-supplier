@@ -10,7 +10,7 @@ from sqlalchemy.pool import StaticPool
 from app.config import Settings, get_settings
 from app.database import Base, get_db
 from app.main import app
-from app.models import Document, DocumentRevision, PortalAccount, Supplier
+from app.models import AiRun, AiRunStatus, AiRunType, Document, DocumentRevision, ErpToolAttempt, PortalAccount, Supplier
 
 
 def test_admin_reset_and_full_profile_removal(tmp_path, monkeypatch):
@@ -37,6 +37,8 @@ def test_admin_reset_and_full_profile_removal(tmp_path, monkeypatch):
             review = {"Authorization": f"Bearer {reviewer['token']}"}
             assert client.get("/api/admin/profiles", headers=own).status_code == 403
             assert client.get("/api/admin/profiles", headers=review).status_code == 403
+            assert client.get("/api/admin/observability", headers=own).status_code == 403
+            assert client.get("/api/admin/observability", headers=review).status_code == 403
             assert client.post("/api/portal/auth/admin", json={"email": "owner@example.com", "password": "wrong-password"}).status_code == 401
             admin = client.post("/api/portal/auth/admin", json={"email": "owner@example.com", "password": "strong-admin-password"})
             assert admin.status_code == 200
@@ -59,6 +61,32 @@ def test_admin_reset_and_full_profile_removal(tmp_path, monkeypatch):
             assert second.status_code == 201, second.text
             listed = client.get("/api/admin/profiles", headers=access).json()[0]
             assert (listed["document_count"], listed["archived_count"]) == (1, 1)
+
+            with Session(engine) as db:
+                db.add(AiRun(
+                    supplier_id=UUID(supplier_id), run_type=AiRunType.QUESTION,
+                    status=AiRunStatus.SUCCEEDED, model="openai/gpt-4o-mini",
+                    prompt_version="rag-answer-v3", input_tokens=120,
+                    output_tokens=30, latency_ms=850, retrieval_count=3,
+                    details={"information_found": True, "citation_count": 1,
+                             "grounding_guard_passed": True},
+                ))
+                db.add(ErpToolAttempt(
+                    supplier_id=UUID(supplier_id), operation="validate_supplier_record",
+                    status="succeeded", latency_ms=20,
+                ))
+                db.commit()
+            metrics = client.get("/api/admin/observability", headers=access)
+            assert metrics.status_code == 200, metrics.text
+            summary = metrics.json()
+            assert summary["total_runs"] == 1
+            assert summary["input_tokens"] == 120
+            assert summary["output_tokens"] == 30
+            assert summary["success_rate"] == 100.0
+            assert summary["grounded_answers"] == 1
+            assert summary["erp_attempts"] == 1
+            assert summary["erp_failures"] == 0
+            assert summary["recent_runs"][0]["supplier_reference"].startswith("SUP-")
 
             changed = client.post(f"/api/admin/profiles/{supplier_id}/reset-password", headers=access)
             assert changed.status_code == 200

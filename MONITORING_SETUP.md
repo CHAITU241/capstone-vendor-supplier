@@ -4,12 +4,29 @@ Start the FastAPI backend before running any of these tools.
 
 ## 1. Langfuse — AI tracing
 
-1. Create a free Langfuse project and copy its public key, secret key, and host into `backend/.env`.
-2. Start the backend normally.
-3. Use the application to process a document or ask a supplier question.
-4. Open the Langfuse host and inspect the recorded generations, model, tokens, latency, and errors.
+1. Create a Langfuse project and copy its public key, secret key, host, and dashboard URL into `backend/.env`.
+2. Set `LANGFUSE_RELEASE` to the deployed Git commit or submission tag. Keep `LANGFUSE_CAPTURE_CONTENT=false`; VendorLens sends operational metadata, not supplier document text.
+3. Start the backend normally and sign in through **Administrator** on the landing page.
+4. Open **AI observability** to verify that AI and Langfuse configuration are ready.
+5. Process a document, ask a supplier question, ask the reviewer assistant, and validate an ERP record.
+6. Use **Open Langfuse** from the admin portal to inspect the correlated traces, models, tokens, latency, scores, and errors.
 
-Langfuse tracing is passive; no separate local server is required.
+Langfuse tracing is passive; no separate local server is required. Telemetry failures never block onboarding. Supplier IDs are hashed for grouping, filenames are excluded, and OpenRouter model names are normalized for Langfuse pricing lookup while the full provider model remains metadata.
+
+### Recommended `VendorLens AI Operations` dashboard
+
+Create these widgets in Langfuse after the first live run:
+
+- Total generations, input/output tokens, and model cost.
+- P50/P95 latency grouped by observation name.
+- Calls and errors grouped by model and feature.
+- Tokens/cost grouped by model and prompt version.
+- `processing_success`, `document_success_rate`, `grounding_guard`, `citation_guard`, `text_extraction_success`, and `tool_success` scores.
+- Traces grouped by release and filtered to the current submission tag.
+
+Expected trace families are `document.text_extraction`, `supplier.document.processing`, `supplier.document.rag`, `supplier.assistant.conversation`, `reviewer.assistant.conversation`, and `erp.mcp.*`. Extraction, embedding, and answer generations appear as children where the workflow performs them.
+
+If cost is blank, confirm that the normalized model name matches a Langfuse model definition. Add a project model definition for the OpenRouter price if necessary; token tracking does not depend on price configuration.
 
 ## 2. Promptfoo — answer evaluation
 
@@ -47,4 +64,4 @@ Prometheus scrapes the FastAPI `/metrics` endpoint. Use it to inspect request co
 
 ## Suggested order
 
-Run Prometheus, start the backend, exercise the application, inspect Langfuse traces, and then run Promptfoo against the same backend.
+Start the backend, verify the admin AI-observability page, exercise the application, inspect Langfuse traces, then use Prometheus for runtime health and Promptfoo for the deterministic quality gate.

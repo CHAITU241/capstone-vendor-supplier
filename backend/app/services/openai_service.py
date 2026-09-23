@@ -117,7 +117,7 @@ class OpenAIService:
                        " AI findings for a reviewer, never an approval decision.")
         input_metadata = {
             "document_type": expected_type.value,
-            "filename": filename,
+            "file_extension": Path(filename).suffix.lower() or "unknown",
             "text_chars": len(redacted_text),
         }
         with observe_ai_call(
@@ -127,6 +127,11 @@ class OpenAIService:
                 name="supplier.document.extraction",
                 model=self.settings.active_extraction_model,
                 input_data=self.tracer.input_payload(input_metadata, redacted_text),
+                metadata={
+                    **input_metadata,
+                    "prompt_version": self.settings.extraction_prompt_version,
+                    "feature": "document_extraction",
+                },
             ) as generation:
                 response = self.client.beta.chat.completions.parse(
                     model=self.settings.active_extraction_model,
@@ -136,7 +141,7 @@ class OpenAIService:
                             "role": "user",
                             "content": (
                                 f"Expected upload category: {expected_type.value}\n"
-                                f"Filename: {filename}\n\n{redacted_text}"
+                                f"File type: {input_metadata['file_extension']}\n\n{redacted_text}"
                             ),
                         },
                     ],
@@ -177,6 +182,8 @@ class OpenAIService:
                 name="supplier.document.embeddings",
                 model=self.settings.active_embedding_model,
                 input_data=self.tracer.input_payload(input_metadata, texts),
+                metadata={**input_metadata, "feature": "document_embeddings"},
+                observation_type="embedding",
             ) as generation:
                 response = self.client.embeddings.create(
                     model=self.settings.active_embedding_model,
@@ -212,6 +219,11 @@ class OpenAIService:
                 name="supplier.document.question",
                 model=self.settings.active_answer_model,
                 input_data=self.tracer.input_payload(input_metadata, content),
+                metadata={
+                    **input_metadata,
+                    "prompt_version": self.settings.answer_prompt_version,
+                    "feature": "document_question",
+                },
             ) as generation:
                 response = self.client.beta.chat.completions.parse(
                     model=self.settings.active_answer_model,
@@ -264,6 +276,11 @@ class OpenAIService:
                 name="supplier.general.assistant",
                 model=self.settings.active_answer_model,
                 input_data=self.tracer.input_payload(input_metadata, messages),
+                metadata={
+                    **input_metadata,
+                    "prompt_version": self.settings.assistant_prompt_version,
+                    "feature": "supplier_assistant",
+                },
             ) as generation:
                 response = self.client.beta.chat.completions.parse(
                     model=self.settings.active_answer_model,
@@ -306,6 +323,11 @@ class OpenAIService:
                 name="supplier.reviewer.assistant",
                 model=self.settings.active_answer_model,
                 input_data=self.tracer.input_payload(input_metadata, messages),
+                metadata={
+                    **input_metadata,
+                    "prompt_version": "reviewer-assistant-v1",
+                    "feature": "reviewer_assistant",
+                },
             ) as generation:
                 response = self.client.beta.chat.completions.parse(
                     model=self.settings.active_answer_model,

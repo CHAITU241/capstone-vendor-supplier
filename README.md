@@ -34,7 +34,7 @@ Docker Compose runs `mock-erp-mcp` as a separate stateless JSON-RPC service. The
 
 Every call stores a sanitized tool-attempt audit with status, latency, attempt number, and error code. Raw tax and bank values are not copied into the integration audit log. If the ERP is unavailable, approval remains incomplete and the reviewer can retry safely.
 
-Langfuse traces AI calls, Promptfoo evaluates answer quality, and Prometheus exposes application metrics.
+The authenticated admin portal summarizes AI runs, tokens, model/prompt usage, latency, RAG grounding, OCR, and ERP tool health. Langfuse adds correlated, privacy-safe workflow traces and cost analysis; Promptfoo evaluates answer quality; Prometheus exposes application metrics.
 
 ## Run with Docker (recommended for a fresh clone)
 

@@ -5,6 +5,7 @@ import re
 import pymupdf
 
 from app.config import Settings
+from app.services.tracing import get_langfuse_tracer
 
 
 class DocumentExtractionError(ValueError):
@@ -117,8 +118,7 @@ def _extract_visual_document(path: Path, settings: Settings) -> ExtractedDocumen
         )
 
 
-def extract_document_text(path: Path, content_type: str, settings: Settings | None = None) -> ExtractedDocument:
-    settings = settings or Settings()
+def _extract_document_text(path: Path, content_type: str, settings: Settings) -> ExtractedDocument:
     if content_type in {"application/pdf", "image/jpeg", "image/png"}:
         try:
             return _extract_visual_document(path, settings)
@@ -140,3 +140,33 @@ def extract_document_text(path: Path, content_type: str, settings: Settings | No
         )
 
     raise DocumentExtractionError("Only PDF, PNG, JPEG and plain-text files are supported.")
+
+
+def extract_document_text(path: Path, content_type: str, settings: Settings | None = None) -> ExtractedDocument:
+    settings = settings or Settings()
+    tracer = get_langfuse_tracer()
+    with tracer.trace(
+        name="document.text_extraction",
+        input_data={
+            "content_type": content_type,
+            "file_extension": path.suffix.lower() or "unknown",
+        },
+        metadata={
+            "feature": "text_extraction",
+            "content_type": content_type,
+            "file_extension": path.suffix.lower() or "unknown",
+            "ocr_enabled": settings.ocr_enabled,
+            "ocr_language": settings.ocr_language,
+        },
+        tags=["document", "ocr"],
+    ) as trace:
+        result = _extract_document_text(path, content_type, settings)
+        trace.update(output={
+            "method": result.text_extraction_method,
+            "page_count": result.page_count,
+            "ocr_page_count": len(result.ocr_pages),
+            "warning_count": len(result.ocr_warnings),
+            "text_chars": len(result.text),
+        })
+        trace.score_trace(name="text_extraction_success", value=1)
+        return result

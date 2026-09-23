@@ -2,6 +2,7 @@ import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded'
 import AssignmentTurnedInRoundedIcon from '@mui/icons-material/AssignmentTurnedInRounded'
 import BusinessRoundedIcon from '@mui/icons-material/BusinessRounded'
 import DescriptionRoundedIcon from '@mui/icons-material/DescriptionRounded'
+import AdminPanelSettingsRoundedIcon from '@mui/icons-material/AdminPanelSettingsRounded'
 import { Alert, Box, Button, Card, CardContent, Chip, Stack, Typography } from '@mui/material'
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
@@ -33,12 +34,12 @@ export function HomePage() {
           A clear path from application to approval.
         </Typography>
         <Typography color="text.secondary" sx={{ fontSize: { xs: 17, md: 19 }, mt: 2, maxWidth: 650 }}>
-          Choose your workspace to get started. Suppliers can save their application and return to it later; reviewers can track submitted cases.
+          Choose your workspace to get started. Suppliers apply, reviewers assess evidence, and administrators monitor AI operations.
         </Typography>
       </Box>
 
       {error && <Alert severity="error">{error}</Alert>}
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' }, gap: 3 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' }, gap: 3 }}>
         <Card sx={{ borderRadius: 3, background: 'linear-gradient(145deg, #FFFFFF 60%, #EFF6FF)' }}>
           <CardContent sx={{ p: { xs: 3, md: 4 }, '&:last-child': { pb: 4 } }}>
             <Box sx={{ width: 52, height: 52, display: 'grid', placeItems: 'center', borderRadius: 2.5, bgcolor: '#DBEAFE', color: 'primary.main', mb: 3 }}><BusinessRoundedIcon /></Box>
@@ -60,6 +61,14 @@ export function HomePage() {
             {session?.role === 'reviewer'
               ? <Button component={Link} to="/review" variant="outlined" endIcon={<ArrowForwardRoundedIcon />} size="large">Continue reviewing</Button>
               : <Button variant="outlined" endIcon={<ArrowForwardRoundedIcon />} size="large" onClick={() => void enterReviewerDemo()} disabled={loading}>{loading ? 'Opening...' : 'Enter reviewer demo'}</Button>}
+          </CardContent>
+        </Card>
+        <Card sx={{ borderRadius: 3, background: 'linear-gradient(145deg, #FFFFFF 60%, #ECFDF5)' }}>
+          <CardContent sx={{ p: { xs: 3, md: 4 }, '&:last-child': { pb: 4 } }}>
+            <Box sx={{ width: 52, height: 52, display: 'grid', placeItems: 'center', borderRadius: 2.5, bgcolor: '#D1FAE5', color: 'success.dark', mb: 3 }}><AdminPanelSettingsRoundedIcon /></Box>
+            <Typography variant="h5">I'm an administrator</Typography>
+            <Typography color="text.secondary" sx={{ mt: 1, mb: 3, minHeight: 72 }}>Monitor AI usage, model performance, OCR, RAG quality, and maintain demonstration accounts.</Typography>
+            <Button component={Link} to={session?.role === 'admin' ? '/admin' : '/admin/login'} variant="outlined" color="success" endIcon={<ArrowForwardRoundedIcon />} size="large">{session?.role === 'admin' ? 'Continue to admin' : 'Admin sign in'}</Button>
           </CardContent>
         </Card>
       </Box>

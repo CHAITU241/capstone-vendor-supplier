@@ -33,7 +33,7 @@ export function AppShell() {
       <Container maxWidth="lg" component="main" sx={{ py: { xs: 4, md: 6 }, pb: 12 }}>
         <Outlet />
       </Container>
-      <SupplierAssistantPopover />
+      {session?.role !== 'admin' && <SupplierAssistantPopover />}
     </Box>
   )
 }

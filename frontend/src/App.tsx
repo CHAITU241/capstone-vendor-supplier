@@ -7,7 +7,7 @@ import { SupplierApplicationPage } from './pages/SupplierApplicationPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { SupplierReviewPage } from './pages/SupplierReviewPage'
 import { AdminLoginPage } from './pages/AdminLoginPage'
-import { AdminProfilesPage } from './pages/AdminProfilesPage'
+import { AdminDashboardPage } from './pages/AdminDashboardPage'
 import { ErpRecordsPage } from './pages/ErpRecordsPage'
 
 function RequireRole({ role, children }: { role: 'supplier' | 'reviewer' | 'admin'; children: React.ReactNode }) {
@@ -22,7 +22,7 @@ export default function App() {
         <Route index element={<HomePage />} />
         <Route path="supplier/login" element={<SupplierLoginPage />} />
         <Route path="admin/login" element={<AdminLoginPage />} />
-        <Route path="admin" element={<RequireRole role="admin"><AdminProfilesPage /></RequireRole>} />
+        <Route path="admin" element={<RequireRole role="admin"><AdminDashboardPage /></RequireRole>} />
         <Route path="supplier/application" element={<RequireRole role="supplier"><SupplierApplicationPage /></RequireRole>} />
         <Route path="review" element={<RequireRole role="reviewer"><DashboardPage /></RequireRole>} />
         <Route path="review/erp" element={<RequireRole role="reviewer"><ErpRecordsPage /></RequireRole>} />
