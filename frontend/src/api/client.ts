@@ -1,6 +1,7 @@
 import type {
   ApiErrorBody,
   AdminProfile,
+  AssistantHistoryMessage,
   ComplianceRunResponse,
   DecisionResponse,
   DocumentType,
@@ -144,6 +145,18 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ messages }),
     }),
+  applicationAssistantHistory: () => request<AssistantHistoryMessage[]>('/portal/application/assistant/history'),
+  clearApplicationAssistantHistory: () => request<void>('/portal/application/assistant/history', { method: 'DELETE' }),
+  askReviewerAssistant: (supplierId: string, messages: GeneralAssistantMessage[]) =>
+    request<GeneralAssistantResponse>(`/suppliers/${supplierId}/assistant`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages }),
+    }),
+  reviewerAssistantHistory: (supplierId: string) =>
+    request<AssistantHistoryMessage[]>(`/suppliers/${supplierId}/assistant/history`),
+  clearReviewerAssistantHistory: (supplierId: string) =>
+    request<void>(`/suppliers/${supplierId}/assistant/history`, { method: 'DELETE' }),
   runCompliance: (supplierId: string) =>
     request<ComplianceRunResponse>(`/suppliers/${supplierId}/compliance/run`, {
       method: 'POST',

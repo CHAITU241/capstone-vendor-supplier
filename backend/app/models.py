@@ -128,6 +128,9 @@ class Supplier(Base):
     compliance_results: Mapped[list["ComplianceResult"]] = relationship(
         back_populates="supplier", cascade="all, delete-orphan"
     )
+    assistant_messages: Mapped[list["AssistantMessage"]] = relationship(
+        back_populates="supplier", cascade="all, delete-orphan"
+    )
 
 
 class PortalAccount(Base):
@@ -326,6 +329,33 @@ class AuditEvent(Base):
     )
 
     supplier: Mapped[Supplier | None] = relationship(back_populates="audit_events")
+
+
+class AssistantMessage(Base):
+    """Persistent, audience-separated case conversation for one supplier."""
+
+    __tablename__ = "assistant_messages"
+    __table_args__ = (
+        UniqueConstraint(
+            "supplier_id", "audience", "sequence",
+            name="uq_assistant_messages_supplier_audience_sequence",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    supplier_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("suppliers.id", ondelete="CASCADE"), index=True
+    )
+    audience: Mapped[str] = mapped_column(String(20), index=True)
+    role: Mapped[str] = mapped_column(String(20))
+    content: Mapped[str] = mapped_column(Text)
+    citations: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list)
+    sequence: Mapped[int] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    supplier: Mapped[Supplier] = relationship(back_populates="assistant_messages")
 
 
 class ErpSupplierRecord(Base):

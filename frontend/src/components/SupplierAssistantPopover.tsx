@@ -3,12 +3,12 @@ import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded'
 import SendRoundedIcon from '@mui/icons-material/SendRounded'
 import SupportAgentRoundedIcon from '@mui/icons-material/SupportAgentRounded'
 import { Alert, Box, Button, Chip, CircularProgress, Drawer, Fab, IconButton, Stack, TextField, Typography } from '@mui/material'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { api, ApiError } from '../api/client'
-import type { GeneralAssistantMessage } from '../api/types'
+import type { GeneralAssistantMessage, QuestionCitation } from '../api/types'
 import { supplierReference } from '../api/supplierReference'
 import { useAuth } from '../auth/AuthContext'
 
@@ -40,6 +40,13 @@ function assistantErrorMessage(error: unknown): string {
   return 'Cannot reach the portal server right now. Please try again when it is running.'
 }
 
+function answerWithSources(answer: string, citations: QuestionCitation[] = []): string {
+  if (!citations.length) return answer
+  const unique = citations.filter((citation, index) => citations.findIndex((item) =>
+    item.filename === citation.filename && item.page_number === citation.page_number) === index)
+  return `${answer}\n\n**Relevant document sources**\n${unique.map((item) => `- ${item.filename}, page ${item.page_number}`).join('\n')}`
+}
+
 export function SupplierAssistantPopover() {
   const { session } = useAuth()
   const location = useLocation()
@@ -50,18 +57,42 @@ export function SupplierAssistantPopover() {
   const [question, setQuestion] = useState('')
   const [asking, setAsking] = useState(false)
   const [error, setError] = useState('')
+  const conversationEnd = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
-    setMessages([supplierId ? {
+    conversationEnd.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
+  }, [messages, asking])
+
+  useEffect(() => {
+    let cancelled = false
+    const intro: GeneralAssistantMessage = supplierId ? {
       role: 'assistant',
-      content: `I’m scoped to ${contextLabel}. Ask about this supplier’s uploaded evidence; answers use only its indexed documents.`,
-    } : welcomeMessage])
+      content: `I’m scoped to ${contextLabel}. Ask about portal-entered values, extracted evidence, policy checks, reviewer feedback, or uploaded documents.`,
+    } : welcomeMessage
+    setMessages([intro])
     setQuestion('')
     setError('')
-  }, [supplierId, contextLabel])
+    const loadHistory = async () => {
+      try {
+        const history = supplierId
+          ? await api.reviewerAssistantHistory(supplierId)
+          : session?.role === 'supplier'
+            ? await api.applicationAssistantHistory()
+            : []
+        if (!cancelled && history.length) setMessages([
+          intro,
+          ...history.map((item) => ({ role: item.role, content: answerWithSources(item.content, item.citations) })),
+        ])
+      } catch (requestError) {
+        if (!cancelled) setError(assistantErrorMessage(requestError))
+      }
+    }
+    void loadHistory()
+    return () => { cancelled = true }
+  }, [supplierId, contextLabel, session?.role])
 
-  async function handleSubmit() {
-    const trimmedQuestion = question.trim()
+  async function handleSubmit(suggestedQuestion?: string) {
+    const trimmedQuestion = (suggestedQuestion ?? question).trim()
     if (trimmedQuestion.length < 3) return
     const nextMessages: GeneralAssistantMessage[] = [...messages, { role: 'user', content: trimmedQuestion }]
     setMessages(nextMessages)
@@ -70,17 +101,13 @@ export function SupplierAssistantPopover() {
     setError('')
     try {
       if (supplierId) {
-        const result = await api.askSupplierQuestion(supplierId, trimmedQuestion)
-        const sources = result.citations.length
-          ? `\n\n**Sources**\n${result.citations.map((item) => `- ${item.filename}, page ${item.page_number}`).join('\n')}`
-          : ''
-        setMessages((current) => [...current, { role: 'assistant', content: `${result.answer}${sources}` }])
+        const result = await api.askReviewerAssistant(supplierId, [{ role: 'user', content: trimmedQuestion }])
+        setMessages((current) => [...current, { role: 'assistant', content: answerWithSources(result.answer, result.citations) }])
       } else {
-        const conversation = recentConversation(nextMessages)
         const result = session?.role === 'supplier'
-          ? await api.askApplicationAssistant(conversation)
-          : await api.askGeneralAssistant(conversation)
-        setMessages((current) => [...current, { role: 'assistant', content: result.answer }])
+          ? await api.askApplicationAssistant([{ role: 'user', content: trimmedQuestion }])
+          : await api.askGeneralAssistant(recentConversation(nextMessages))
+        setMessages((current) => [...current, { role: 'assistant', content: answerWithSources(result.answer, result.citations) }])
       }
     } catch (requestError) {
       setMessages(messages)
@@ -89,10 +116,14 @@ export function SupplierAssistantPopover() {
     } finally { setAsking(false) }
   }
 
-  function resetChat() {
-    setMessages([supplierId ? { role: 'assistant', content: `I’m scoped to ${contextLabel}. Ask about this supplier’s uploaded evidence.` } : welcomeMessage])
-    setQuestion('')
+  async function resetChat() {
     setError('')
+    try {
+      if (supplierId) await api.clearReviewerAssistantHistory(supplierId)
+      else if (session?.role === 'supplier') await api.clearApplicationAssistantHistory()
+      setMessages([supplierId ? { role: 'assistant', content: `I’m scoped to ${contextLabel}. Ask about this supplier’s case.` } : welcomeMessage])
+      setQuestion('')
+    } catch (requestError) { setError(assistantErrorMessage(requestError)) }
   }
 
   return <>
@@ -105,7 +136,7 @@ export function SupplierAssistantPopover() {
         <Stack direction="row" alignItems="center" spacing={1.5} sx={{ px: 2.5, py: 2, bgcolor: 'white', borderBottom: '1px solid', borderColor: 'divider' }}>
           <Box sx={{ width: 42, height: 42, display: 'grid', placeItems: 'center', bgcolor: '#EDE9FE', color: 'tertiary.main', borderRadius: 2 }}><SupportAgentRoundedIcon /></Box>
           <Box sx={{ flexGrow: 1 }}><Typography fontWeight={750}>VendorLens guide</Typography><Typography variant="caption" color="text.secondary">{contextLabel ? `Reviewing ${contextLabel}` : 'Supplier onboarding help'}</Typography></Box>
-          <IconButton title="Start a new chat" aria-label="Start a new chat" onClick={resetChat} disabled={asking}><RefreshRoundedIcon /></IconButton>
+          <IconButton title="Clear saved chat and start again" aria-label="Clear saved chat and start again" onClick={() => void resetChat()} disabled={asking}><RefreshRoundedIcon /></IconButton>
           <IconButton title="Close assistant" aria-label="Close assistant" onClick={() => setOpen(false)}><CloseRoundedIcon /></IconButton>
         </Stack>
 
@@ -125,10 +156,11 @@ export function SupplierAssistantPopover() {
                 : <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{message.content}</Typography>}
             </Box>)}
             {asking && <CircularProgress size={20} />}
+            <Box ref={conversationEnd} />
           </Stack>
           {messages.length === 1 && !supplierId && <Box sx={{ mt: 3 }}><Typography variant="caption" color="text.secondary" fontWeight={700}>QUICK ANSWERS</Typography>
             <Stack direction="row" useFlexGap flexWrap="wrap" gap={1} sx={{ mt: 1 }}>
-              {quickGuides.map((guide) => <Chip key={guide.label} label={guide.label} clickable variant="outlined" color="primary" onClick={() => setMessages((current) => [...current, { role: 'user', content: guide.label }, { role: 'assistant', content: guide.answer }])} />)}
+              {quickGuides.map((guide) => <Chip key={guide.label} label={guide.label} clickable variant="outlined" color="primary" onClick={() => void handleSubmit(guide.label)} />)}
             </Stack></Box>}
           {error && <Alert severity="info" sx={{ mt: 2 }}>{error}</Alert>}
         </Box>
@@ -138,7 +170,7 @@ export function SupplierAssistantPopover() {
             <TextField fullWidth size="small" placeholder={supplierId ? `Ask about ${contextLabel}...` : 'Ask about onboarding...'} aria-label="Ask the assistant" value={question} onChange={(event) => setQuestion(event.target.value)} slotProps={{ htmlInput: { maxLength: 2000 } }} disabled={asking} />
             <Button type="submit" variant="contained" aria-label="Send question" disabled={asking || question.trim().length < 3} sx={{ minWidth: 44, px: 1.5 }}><SendRoundedIcon fontSize="small" /></Button>
           </Stack>
-          <Typography display="block" variant="caption" color="text.secondary" sx={{ mt: 1 }}>{supplierId ? `Answers are restricted to ${contextLabel}'s indexed documents and include source names.` : 'This guide explains onboarding policy and portal usage.'}</Typography>
+          <Typography display="block" variant="caption" color="text.secondary" sx={{ mt: 1 }}>{supplierId ? `This saved conversation is scoped to ${contextLabel}'s case, checks, and evidence.` : session?.role === 'supplier' ? 'This conversation is saved with your supplier profile.' : 'This guide explains onboarding policy and portal usage.'}</Typography>
         </Box>
       </Stack>
     </Drawer>

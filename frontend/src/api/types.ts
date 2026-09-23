@@ -249,6 +249,7 @@ export interface GeneralAssistantMessage {
 
 export interface GeneralAssistantResponse {
   answer: string
+  citations: QuestionCitation[]
   run: {
     model: string
     prompt_version: string
@@ -257,6 +258,12 @@ export interface GeneralAssistantResponse {
     latency_ms: number
     redaction_counts: Record<string, number>
   }
+}
+
+export interface AssistantHistoryMessage extends GeneralAssistantMessage {
+  id: string
+  citations: QuestionCitation[]
+  created_at: string
 }
 
 export interface ApiErrorBody {

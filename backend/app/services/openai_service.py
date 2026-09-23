@@ -56,6 +56,11 @@ class GeneralAssistantAnswer(BaseModel):
     answer: str = Field(min_length=1, max_length=4000)
 
 
+class ReviewerAssistantAnswer(BaseModel):
+    answer: str = Field(min_length=1, max_length=4000)
+    cited_chunk_ids: list[str] = Field(default_factory=list, max_length=8)
+
+
 T = TypeVar("T")
 
 
@@ -280,6 +285,48 @@ class OpenAIService:
                 ai_metrics.output_tokens = result.output_tokens
                 generation.update(
                     output={"answer_chars": len(parsed.answer)},
+                    usage_details={"input": result.input_tokens, "output": result.output_tokens},
+                )
+                return result
+
+    def answer_reviewer_question(
+        self,
+        messages: list[dict[str, str]],
+        case_context: str,
+    ) -> ModelResult[ReviewerAssistantAnswer]:
+        prompt = _read_prompt("reviewer_assistant_v1.txt") + "\n\nCASE AND RETRIEVED CONTEXT:\n" + case_context
+        input_metadata = {
+            "message_count": len(messages),
+            "message_lengths": [len(message["content"]) for message in messages],
+        }
+        with observe_ai_call(
+            "supplier.reviewer.assistant", self.settings.active_answer_model
+        ) as ai_metrics:
+            with self.tracer.generation(
+                name="supplier.reviewer.assistant",
+                model=self.settings.active_answer_model,
+                input_data=self.tracer.input_payload(input_metadata, messages),
+            ) as generation:
+                response = self.client.beta.chat.completions.parse(
+                    model=self.settings.active_answer_model,
+                    messages=[{"role": "system", "content": prompt}, *messages],
+                    response_format=ReviewerAssistantAnswer,
+                    temperature=0.2,
+                    **self._structured_output_options(),
+                )
+                parsed = response.choices[0].message.parsed
+                if parsed is None:
+                    raise AIResponseError("The reviewer assistant model returned no structured result.")
+                usage = response.usage
+                result = ModelResult(
+                    value=parsed,
+                    input_tokens=int(getattr(usage, "prompt_tokens", 0) or 0),
+                    output_tokens=int(getattr(usage, "completion_tokens", 0) or 0),
+                )
+                ai_metrics.input_tokens = result.input_tokens
+                ai_metrics.output_tokens = result.output_tokens
+                generation.update(
+                    output={"answer_chars": len(parsed.answer), "citation_intents": len(parsed.cited_chunk_ids)},
                     usage_details={"input": result.input_tokens, "output": result.output_tokens},
                 )
                 return result

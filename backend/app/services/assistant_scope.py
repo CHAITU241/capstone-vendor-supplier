@@ -33,3 +33,17 @@ def is_onboarding_question(question: str, previous_user_questions: list[str]) ->
         if ONBOARDING_TERMS.search(previous):
             return True
     return False
+
+
+def is_reviewer_case_question(question: str, previous_user_questions: list[str]) -> bool:
+    """The reviewer is already inside one supplier case, so allow case-local shorthand."""
+    if OFF_TOPIC_TERMS.search(question):
+        return False
+    if is_onboarding_question(question, previous_user_questions):
+        return True
+    case_terms = re.compile(
+        r"\b(?:name|value|field|match|mismatch|different|issue|problem|wrong|failed|"
+        r"missing|observed|expected|result|screen|flag|source|where|why|this|these)\b",
+        re.IGNORECASE,
+    )
+    return bool(case_terms.search(question)) or len(question.split()) <= 8

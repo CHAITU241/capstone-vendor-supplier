@@ -16,7 +16,7 @@ from app.database import SessionLocal, get_db
 from app.models import AuditEvent, Document, DocumentType, PortalAccount, PortalSession, ProcessingStatus, Supplier, SupplierStatus
 from app.routers.documents import delete_document, document_history, original_file_response, upload_document
 from app.schemas import (
-    DocumentRead, DocumentRevisionRead, GeneralAssistantRequest,
+    AssistantHistoryMessage, DocumentRead, DocumentRevisionRead, GeneralAssistantMessage, GeneralAssistantRequest,
     GeneralAssistantResponse, GeneralAssistantRun,
 )
 from app.routers.assistant import answer_chat
@@ -29,6 +29,7 @@ from app.services.processing import process_supplier_documents
 from app.services.policy_retrieval import application_answer_for, application_context_for
 from app.services.retrieval import get_chunk_collection
 from app.services.compliance import evaluate_compliance, persist_compliance_results
+from app.services.assistant_history import clear_history, conversation_history, save_exchange
 
 router = APIRouter(prefix="/portal", tags=["portal"])
 
@@ -187,6 +188,23 @@ def policy_catalog() -> Policy:
     return load_policy()
 
 
+@router.get("/application/assistant/history", response_model=list[AssistantHistoryMessage])
+def application_assistant_history(
+    session: PortalSession = Depends(require_supplier), db: Session = Depends(get_db),
+) -> list[AssistantHistoryMessage]:
+    supplier = get_application(db, session)
+    return [AssistantHistoryMessage.model_validate(item) for item in conversation_history(db, supplier.id, "supplier", limit=50)]
+
+
+@router.delete("/application/assistant/history", status_code=204)
+def clear_application_assistant_history(
+    session: PortalSession = Depends(require_supplier), db: Session = Depends(get_db),
+) -> Response:
+    supplier = get_application(db, session)
+    clear_history(db, supplier.id, "supplier")
+    return Response(status_code=204)
+
+
 @router.post("/application/assistant", response_model=GeneralAssistantResponse)
 def application_assistant(
     payload: GeneralAssistantRequest,
@@ -199,16 +217,31 @@ def application_assistant(
     if sum(len(message.content) for message in payload.messages) > 10000:
         raise HTTPException(status_code=422, detail="The conversation is too long. Start a new chat.")
     supplier = get_application(db, session)
-    direct_answer = application_answer_for(supplier, payload.messages[-1].content)
+    question = payload.messages[-1].content.strip()
+    if len(question) < 3:
+        raise HTTPException(status_code=422, detail="Enter a question with at least three characters.")
+    prior = conversation_history(db, supplier.id, "supplier")
+    messages = [
+        GeneralAssistantMessage(role=item.role, content=item.content)
+        for item in prior
+    ] + [GeneralAssistantMessage(role="user", content=question)]
+    while len(messages) > 12 or (len(messages) > 1 and sum(len(item.content) for item in messages) > 10000):
+        messages.pop(0)
+    persisted_payload = GeneralAssistantRequest(messages=messages)
+
+    direct_answer = application_answer_for(supplier, question)
     if direct_answer:
-        return GeneralAssistantResponse(
+        response = GeneralAssistantResponse(
             answer=direct_answer,
             run=GeneralAssistantRun(
                 model="application-state", prompt_version="deterministic-v1",
                 input_tokens=0, output_tokens=0, latency_ms=0, redaction_counts={},
             ),
         )
-    return answer_chat(payload, settings, application_context_for(supplier))
+    else:
+        response = answer_chat(persisted_payload, settings, application_context_for(supplier))
+    save_exchange(db, supplier.id, "supplier", question, response.answer)
+    return response
 
 
 @router.patch("/application", response_model=ApplicationRead)

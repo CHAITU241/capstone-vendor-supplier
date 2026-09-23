@@ -13,6 +13,13 @@ INTERNAL_ID = re.compile(r"\b[A-Z]+(?:-[A-Z]+)*-\d{3}\b")
 STATUS_QUESTION = re.compile(r"\b(?:review|application)\b.*\b(?:complete|completed|done|status|progress|pending)\b|\bstatus\b.*\b(?:review|application)\b", re.IGNORECASE)
 UPLOAD_CHECK_QUESTION = re.compile(r"\b(?:uploaded|upload)\b.*\b(?:all|correct|correctly|complete|missing)\b|\b(?:all|any)\b.*\bdocuments?\b.*\b(?:uploaded|missing)\b", re.IGNORECASE)
 CHECKLIST_QUESTION = re.compile(r"\b(?:what|which)\b.*\b(?:documents?|evidence|files?)\b.*\b(?:upload|provide|need|required|supposed)\b|\bdocuments?\b.*\b(?:supposed|required)\b.*\bupload\b", re.IGNORECASE)
+ISSUE_QUESTION = re.compile(r"\b(?:issue|problem|wrong|flagged|mismatch|not match|changes? requested)\b", re.IGNORECASE)
+NAME_FIELDS = {"supplier_name", "legal_name", "registered_name", "policyholder_legal_name"}
+SENSITIVE_FIELDS = {
+    "bank_account_number", "bank_ifsc", "ifsc", "pan", "gstin", "tax_reference",
+    "tax_identifier", "policy_number", "credential_number", "authorization_number",
+    "contact_phone",
+}
 
 
 def _matching_subcategories(question: str):
@@ -115,6 +122,31 @@ def application_answer_for(supplier: Supplier, question: str) -> str | None:
     ]
     missing = [item for item in checklist.documents if item not in ready]
 
+    if ISSUE_QUESTION.search(question):
+        flagged = [document for document in supplier.documents if document.review_status == "disputed"]
+        if flagged:
+            labels = {item.document_type: item.label for item in checklist.documents}
+            lines = ["The reviewer requested changes to the following evidence:"]
+            for document in flagged:
+                lines.append(
+                    f"- **{labels.get(document.document_type, document.document_type.value)}**: "
+                    f"{document.review_comment or 'The reviewer asked for this item to be corrected.'}"
+                )
+                extracted_names = [
+                    field for field in document.extracted_fields
+                    if field.field_name.casefold() in NAME_FIELDS and field.value.strip()
+                ]
+                if extracted_names:
+                    lines.append(f"  - Name entered in the portal: **{supplier.name}**")
+                    for field in extracted_names:
+                        lines.append(
+                            f"  - Name extracted from **{document.filename}, page {field.page_number}**: "
+                            f"**{field.value}**"
+                        )
+                    if any(field.value.strip().casefold() != supplier.name.strip().casefold() for field in extracted_names):
+                        lines.append("  - These names do not match. Correct the portal entry if the document is right, or replace the document if the document is wrong.")
+            return "\n".join(lines)
+
     if STATUS_QUESTION.search(question):
         return journey_status
     if UPLOAD_CHECK_QUESTION.search(question):
@@ -179,4 +211,71 @@ def application_context_for(supplier: Supplier) -> str:
         lines.append(
             f"- {item.label}: {item.accepted_evidence} Include {item.required_fields} Current upload state: {upload_state}."
         )
+    lines.extend(_case_facts(supplier, reviewer=False))
     return "\n".join(lines)
+
+
+def reviewer_context_for(supplier: Supplier) -> str:
+    """Authoritative workspace state available only to an authenticated reviewer."""
+    checklist, _, _, journey_status = _application_facts(supplier)
+    lines = [
+        "CURRENT REVIEWER CASE WORKSPACE (authoritative portal state):",
+        f"Supplier ID: {supplier.id}.",
+        f"Journey status: {journey_status}",
+        f"Selected classification: {supplier.category or 'Not selected'} / {supplier.subcategory or 'Not selected'}.",
+        "Portal-entered values:",
+        f"- Registered business name: {supplier.name}",
+        f"- Contact email: {supplier.contact_email or 'Not provided'}",
+        f"- Tax reference: {supplier.tax_reference or 'Not provided'}",
+        f"- Bank account number: {supplier.bank_account_number or 'Not provided'}",
+        f"- Bank IFSC: {supplier.bank_ifsc or 'Not provided'}",
+        "Applicable evidence requirements: " + ", ".join(
+            f"{item.label} ({item.requirement_id})" for item in checklist.documents
+        ),
+    ]
+    lines.extend(_case_facts(supplier, reviewer=True))
+    return "\n".join(lines)[:22000]
+
+
+def _case_facts(supplier: Supplier, *, reviewer: bool) -> list[str]:
+    documents = {document.id: document for document in supplier.documents}
+    checklist = checklist_for(supplier)
+    labels = {item.document_type: item.label for item in checklist.documents}
+    lines = ["Evidence and review state:"]
+    for document in supplier.documents:
+        lines.append(
+            f"- {labels.get(document.document_type, document.document_type.value)}: file {document.filename}; "
+            f"processing {document.processing_status.value}; reviewer status {document.review_status}."
+        )
+        if document.review_comment:
+            lines.append(f"  Reviewer feedback shown to the supplier: {document.review_comment}")
+
+    fields = []
+    for field in supplier.extracted_fields:
+        field_key = field.field_name.casefold()
+        if not reviewer and field_key in SENSITIVE_FIELDS:
+            continue
+        document = documents.get(field.document_id)
+        source = f"{document.filename}, page {field.page_number}" if document else f"page {field.page_number}"
+        fields.append(
+            f"- {field.field_name}: {field.value} (AI-extracted from {source}; "
+            f"confidence {field.confidence:.0%}; review status {field.review_status})."
+        )
+    if fields:
+        lines.append("AI-extracted values with provenance:")
+        lines.extend(fields)
+
+    if reviewer and supplier.compliance_results:
+        lines.append("Current policy/check results:")
+        for result in supplier.compliance_results:
+            evidence = result.evidence or {}
+            observed = evidence.get("observed") or evidence.get("actual")
+            expected = evidence.get("expected")
+            source = evidence.get("source") or evidence.get("filename")
+            detail = [f"observed={observed}" if observed else "", f"expected={expected}" if expected else "", f"source={source}" if source else ""]
+            suffix = "; ".join(item for item in detail if item)
+            lines.append(
+                f"- {result.rule_code}: {result.status.value}. {result.message}"
+                + (f" ({suffix})" if suffix else "")
+            )
+    return lines

@@ -1,6 +1,7 @@
 import uuid
+import time
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from app.services.portal_auth import require_reviewer
 from app.services.document_policy import required_types_for
 from sqlalchemy import select
@@ -8,9 +9,14 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.config import Settings, get_settings
 from app.database import get_db
-from app.models import AiRun, AiRunStatus, AiRunType, DocumentType, ProcessingStatus, Supplier, SupplierStatus
+from app.models import AiRun, AiRunStatus, AiRunType, ProcessingStatus, Supplier, SupplierStatus
 from app.schemas import (
+    AssistantHistoryMessage,
     AiRunRead,
+    GeneralAssistantMessage,
+    GeneralAssistantRequest,
+    GeneralAssistantResponse,
+    GeneralAssistantRun,
     ProcessSupplierResponse,
     QuestionCitation,
     SupplierQuestionRequest,
@@ -25,6 +31,11 @@ from app.services.processing import (
     process_supplier_documents,
 )
 from app.services.retrieval import get_chunk_collection
+from app.services.retrieval import query_supplier_chunks
+from app.services.assistant_history import clear_history, conversation_history, save_exchange
+from app.services.assistant_scope import is_reviewer_case_question
+from app.services.policy_retrieval import policy_context_for, reviewer_context_for
+from app.services.redaction import redact_pii
 
 router = APIRouter(prefix="/suppliers", tags=["ai"], dependencies=[Depends(require_reviewer)])
 
@@ -33,7 +44,12 @@ def _get_supplier_with_documents(db: Session, supplier_id: uuid.UUID) -> Supplie
     supplier = db.scalar(
         select(Supplier)
         .where(Supplier.id == supplier_id)
-        .options(selectinload(Supplier.documents))
+        .options(
+            selectinload(Supplier.documents),
+            selectinload(Supplier.extracted_fields),
+            selectinload(Supplier.compliance_results),
+            selectinload(Supplier.ai_runs),
+        )
     )
     if supplier is None:
         raise HTTPException(status_code=404, detail="Supplier was not found.")
@@ -107,6 +123,131 @@ def process_supplier(
         processed_document_count=outcome.processed_document_count,
         failed_document_count=outcome.failed_document_count,
     )
+
+
+@router.get("/{supplier_id}/assistant/history", response_model=list[AssistantHistoryMessage])
+def reviewer_assistant_history(
+    supplier_id: uuid.UUID, db: Session = Depends(get_db),
+) -> list[AssistantHistoryMessage]:
+    supplier = _get_supplier_with_documents(db, supplier_id)
+    return [AssistantHistoryMessage.model_validate(item) for item in conversation_history(db, supplier.id, "reviewer", limit=50)]
+
+
+@router.delete("/{supplier_id}/assistant/history", status_code=204)
+def clear_reviewer_assistant_history(
+    supplier_id: uuid.UUID, db: Session = Depends(get_db),
+) -> Response:
+    supplier = _get_supplier_with_documents(db, supplier_id)
+    clear_history(db, supplier.id, "reviewer")
+    return Response(status_code=204)
+
+
+@router.post("/{supplier_id}/assistant", response_model=GeneralAssistantResponse)
+def ask_reviewer_assistant(
+    supplier_id: uuid.UUID,
+    payload: GeneralAssistantRequest,
+    db: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> GeneralAssistantResponse:
+    if payload.messages[-1].role != "user":
+        raise HTTPException(status_code=422, detail="The last message must be a user question.")
+    question = payload.messages[-1].content.strip()
+    if len(question) < 3:
+        raise HTTPException(status_code=422, detail="Enter a question with at least three characters.")
+    supplier = _get_supplier_with_documents(db, supplier_id)
+    prior = conversation_history(db, supplier.id, "reviewer")
+    messages = [
+        GeneralAssistantMessage(role=item.role, content=item.content)
+        for item in prior
+    ] + [GeneralAssistantMessage(role="user", content=question)]
+    while len(messages) > 12 or (len(messages) > 1 and sum(len(item.content) for item in messages) > 10000):
+        messages.pop(0)
+
+    if not is_reviewer_case_question(question, [item.content for item in messages[:-1] if item.role == "user"]):
+        answer = "I can only help with this supplier’s onboarding case, evidence, extracted values, policy checks, and review workflow."
+        response = GeneralAssistantResponse(
+            answer=answer,
+            run=GeneralAssistantRun(
+                model="scope-check", prompt_version="reviewer-assistant-v1",
+                input_tokens=0, output_tokens=0, latency_ms=0, redaction_counts={},
+            ),
+        )
+        save_exchange(db, supplier.id, "reviewer", question, answer)
+        return response
+
+    ai = _get_ai_service()
+    collection = get_chunk_collection()
+    retrieved = []
+    indexed = collection.get(where={"supplier_id": str(supplier.id)}, limit=1)
+    input_tokens = 0
+    if indexed.get("ids"):
+        query_redaction = redact_pii(question)
+        embedding = ai.embed([query_redaction.text])
+        input_tokens += embedding.input_tokens
+        retrieved = query_supplier_chunks(
+            collection=collection,
+            supplier_id=str(supplier.id),
+            query_embedding=embedding.embeddings[0],
+            limit=settings.rag_top_k,
+            max_distance=settings.rag_max_distance,
+        )
+
+    evidence_by_label = {
+        f"chunk_{index}": chunk
+        for index, chunk in enumerate(retrieved, start=1)
+    }
+    context_parts = [reviewer_context_for(supplier), policy_context_for(question)]
+    if retrieved:
+        context_parts.append("RELEVANT UPLOADED-DOCUMENT EXCERPTS:")
+        context_parts.extend(
+            f"[Chunk {label}]\nSource: {chunk.filename}, page {chunk.page_number}\n{chunk.text}"
+            for label, chunk in evidence_by_label.items()
+        )
+    context_redaction = redact_pii("\n\n".join(context_parts))
+    redaction_counts = dict(context_redaction.counts)
+    sanitized_messages = []
+    for message in messages:
+        redaction = redact_pii(message.content)
+        sanitized_messages.append({"role": message.role, "content": redaction.text})
+        for category, count in redaction.counts.items():
+            redaction_counts[category] = redaction_counts.get(category, 0) + count
+
+    started = time.perf_counter()
+    try:
+        result = ai.answer_reviewer_question(sanitized_messages, context_redaction.text)
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail="The reviewer assistant could not answer this question.") from exc
+
+    cited_labels = [
+        label for label in result.value.cited_chunk_ids
+        if label in evidence_by_label
+    ]
+    citations = [
+        QuestionCitation(
+            chunk_id=chunk.chunk_id,
+            filename=chunk.filename,
+            page_number=chunk.page_number,
+            excerpt=chunk.text[:280],
+        )
+        for chunk in (evidence_by_label[label] for label in cited_labels)
+    ]
+    response = GeneralAssistantResponse(
+        answer=result.value.answer,
+        citations=citations,
+        run=GeneralAssistantRun(
+            model=settings.active_answer_model,
+            prompt_version="reviewer-assistant-v1",
+            input_tokens=input_tokens + result.input_tokens,
+            output_tokens=result.output_tokens,
+            latency_ms=int((time.perf_counter() - started) * 1000),
+            redaction_counts=redaction_counts,
+        ),
+    )
+    save_exchange(
+        db, supplier.id, "reviewer", question, response.answer,
+        [citation.model_dump(mode="json") for citation in citations],
+    )
+    return response
 
 
 @router.post("/{supplier_id}/documents/{document_id}/process", response_model=ProcessSupplierResponse)

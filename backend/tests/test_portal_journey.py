@@ -75,6 +75,70 @@ def test_supplier_can_resume_and_submit_without_ai(tmp_path):
         engine.dispose()
 
 
+def test_supplier_assistant_explains_flagged_name_mismatch_and_persists_history(tmp_path):
+    engine = create_engine("sqlite+pysqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
+    Base.metadata.create_all(engine)
+
+    def db_override():
+        with Session(engine) as db:
+            yield db
+
+    app.dependency_overrides[get_db] = db_override
+    app.dependency_overrides[get_settings] = lambda: Settings(upload_dir=tmp_path / "uploads", chroma_path=tmp_path / "chroma")
+    try:
+        with TestClient(app) as client:
+            account = client.post("/api/portal/auth/register", json={
+                "email": "mismatch@example.com", "password": "demo-password",
+            }).json()
+            headers = {"Authorization": f"Bearer {account['token']}"}
+            profile = client.patch("/api/portal/application", headers=headers, json={
+                "category": "GOODS", "subcategory": "GOODS-OFF",
+                "name": "Completely Different Demo Entity Pvt Ltd",
+                "contact_email": "mismatch@example.com", "tax_reference": "DEMO-PAN-47",
+                "bank_account_number": "DEMO-ACCOUNT-47", "bank_ifsc": "DEMO0123456",
+            }).json()
+            for kind in ("registration", "tax", "bank"):
+                response = client.post(
+                    "/api/portal/application/documents", headers=headers,
+                    data={"document_type": kind},
+                    files={"file": (f"{kind}.txt", b"Correct Evidence Company Pvt Ltd", "text/plain")},
+                )
+                assert response.status_code == 201, response.text
+            assert client.post("/api/portal/application/submit", headers=headers).status_code == 200
+
+            supplier_id = UUID(profile["id"])
+            with Session(engine) as db:
+                supplier = db.get(Supplier, supplier_id)
+                registration = next(item for item in supplier.documents if item.document_type.value == "registration")
+                registration.review_status = "disputed"
+                registration.review_comment = "The business name entered does not match the name in the document."
+                db.add(ExtractedField(
+                    supplier_id=supplier.id, document_id=registration.id,
+                    field_name="supplier_name", value="Correct Evidence Company Pvt Ltd",
+                    page_number=1, confidence=0.99, needs_review=False,
+                ))
+                db.commit()
+
+            answered = client.post("/api/portal/application/assistant", headers=headers, json={
+                "messages": [{"role": "user", "content": "What is the issue with the document I uploaded?"}],
+            })
+            assert answered.status_code == 200, answered.text
+            assert "Completely Different Demo Entity Pvt Ltd" in answered.json()["answer"]
+            assert "Correct Evidence Company Pvt Ltd" in answered.json()["answer"]
+            assert "registration.txt, page 1" in answered.json()["answer"]
+            assert "do not match" in answered.json()["answer"]
+
+            history = client.get("/api/portal/application/assistant/history", headers=headers)
+            assert history.status_code == 200, history.text
+            assert [item["role"] for item in history.json()] == ["user", "assistant"]
+            assert "Correct Evidence Company Pvt Ltd" in history.json()[1]["content"]
+            assert client.delete("/api/portal/application/assistant/history", headers=headers).status_code == 204
+            assert client.get("/api/portal/application/assistant/history", headers=headers).json() == []
+    finally:
+        app.dependency_overrides.clear()
+        engine.dispose()
+
+
 def test_human_review_gates_approval_and_retains_erp_payload(tmp_path):
     engine = create_engine("sqlite+pysqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
     Base.metadata.create_all(engine)

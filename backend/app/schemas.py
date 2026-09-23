@@ -263,6 +263,17 @@ class GeneralAssistantRun(BaseModel):
 class GeneralAssistantResponse(BaseModel):
     answer: str
     run: GeneralAssistantRun
+    citations: list[QuestionCitation] = Field(default_factory=list)
+
+
+class AssistantHistoryMessage(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    role: Literal["user", "assistant"]
+    content: str
+    citations: list[QuestionCitation] = Field(default_factory=list)
+    created_at: datetime
 
 
 class HealthResponse(BaseModel):
