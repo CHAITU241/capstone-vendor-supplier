@@ -14,19 +14,15 @@ def _settings() -> Settings:
     )
 
 
-class _TraceApi:
-    def list(self, **_):
-        return SimpleNamespace(meta=SimpleNamespace(total_items=4))
-
-
 class _ObservationApi:
     def get_many(self, **_):
         return SimpleNamespace(
             data=[
-                SimpleNamespace(provided_model_name="gpt-4o-mini", total_cost=0.003),
-                SimpleNamespace(provided_model_name="gpt-4o-mini", total_cost=0.002),
-                SimpleNamespace(provided_model_name="text-embedding-3-small", total_cost=0.0001),
-                SimpleNamespace(provided_model_name=None, total_cost=None),
+                SimpleNamespace(trace_id="trace-a", provided_model_name="gpt-4o-mini", metadata={}, total_cost=0.003),
+                SimpleNamespace(trace_id="trace-a", provided_model_name="gpt-4o-mini", metadata={}, total_cost=0.002),
+                SimpleNamespace(trace_id="trace-b", provided_model_name=None, metadata={"provider_model": "openai/text-embedding-3-small"}, total_cost=0.0001),
+                SimpleNamespace(trace_id="trace-c", provided_model_name=None, metadata={}, total_cost=None),
+                SimpleNamespace(trace_id="trace-c", provided_model_name=None, metadata={}, total_cost=0.0002),
             ],
             meta=SimpleNamespace(cursor=None),
         )
@@ -53,9 +49,7 @@ class _ScoreApi:
 
 
 def _api():
-    return SimpleNamespace(
-        trace=_TraceApi(), observations=_ObservationApi(), scores_v3=_ScoreApi()
-    )
+    return SimpleNamespace(observations=_ObservationApi(), scores_v3=_ScoreApi())
 
 
 def test_langfuse_metrics_group_cost_and_scores():
@@ -67,49 +61,35 @@ def test_langfuse_metrics_group_cost_and_scores():
     assert result.trace_available is True
     assert result.usage_available is True
     assert result.scores_available is True
-    assert result.trace_count == 4
-    assert result.observation_count == 4
+    assert result.trace_count == 3
+    assert result.observation_count == 5
     assert result.score_count == 3
-    assert result.total_cost_usd == 0.0051
+    assert result.total_cost_usd == 0.0053
     assert result.cost_by_model[0].model == "gpt-4o-mini"
     assert result.cost_by_model[0].observations == 2
+    assert result.cost_by_model[1].model == "Unattributed"
+    assert result.cost_by_model[2].model == "text-embedding-3-small"
     assert result.scores[0].name == "processing_success"
     assert result.scores[0].average == 0.5
 
 
 def test_langfuse_metric_failures_are_isolated():
-    class _FailingTraceApi:
-        def list(self, **_):
-            raise RuntimeError("trace endpoint unavailable")
+    class _FailingObservationApi:
+        def get_many(self, **_):
+            raise RuntimeError("observation endpoint unavailable")
 
     api = _api()
-    api.trace = _FailingTraceApi()
+    api.observations = _FailingObservationApi()
     result = fetch_langfuse_metrics(_settings(), None, api=api)
 
     assert result.available is True
     assert result.trace_available is False
-    assert result.usage_available is True
+    assert result.usage_available is False
     assert result.scores_available is True
     assert result.trace_count == 0
-    assert result.observation_count == 4
+    assert result.observation_count == 0
     assert result.error is not None
-    assert "traces [RuntimeError" in result.error
-    assert "trace endpoint unavailable" in result.error
-
-
-def test_diagnostics_redact_langfuse_credentials():
-    class _LeakyTraceApi:
-        def list(self, **_):
-            raise RuntimeError("request used pk-test and sk-test")
-
-    api = _api()
-    api.trace = _LeakyTraceApi()
-    result = fetch_langfuse_metrics(_settings(), None, api=api)
-
-    assert result.error is not None
-    assert "pk-test" not in result.error
-    assert "sk-test" not in result.error
-    assert "[redacted]" in result.error
+    assert "cost, traces and observations" in result.error
 
 
 def test_langfuse_metrics_are_optional_and_fail_safe():
