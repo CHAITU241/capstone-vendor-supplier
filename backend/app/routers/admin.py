@@ -85,6 +85,9 @@ class AdminObservability(BaseModel):
     langfuse_content_capture: bool
     langfuse_dashboard_url: str | None
     langfuse_metrics_available: bool
+    langfuse_trace_metrics_available: bool
+    langfuse_usage_metrics_available: bool
+    langfuse_score_metrics_available: bool
     langfuse_metrics_error: str | None
     langfuse_trace_count: int
     langfuse_observation_count: int
@@ -215,6 +218,9 @@ def observability(
         langfuse_dashboard_url=(settings.langfuse_dashboard_url or settings.langfuse_base_url)
             if langfuse_configured else None,
         langfuse_metrics_available=langfuse_metrics.available,
+        langfuse_trace_metrics_available=langfuse_metrics.trace_available,
+        langfuse_usage_metrics_available=langfuse_metrics.usage_available,
+        langfuse_score_metrics_available=langfuse_metrics.scores_available,
         langfuse_metrics_error=langfuse_metrics.error,
         langfuse_trace_count=langfuse_metrics.trace_count,
         langfuse_observation_count=langfuse_metrics.observation_count,

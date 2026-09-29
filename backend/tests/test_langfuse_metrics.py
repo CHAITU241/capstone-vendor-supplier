@@ -1,28 +1,8 @@
 from datetime import datetime, timezone
-
-import httpx
+from types import SimpleNamespace
 
 from app.config import Settings
 from app.services.langfuse_metrics import fetch_langfuse_metrics
-
-
-class _FakeClient:
-    responses: dict[str, list[dict]] = {}
-
-    def __init__(self, **_):
-        self.calls: dict[str, int] = {}
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *_):
-        return None
-
-    def get(self, path, params=None):
-        index = self.calls.get(path, 0)
-        self.calls[path] = index + 1
-        payload = self.responses[path][index]
-        return httpx.Response(200, json=payload, request=httpx.Request("GET", f"https://example.test/{path}"))
 
 
 def _settings() -> Settings:
@@ -34,37 +14,59 @@ def _settings() -> Settings:
     )
 
 
-def test_langfuse_metrics_group_cost_and_scores(monkeypatch):
-    _FakeClient.responses = {
-        "api/public/traces": [{"data": [], "meta": {"totalItems": 4}}],
-        "api/public/v2/observations": [{
-            "data": [
-                {"providedModelName": "gpt-4o-mini", "totalCost": 0.003},
-                {"providedModelName": "gpt-4o-mini", "totalCost": 0.002},
-                {"providedModelName": "text-embedding-3-small", "totalCost": 0.0001},
-                {"providedModelName": None, "totalCost": None},
-            ],
-            "meta": {"cursor": None},
-        }],
-        "api/public/v3/scores": [
-            {
-                "data": [
-                    {"name": "processing_success", "value": 1},
-                    {"name": "processing_success", "value": 0},
-                ],
-                "meta": {"cursor": "next"},
-            },
-            {
-                "data": [{"name": "document_success_rate", "value": 0.75}],
-                "meta": {"cursor": None},
-            },
-        ],
-    }
-    monkeypatch.setattr("app.services.langfuse_metrics.httpx.Client", _FakeClient)
+class _TraceApi:
+    def list(self, **_):
+        return SimpleNamespace(meta=SimpleNamespace(total_items=4))
 
-    result = fetch_langfuse_metrics(_settings(), datetime(2026, 9, 1, tzinfo=timezone.utc))
+
+class _ObservationApi:
+    def get_many(self, **_):
+        return SimpleNamespace(
+            data=[
+                SimpleNamespace(provided_model_name="gpt-4o-mini", total_cost=0.003),
+                SimpleNamespace(provided_model_name="gpt-4o-mini", total_cost=0.002),
+                SimpleNamespace(provided_model_name="text-embedding-3-small", total_cost=0.0001),
+                SimpleNamespace(provided_model_name=None, total_cost=None),
+            ],
+            meta=SimpleNamespace(cursor=None),
+        )
+
+
+class _ScoreApi:
+    def __init__(self):
+        self.page = 0
+
+    def get_many_v3(self, **_):
+        self.page += 1
+        if self.page == 1:
+            return SimpleNamespace(
+                data=[
+                    SimpleNamespace(name="processing_success", value=1),
+                    SimpleNamespace(name="processing_success", value=0),
+                ],
+                meta=SimpleNamespace(cursor="next"),
+            )
+        return SimpleNamespace(
+            data=[SimpleNamespace(name="document_success_rate", value=0.75)],
+            meta=SimpleNamespace(cursor=None),
+        )
+
+
+def _api():
+    return SimpleNamespace(
+        trace=_TraceApi(), observations=_ObservationApi(), scores_v3=_ScoreApi()
+    )
+
+
+def test_langfuse_metrics_group_cost_and_scores():
+    result = fetch_langfuse_metrics(
+        _settings(), datetime(2026, 9, 1, tzinfo=timezone.utc), api=_api()
+    )
 
     assert result.available is True
+    assert result.trace_available is True
+    assert result.usage_available is True
+    assert result.scores_available is True
     assert result.trace_count == 4
     assert result.observation_count == 4
     assert result.score_count == 3
@@ -75,14 +77,31 @@ def test_langfuse_metrics_group_cost_and_scores(monkeypatch):
     assert result.scores[0].average == 0.5
 
 
-def test_langfuse_metrics_are_optional_and_fail_safe(monkeypatch):
+def test_langfuse_metric_failures_are_isolated():
+    class _FailingTraceApi:
+        def list(self, **_):
+            raise RuntimeError("trace endpoint unavailable")
+
+    api = _api()
+    api.trace = _FailingTraceApi()
+    result = fetch_langfuse_metrics(_settings(), None, api=api)
+
+    assert result.available is True
+    assert result.trace_available is False
+    assert result.usage_available is True
+    assert result.scores_available is True
+    assert result.trace_count == 0
+    assert result.observation_count == 4
+    assert result.error == "Some Langfuse metrics could not be loaded: traces."
+
+
+def test_langfuse_metrics_are_optional_and_fail_safe():
     assert fetch_langfuse_metrics(Settings(langfuse_enabled=False), None).available is False
 
-    class _FailingClient(_FakeClient):
-        def get(self, path, params=None):
-            raise httpx.ConnectError("offline")
+    class _FailingApi:
+        def __getattr__(self, _):
+            raise RuntimeError("offline")
 
-    monkeypatch.setattr("app.services.langfuse_metrics.httpx.Client", _FailingClient)
-    result = fetch_langfuse_metrics(_settings(), None)
+    result = fetch_langfuse_metrics(_settings(), None, api=_FailingApi())
     assert result.available is False
     assert result.error is not None

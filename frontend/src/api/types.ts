@@ -101,6 +101,9 @@ export interface AdminObservability {
   langfuse_content_capture: boolean
   langfuse_dashboard_url: string | null
   langfuse_metrics_available: boolean
+  langfuse_trace_metrics_available: boolean
+  langfuse_usage_metrics_available: boolean
+  langfuse_score_metrics_available: boolean
   langfuse_metrics_error: string | null
   langfuse_trace_count: number
   langfuse_observation_count: number

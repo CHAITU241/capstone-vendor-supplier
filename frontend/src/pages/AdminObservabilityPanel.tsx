@@ -147,10 +147,10 @@ export function AdminObservabilityPanel() {
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'repeat(3, 1fr)' }, gap: 2, mt: 2 }}>
         <IntegrationCard
           title="Langfuse"
-          status={data.langfuse_metrics_available ? 'Connected' : data.langfuse_configured ? 'Metrics unavailable' : 'Not configured'}
-          color={data.langfuse_metrics_available ? 'success' : 'warning'}
-          summary={data.langfuse_metrics_available ? `${number.format(data.langfuse_trace_count)} traces · ${currency.format(data.langfuse_total_cost_usd)}` : 'Tracing dashboard is not currently readable'}
-          detail={`Content capture ${data.langfuse_content_capture ? 'enabled' : 'off (metadata only)'} · ${data.langfuse_score_count} scores`}
+          status={data.langfuse_metrics_error && data.langfuse_metrics_available ? 'Partially connected' : data.langfuse_metrics_available ? 'Connected' : data.langfuse_configured ? 'Metrics unavailable' : 'Not configured'}
+          color={data.langfuse_metrics_available && !data.langfuse_metrics_error ? 'success' : 'warning'}
+          summary={data.langfuse_trace_metrics_available ? `${number.format(data.langfuse_trace_count)} traces · ${data.langfuse_usage_metrics_available ? currency.format(data.langfuse_total_cost_usd) : 'cost unavailable'}` : data.langfuse_usage_metrics_available ? `${number.format(data.langfuse_observation_count)} observations · ${currency.format(data.langfuse_total_cost_usd)}` : 'Tracing dashboard is not currently readable'}
+          detail={`Content capture ${data.langfuse_content_capture ? 'enabled' : 'off (metadata only)'} · ${data.langfuse_score_metrics_available ? `${data.langfuse_score_count} scores` : 'scores unavailable'}`}
           action={data.langfuse_dashboard_url ? <Button component="a" href={data.langfuse_dashboard_url} target="_blank" rel="noreferrer" size="small" endIcon={<LaunchRoundedIcon />}>Open Langfuse</Button> : undefined}
         />
         <IntegrationCard
@@ -176,14 +176,14 @@ export function AdminObservabilityPanel() {
       {data.langfuse_metrics_error && <Alert severity="warning" sx={{ mt: 2 }}>{data.langfuse_metrics_error}</Alert>}
       {!data.langfuse_configured && <Alert severity="info" sx={{ mt: 2 }}>Add Langfuse credentials to populate cost, trace, and score metrics.</Alert>}
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(4, 1fr)' }, gap: 2, mt: 2 }}>
-        <MetricCard label="Langfuse cost" value={data.langfuse_metrics_available ? currency.format(data.langfuse_total_cost_usd) : '—'} helper="Calculated using Langfuse model pricing" />
-        <MetricCard label="Traces" value={data.langfuse_metrics_available ? number.format(data.langfuse_trace_count) : '—'} helper="End-to-end instrumented workflows" />
-        <MetricCard label="Observations" value={data.langfuse_metrics_available ? number.format(data.langfuse_observation_count) : '—'} helper="Spans, generations, tools and embeddings" />
-        <MetricCard label="Quality scores" value={data.langfuse_metrics_available ? number.format(data.langfuse_score_count) : '—'} helper="Automated success and grounding signals" />
+        <MetricCard label="Langfuse cost" value={data.langfuse_usage_metrics_available ? currency.format(data.langfuse_total_cost_usd) : '—'} helper="Calculated using Langfuse model pricing" />
+        <MetricCard label="Traces" value={data.langfuse_trace_metrics_available ? number.format(data.langfuse_trace_count) : '—'} helper="End-to-end instrumented workflows" />
+        <MetricCard label="Observations" value={data.langfuse_usage_metrics_available ? number.format(data.langfuse_observation_count) : '—'} helper="Spans, generations, tools and embeddings" />
+        <MetricCard label="Quality scores" value={data.langfuse_score_metrics_available ? number.format(data.langfuse_score_count) : '—'} helper="Automated success and grounding signals" />
       </Box>
-      {data.langfuse_metrics_available && <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'repeat(2, 1fr)' }, gap: 2, mt: 2 }}>
-        <CostByModel rows={data.langfuse_cost_by_model} />
-        <QualityScores rows={data.langfuse_scores} />
+      {(data.langfuse_usage_metrics_available || data.langfuse_score_metrics_available) && <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'repeat(2, 1fr)' }, gap: 2, mt: 2 }}>
+        {data.langfuse_usage_metrics_available && <CostByModel rows={data.langfuse_cost_by_model} />}
+        {data.langfuse_score_metrics_available && <QualityScores rows={data.langfuse_scores} />}
       </Box>}
     </Box>
 

@@ -88,6 +88,9 @@ def test_admin_reset_and_full_profile_removal(tmp_path, monkeypatch):
             assert summary["erp_attempts"] == 1
             assert summary["erp_failures"] == 0
             assert summary["langfuse_metrics_available"] is False
+            assert summary["langfuse_trace_metrics_available"] is False
+            assert summary["langfuse_usage_metrics_available"] is False
+            assert summary["langfuse_score_metrics_available"] is False
             assert summary["langfuse_total_cost_usd"] == 0
             assert summary["ocr_enabled"] is True
             assert summary["erp_mode"] == "In-process demo"
