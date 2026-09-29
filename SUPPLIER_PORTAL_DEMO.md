@@ -19,7 +19,7 @@ The original bytes are written under `/app/uploads/<supplier UUID>/<document UUI
 
 The supplier and reviewer views show a stable display reference derived from the supplier UUID, for example `SUP-C37603DF`. Explicit downloads use `<supplier reference>_<requirement ID>_v<revision>_<document label>.<extension>` while the original supplier-provided filename remains stored as audit metadata. Physical storage continues to use UUID filenames to prevent collisions and unsafe paths.
 
-The Docker volume survives container rebuilds, but it is not a backup. `docker compose down -v` destroys it. A production deployment would need durable object storage, coordinated database/file backup and restore, retention rules, malware scanning, and company reviewer authentication. OCR remains out of scope for this slice; scanned PDFs and image uploads cannot be processed by the current text extractor.
+The Docker volume survives container rebuilds, but it is not a backup. `docker compose down -v` destroys it. A production deployment would need durable object storage, coordinated database/file backup and restore, retention rules, malware scanning, and company reviewer authentication. OCR supports scanned PDFs and image uploads in this demo, but production ingestion would still need stronger document-quality controls and malware scanning.
 
 ## Staff access and admin maintenance
 

@@ -30,7 +30,7 @@ export function SupplierApplicationPage() {
   const [taxReference, setTaxReference] = useState('')
   const [bankAccountNumber, setBankAccountNumber] = useState('')
   const [bankIfsc, setBankIfsc] = useState('')
-  const [selected, setSelected] = useState<{ type: DocumentType; file: File } | null>(null)
+  const [uploadingFile, setUploadingFile] = useState<{ type: DocumentType; name: string } | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
@@ -89,16 +89,21 @@ export function SupplierApplicationPage() {
     finally { setBusy(false) }
   }
 
-  async function uploadDocument(type: DocumentType) {
-    if (!selected || selected.type !== type) return
+  async function uploadDocument(type: DocumentType, file: File) {
     setBusy(true); setError(''); setNotice('')
+    setUploadingFile({ type, name: file.name })
     try {
-      await api.uploadApplicationDocument(type, selected.file)
-      setSelected(null)
+      await api.uploadApplicationDocument(type, file)
       await load()
       setNotice(`${application?.requirements.documents.find((item) => item.document_type === type)?.label ?? fallbackLabels[type] ?? type} uploaded.`)
     } catch (err) { setError(err instanceof Error ? err.message : 'Could not upload document.') }
-    finally { setBusy(false) }
+    finally { setUploadingFile(null); setBusy(false) }
+  }
+
+  function uploadSelectedFile(type: DocumentType, event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (file) void uploadDocument(type, file)
   }
 
   async function removeDocument(id: string) {
@@ -248,7 +253,7 @@ export function SupplierApplicationPage() {
               {required_fields && <Typography variant="body2"><strong>Include:</strong> {plainLanguage(required_fields)}</Typography>}
               {checks.length > 0 && <Box component="details" sx={{ mt: 0.5 }}><Typography component="summary" variant="body2" sx={{ cursor: 'pointer' }}>What reviewers will check</Typography>
                 {checks.map((check) => <Typography key={check} variant="body2">{plainLanguage(check)}</Typography>)}</Box>}
-              <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>{document ? document.filename : selected?.type === type ? selected.file.name : 'Not uploaded yet'}</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>{document ? document.filename : uploadingFile?.type === type ? `Uploading ${uploadingFile.name}…` : 'Not uploaded yet'}</Typography>
               {document?.ocr_pages.length ? <Typography variant="caption" color="info.dark" display="block">OCR used on page{document.ocr_pages.length === 1 ? '' : 's'} {document.ocr_pages.join(', ')}</Typography> : null}
               {document?.ocr_warnings.map((warning) => <Typography key={warning} variant="caption" color="warning.dark" display="block">{warning}</Typography>)}
               {document?.processing_status === 'failed' && <Alert severity="error" sx={{ mt: 1, py: .25 }}>{document.error_message || 'Text extraction failed.'}</Alert>}
@@ -264,23 +269,14 @@ export function SupplierApplicationPage() {
                 {!submitted && <IconButton aria-label={`Remove ${label}`} disabled={busy} onClick={() => void removeDocument(document.id)}><DeleteOutlineRoundedIcon /></IconButton>}
               </Stack>
               {flagged && correctionMode && <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-                <Button component="label" size="small" variant="outlined" startIcon={<CloudUploadRoundedIcon />}>Choose replacement
-                  <input hidden type="file" accept="application/pdf,image/png,image/jpeg,text/plain,.pdf,.png,.jpg,.jpeg,.txt" onChange={(event: ChangeEvent<HTMLInputElement>) => {
-                    const file = event.target.files?.[0]; if (file) setSelected({ type, file })
-                    event.target.value = ''
-                  }} />
+                <Button component="label" size="small" variant="outlined" disabled={busy} startIcon={uploadingFile?.type === type ? <CircularProgress size={16} /> : <CloudUploadRoundedIcon />}>{uploadingFile?.type === type ? 'Uploading replacement…' : 'Choose replacement'}
+                  <input hidden type="file" accept="application/pdf,image/png,image/jpeg,text/plain,.pdf,.png,.jpg,.jpeg,.txt" onChange={(event) => uploadSelectedFile(type, event)} />
                 </Button>
-                {selected?.type === type && <Typography variant="caption" sx={{ maxWidth: 220, overflowWrap: 'anywhere' }}>{selected.file.name}</Typography>}
-                <Button size="small" variant="contained" disabled={busy || selected?.type !== type} onClick={() => void uploadDocument(type)}>Replace flagged document</Button>
               </Stack>}
             </Stack> : (!submitted || correctionMode) && <Stack direction="row" spacing={1}>
-              <Button component="label" variant="outlined" startIcon={<CloudUploadRoundedIcon />}>Choose file
-                <input hidden type="file" accept="application/pdf,image/png,image/jpeg,text/plain,.pdf,.png,.jpg,.jpeg,.txt" onChange={(event: ChangeEvent<HTMLInputElement>) => {
-                  const file = event.target.files?.[0]; if (file) setSelected({ type, file })
-                  event.target.value = ''
-                }} />
+              <Button component="label" variant="outlined" disabled={busy} startIcon={uploadingFile?.type === type ? <CircularProgress size={16} /> : <CloudUploadRoundedIcon />}>{uploadingFile?.type === type ? 'Uploading…' : 'Choose file'}
+                <input hidden type="file" accept="application/pdf,image/png,image/jpeg,text/plain,.pdf,.png,.jpg,.jpeg,.txt" onChange={(event) => uploadSelectedFile(type, event)} />
               </Button>
-              <Button variant="contained" disabled={busy || selected?.type !== type} onClick={() => void uploadDocument(type)}>Upload</Button>
             </Stack>}
           </Stack>
         })}

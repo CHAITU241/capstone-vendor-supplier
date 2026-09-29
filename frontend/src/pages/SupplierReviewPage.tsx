@@ -125,19 +125,25 @@ export function SupplierReviewPage() {
   const [erpRecord, setErpRecord] = useState<ErpRecord | null>(null)
   const [showErpRecord, setShowErpRecord] = useState(false)
 
-  const loadSupplier = useCallback(async () => {
+  const loadSupplier = useCallback(async (options: { includeHistory?: boolean; validateErp?: boolean } = {}) => {
+    const { includeHistory = true, validateErp = true } = options
     try {
-      const [detail, archived] = await Promise.all([api.getSupplier(supplierId), api.reviewerDocumentHistory(supplierId)])
+      const [detail, archived] = await Promise.all([
+        api.getSupplier(supplierId),
+        includeHistory ? api.reviewerDocumentHistory(supplierId) : Promise.resolve(null),
+      ])
       setSupplier(detail)
-      setHistory(archived)
-      setErpValidating(true)
-      try {
-        setErpValidation(await api.validateErpRecord(supplierId))
-        setErpValidationError('')
-      } catch (validationError) {
-        setErpValidation(null)
-        setErpValidationError(validationError instanceof Error ? validationError.message : 'ERP validation could not be completed.')
-      } finally { setErpValidating(false) }
+      if (archived) setHistory(archived)
+      if (validateErp) {
+        setErpValidating(true)
+        try {
+          setErpValidation(await api.validateErpRecord(supplierId))
+          setErpValidationError('')
+        } catch (validationError) {
+          setErpValidation(null)
+          setErpValidationError(validationError instanceof Error ? validationError.message : 'ERP validation could not be completed.')
+        } finally { setErpValidating(false) }
+      }
       const policyChecks = detail.compliance_results.filter((result) => result.evidence.kind === 'policy_check')
       const statuses = detail.requirements.documents.map((requirement) => requirementStatus(
         detail.documents.find((document) => document.document_type === requirement.document_type),
@@ -170,13 +176,24 @@ export function SupplierReviewPage() {
 
   const latestProcessingRun = supplier?.ai_runs.find((run) => run.run_type === 'processing')
   const finalized = supplier?.status === 'approved' || supplier?.status === 'rejected'
+  const processingActive = supplier?.status === 'processing' || latestProcessingRun?.status === 'processing'
   const complianceReady = Boolean(supplier?.compliance_results.length && supplier.compliance_results.every((result) => result.status === 'pass'))
   const approvalReady = complianceReady && Boolean(erpValidation?.valid)
+
+  useEffect(() => {
+    if (!processingActive) return
+    const timer = window.setInterval(() => {
+      void loadSupplier({ includeHistory: false, validateErp: false })
+    }, 2_000)
+    return () => window.clearInterval(timer)
+  }, [loadSupplier, processingActive])
 
   const findings = useMemo(() => {
     if (!supplier) return []
     const messages: Array<{ severity: 'error' | 'warning' | 'success' | 'info'; text: string }> = []
+    if (processingActive && !latestProcessingRun) return [{ severity: 'info' as const, text: 'AI document analysis is starting. This page will update automatically as soon as the run is available.' }]
     if (!latestProcessingRun) return [{ severity: 'info' as const, text: 'AI document analysis has not run yet.' }]
+    if (latestProcessingRun.status === 'processing') return [{ severity: 'info' as const, text: 'AI document analysis is running. This page will update automatically when extraction and policy checks finish.' }]
     if (latestProcessingRun.status === 'failed') {
       const total = Number(latestProcessingRun.details.total_documents ?? supplier.documents.length)
       const extracted = Number(latestProcessingRun.details.ready_extractions ?? 0)
@@ -199,7 +216,7 @@ export function SupplierReviewPage() {
     if (conflicts.length) messages.push({ severity: 'warning', text: `Conflicting values were detected for: ${conflicts.join(', ')}.` })
     if (!messages.length) messages.push({ severity: 'success', text: 'Document extraction and search indexing completed. Review each requirement below.' })
     return messages
-  }, [latestProcessingRun, supplier])
+  }, [latestProcessingRun, processingActive, supplier])
 
   async function viewOriginal(id: string) {
     try { await openOriginal(() => api.reviewerOriginal(supplierId, id)) }
@@ -450,7 +467,7 @@ export function SupplierReviewPage() {
             </Stack>
             <Box sx={{ minWidth: { lg: 245 }, textAlign: { lg: 'right' } }}>
               {latestProcessingRun && <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>Last run {new Date(latestProcessingRun.created_at).toLocaleString()} · {(latestProcessingRun.latency_ms / 1000).toFixed(1)}s</Typography>}
-              {!finalized && <Button variant="outlined" startIcon={busy ? <CircularProgress size={17} /> : <AutoAwesomeRoundedIcon />} disabled={busy} onClick={() => void runSupplierAnalysis()}>{busy ? 'Analyzing documents...' : !latestProcessingRun ? 'Run AI analysis' : latestProcessingRun.status === 'failed' ? 'Retry analysis' : 'Refresh AI analysis'}</Button>}
+              {!finalized && <Button variant="outlined" startIcon={busy || processingActive ? <CircularProgress size={17} /> : <AutoAwesomeRoundedIcon />} disabled={busy || processingActive} onClick={() => void runSupplierAnalysis()}>{busy || processingActive ? 'Analyzing documents...' : !latestProcessingRun ? 'Run AI analysis' : latestProcessingRun.status === 'failed' ? 'Retry analysis' : 'Refresh AI analysis'}</Button>}
             </Box>
           </Stack>
         </CardContent>

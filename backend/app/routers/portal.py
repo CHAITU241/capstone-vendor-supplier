@@ -125,7 +125,12 @@ def process_submitted_application(supplier_id: uuid.UUID, settings: Settings) ->
         except Exception:
             # Processing records its safe failure state for the reviewer. Submission
             # remains valid and must never be rolled back by an AI/provider failure.
-            pass
+            db.rollback()
+            supplier = db.get(Supplier, supplier_id)
+            if supplier is not None and supplier.status == SupplierStatus.PROCESSING:
+                supplier.status = SupplierStatus.NEEDS_REVIEW
+                supplier.decision_reason = "Automated processing could not start. A reviewer can retry it safely."
+                db.commit()
 
 
 @router.post("/auth/register", response_model=SessionResponse, status_code=201)
@@ -362,7 +367,7 @@ def resubmit_application(
             document.review_comment = None
             document.reviewed_by = None
             document.reviewed_at = None
-    supplier.status = SupplierStatus.NEEDS_REVIEW
+    supplier.status = SupplierStatus.PROCESSING if settings.ai_configured else SupplierStatus.NEEDS_REVIEW
     supplier.submitted_at = datetime.now(timezone.utc)
     supplier.decision_reason = None
     db.add(AuditEvent(
@@ -411,7 +416,7 @@ def submit_application(
     if supplier.submitted_at is None:
         supplier.requirements_snapshot = checklist_for(supplier).model_dump(mode="json")
         supplier.submitted_at = datetime.now(timezone.utc)
-        supplier.status = SupplierStatus.NEEDS_REVIEW
+        supplier.status = SupplierStatus.PROCESSING if settings.ai_configured else SupplierStatus.NEEDS_REVIEW
         db.commit()
         db.refresh(supplier)
         if settings.ai_configured:
