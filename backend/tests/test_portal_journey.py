@@ -75,7 +75,7 @@ def test_supplier_can_resume_and_submit_without_ai(tmp_path):
         engine.dispose()
 
 
-def test_supplier_assistant_explains_flagged_name_mismatch_and_persists_history(tmp_path):
+def test_supplier_assistant_explains_rejection_wording_as_requested_changes_and_persists_history(tmp_path):
     engine = create_engine("sqlite+pysqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
     Base.metadata.create_all(engine)
 
@@ -120,13 +120,17 @@ def test_supplier_assistant_explains_flagged_name_mismatch_and_persists_history(
                 db.commit()
 
             answered = client.post("/api/portal/application/assistant", headers=headers, json={
-                "messages": [{"role": "user", "content": "What is the issue with the document I uploaded?"}],
+                "messages": [{"role": "user", "content": "Why is my application rejected, and what should I do?"}],
             })
             assert answered.status_code == 200, answered.text
+            assert answered.json()["run"]["model"] == "application-state"
+            assert "has **not** been finally rejected" in answered.json()["answer"]
             assert "Completely Different Demo Entity Pvt Ltd" in answered.json()["answer"]
             assert "Correct Evidence Company Pvt Ltd" in answered.json()["answer"]
             assert "registration.txt, page 1" in answered.json()["answer"]
             assert "do not match" in answered.json()["answer"]
+            assert "Choose replacement" in answered.json()["answer"]
+            assert "Resubmit corrections for review" in answered.json()["answer"]
 
             history = client.get("/api/portal/application/assistant/history", headers=headers)
             assert history.status_code == 200, history.text

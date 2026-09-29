@@ -14,6 +14,7 @@ STATUS_QUESTION = re.compile(r"\b(?:review|application)\b.*\b(?:complete|complet
 UPLOAD_CHECK_QUESTION = re.compile(r"\b(?:uploaded|upload)\b.*\b(?:all|correct|correctly|complete|missing)\b|\b(?:all|any)\b.*\bdocuments?\b.*\b(?:uploaded|missing)\b", re.IGNORECASE)
 CHECKLIST_QUESTION = re.compile(r"\b(?:what|which)\b.*\b(?:documents?|evidence|files?)\b.*\b(?:upload|provide|need|required|supposed)\b|\bdocuments?\b.*\b(?:supposed|required)\b.*\bupload\b", re.IGNORECASE)
 ISSUE_QUESTION = re.compile(r"\b(?:issue|problem|wrong|flagged|mismatch|not match|changes? requested)\b", re.IGNORECASE)
+REJECTION_QUESTION = re.compile(r"\b(?:reject(?:ed|ion)?|declined?|denied)\b", re.IGNORECASE)
 NAME_FIELDS = {"supplier_name", "legal_name", "registered_name", "policyholder_legal_name"}
 SENSITIVE_FIELDS = {
     "bank_account_number", "bank_ifsc", "ifsc", "pan", "gstin", "tax_reference",
@@ -122,11 +123,23 @@ def application_answer_for(supplier: Supplier, question: str) -> str | None:
     ]
     missing = [item for item in checklist.documents if item not in ready]
 
-    if ISSUE_QUESTION.search(question):
+    asks_about_rejection = bool(REJECTION_QUESTION.search(question))
+    if asks_about_rejection and supplier.status == SupplierStatus.REJECTED:
+        reason = supplier.decision_reason or "No reviewer reason was recorded."
+        return (
+            "Your application was rejected. The reviewer recorded this reason:\n"
+            f"- **{reason}**\n"
+            "This is a final decision in the portal, so it cannot be resubmitted here. "
+            "Contact the reviewer if you need clarification or want to discuss a new application."
+        )
+
+    if ISSUE_QUESTION.search(question) or asks_about_rejection:
         flagged = [document for document in supplier.documents if document.review_status == "disputed"]
         if flagged:
             labels = {item.document_type: item.label for item in checklist.documents}
-            lines = ["The reviewer requested changes to the following evidence:"]
+            lines = [
+                "Your application has **not** been finally rejected. The reviewer requested changes to the following evidence:"
+            ]
             for document in flagged:
                 lines.append(
                     f"- **{labels.get(document.document_type, document.document_type.value)}**: "
@@ -146,7 +159,14 @@ def application_answer_for(supplier: Supplier, question: str) -> str | None:
                         )
                     if any(field.value.strip().casefold() != supplier.name.strip().casefold() for field in extracted_names):
                         lines.append("  - These names do not match. Correct the portal entry if the document is right, or replace the document if the document is wrong.")
+            lines.append(
+                "What to do next: follow the reviewer feedback above. Correct any wrong business details, or use "
+                "**Choose replacement** for each flagged document. When every requested change is complete, select "
+                "**Resubmit corrections for review**."
+            )
             return "\n".join(lines)
+        if asks_about_rejection:
+            return f"Your application is not rejected. {journey_status}"
 
     if STATUS_QUESTION.search(question):
         return journey_status
