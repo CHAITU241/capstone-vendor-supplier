@@ -149,16 +149,19 @@ def application_answer_for(supplier: Supplier, question: str) -> str | None:
                     field for field in document.extracted_fields
                     if field.field_name.casefold() in NAME_FIELDS and field.value.strip()
                 ]
-                if extracted_names:
+                mismatched_names = [
+                    field for field in extracted_names
+                    if field.value.strip().casefold() != supplier.name.strip().casefold()
+                ]
+                if mismatched_names:
                     lines.append(f"  - Name entered in the portal: **{supplier.name}**")
-                    for field in extracted_names:
+                    for field in mismatched_names:
                         extraction_note = " via OCR" if field.page_number in (document.ocr_pages or []) else ""
                         lines.append(
                             f"  - Name extracted{extraction_note} from **{document.filename}, page {field.page_number}**: "
                             f"**{field.value}**"
                         )
-                    if any(field.value.strip().casefold() != supplier.name.strip().casefold() for field in extracted_names):
-                        lines.append("  - These names do not match. Correct the portal entry if the document is right, or replace the document if the document is wrong.")
+                    lines.append("  - These names do not match. Correct the portal entry if the document is right, or replace the document if the document is wrong.")
             lines.append(
                 "What to do next: follow the reviewer feedback above. Correct any wrong business details, or use "
                 "**Choose replacement** for each flagged document. When every requested change is complete, select "

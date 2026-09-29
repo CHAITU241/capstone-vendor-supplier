@@ -112,9 +112,20 @@ def test_supplier_assistant_explains_rejection_wording_as_requested_changes_and_
                 registration = next(item for item in supplier.documents if item.document_type.value == "registration")
                 registration.review_status = "disputed"
                 registration.review_comment = "The business name entered does not match the name in the document."
+                tax = next(item for item in supplier.documents if item.document_type.value == "tax")
+                tax.review_status = "disputed"
+                tax.review_comment = (
+                    "A registered supplier supplies a GSTIN; a supplier marked not registered supplies a declaration "
+                    "signed within 180 calendar days."
+                )
                 db.add(ExtractedField(
                     supplier_id=supplier.id, document_id=registration.id,
                     field_name="supplier_name", value="Correct Evidence Company Pvt Ltd",
+                    page_number=1, confidence=0.99, needs_review=False,
+                ))
+                db.add(ExtractedField(
+                    supplier_id=supplier.id, document_id=tax.id,
+                    field_name="supplier_name", value=supplier.name,
                     page_number=1, confidence=0.99, needs_review=False,
                 ))
                 db.commit()
@@ -129,6 +140,9 @@ def test_supplier_assistant_explains_rejection_wording_as_requested_changes_and_
             assert "Correct Evidence Company Pvt Ltd" in answered.json()["answer"]
             assert "registration.txt, page 1" in answered.json()["answer"]
             assert "do not match" in answered.json()["answer"]
+            assert "registered supplier supplies a GSTIN" in answered.json()["answer"]
+            assert answered.json()["answer"].count("Name entered in the portal") == 1
+            assert "tax.txt, page 1" not in answered.json()["answer"]
             assert "Choose replacement" in answered.json()["answer"]
             assert "Resubmit corrections for review" in answered.json()["answer"]
 
