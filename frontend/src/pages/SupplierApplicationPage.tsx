@@ -90,14 +90,15 @@ export function SupplierApplicationPage() {
   }
 
   async function uploadDocument(type: DocumentType, file: File) {
-    setBusy(true); setError(''); setNotice('')
+    if (uploadingFile) return
+    setError(''); setNotice('')
     setUploadingFile({ type, name: file.name })
     try {
       await api.uploadApplicationDocument(type, file)
       await load()
       setNotice(`${application?.requirements.documents.find((item) => item.document_type === type)?.label ?? fallbackLabels[type] ?? type} uploaded.`)
     } catch (err) { setError(err instanceof Error ? err.message : 'Could not upload document.') }
-    finally { setUploadingFile(null); setBusy(false) }
+    finally { setUploadingFile(null) }
   }
 
   function uploadSelectedFile(type: DocumentType, event: ChangeEvent<HTMLInputElement>) {
@@ -180,6 +181,7 @@ export function SupplierApplicationPage() {
   const missing = application.requirements.documents.filter((item) => documents.get(item.document_type)?.processing_status !== 'ready')
   const flaggedDocuments = application.documents.filter((document) => document.review_status === 'disputed')
   const correctionMode = submitted && (flaggedDocuments.length > 0 || application.status === 'new')
+  const interactionBusy = busy || uploadingFile !== null
 
   return <Stack spacing={3} maxWidth={860} mx="auto">
     <Box><Typography variant="h4">Your supplier application</Typography>
@@ -207,7 +209,7 @@ export function SupplierApplicationPage() {
           {(selectedCategory?.subcategories ?? []).map((item) => <MenuItem key={item.code} value={item.code}>{item.label}</MenuItem>)}
         </TextField>
         {selectedSubcategory && <Alert severity="info">{selectedSubcategory.definition} Examples: {selectedSubcategory.examples} {plainLanguage(selectedSubcategory.boundary)}</Alert>}
-        <Button onClick={() => void saveCategory()} disabled={busy || !category || !subcategory} variant="contained" size="large">Save and continue</Button>
+        <Button onClick={() => void saveCategory()} disabled={interactionBusy || !category || !subcategory} variant="contained" size="large">Save and continue</Button>
       </Stack>}
 
       {!submitted && step === 1 && <Stack spacing={3}>
@@ -218,7 +220,7 @@ export function SupplierApplicationPage() {
         <TextField label="Bank account number" required value={bankAccountNumber} onChange={(event) => setBankAccountNumber(event.target.value)} helperText="Enter the account number shown on your bank document." />
         <TextField label="Bank IFSC" required value={bankIfsc} onChange={(event) => setBankIfsc(event.target.value)} helperText="Enter the IFSC shown on your bank document." />
         <Stack direction="row" spacing={1}><Button startIcon={<ArrowBackRoundedIcon />} onClick={() => setStep(0)}>Category</Button>
-          <Button onClick={() => void saveDetails()} disabled={busy || name.trim().length < 2 || !email.trim() || !taxReference.trim() || !bankAccountNumber.trim() || !bankIfsc.trim()} variant="contained" size="large">Save and continue to documents</Button></Stack>
+          <Button onClick={() => void saveDetails()} disabled={interactionBusy || name.trim().length < 2 || !email.trim() || !taxReference.trim() || !bankAccountNumber.trim() || !bankIfsc.trim()} variant="contained" size="large">Save and continue to documents</Button></Stack>
       </Stack>}
 
       {(step === 2 || submitted) && <Stack spacing={3}>
@@ -234,7 +236,7 @@ export function SupplierApplicationPage() {
             <TextField label="PAN / tax reference" required value={taxReference} onChange={(event) => setTaxReference(event.target.value)} />
             <TextField label="Bank account number" required value={bankAccountNumber} onChange={(event) => setBankAccountNumber(event.target.value)} />
             <TextField label="Bank IFSC" required value={bankIfsc} onChange={(event) => setBankIfsc(event.target.value)} />
-            <Button variant="outlined" disabled={busy || name.trim().length < 2 || !email.trim() || !taxReference.trim() || !bankAccountNumber.trim() || !bankIfsc.trim()} onClick={() => void saveDetails()}>Save corrected details</Button>
+            <Button variant="outlined" disabled={interactionBusy || name.trim().length < 2 || !email.trim() || !taxReference.trim() || !bankAccountNumber.trim() || !bankIfsc.trim()} onClick={() => void saveDetails()}>Save corrected details</Button>
           </Stack>
         </Box>}
         <Alert severity="info">These documents are based on the service you selected. A reviewer will check their contents after you submit.</Alert>
@@ -265,16 +267,16 @@ export function SupplierApplicationPage() {
                 <Chip label={document.processing_status === 'ready' ? 'Uploaded' : document.processing_status} color={document.processing_status === 'ready' ? 'success' : 'warning'} size="small" />
                 <Button size="small" onClick={() => void viewOriginal(document.id)}>View original</Button>
                 <Button size="small" onClick={() => void downloadFile(document)}>Download</Button>
-                {!submitted && document.processing_status === 'failed' && <Button size="small" disabled={busy} onClick={() => void retryTextExtraction(document.id)}>Retry OCR</Button>}
-                {!submitted && <IconButton aria-label={`Remove ${label}`} disabled={busy} onClick={() => void removeDocument(document.id)}><DeleteOutlineRoundedIcon /></IconButton>}
+                {!submitted && document.processing_status === 'failed' && <Button size="small" disabled={interactionBusy} onClick={() => void retryTextExtraction(document.id)}>Retry OCR</Button>}
+                {!submitted && <IconButton aria-label={`Remove ${label}`} disabled={interactionBusy} onClick={() => void removeDocument(document.id)}><DeleteOutlineRoundedIcon /></IconButton>}
               </Stack>
               {flagged && correctionMode && <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-                <Button component="label" size="small" variant="outlined" disabled={busy} startIcon={uploadingFile?.type === type ? <CircularProgress size={16} /> : <CloudUploadRoundedIcon />}>{uploadingFile?.type === type ? 'Uploading replacement…' : 'Choose replacement'}
+                <Button component="label" size="small" variant="outlined" disabled={interactionBusy} startIcon={uploadingFile?.type === type ? <CircularProgress size={16} /> : <CloudUploadRoundedIcon />}>{uploadingFile?.type === type ? 'Uploading replacement…' : 'Choose replacement'}
                   <input hidden type="file" accept="application/pdf,image/png,image/jpeg,text/plain,.pdf,.png,.jpg,.jpeg,.txt" onChange={(event) => uploadSelectedFile(type, event)} />
                 </Button>
               </Stack>}
             </Stack> : (!submitted || correctionMode) && <Stack direction="row" spacing={1}>
-              <Button component="label" variant="outlined" disabled={busy} startIcon={uploadingFile?.type === type ? <CircularProgress size={16} /> : <CloudUploadRoundedIcon />}>{uploadingFile?.type === type ? 'Uploading…' : 'Choose file'}
+              <Button component="label" variant="outlined" disabled={interactionBusy} startIcon={uploadingFile?.type === type ? <CircularProgress size={16} /> : <CloudUploadRoundedIcon />}>{uploadingFile?.type === type ? 'Uploading…' : 'Choose file'}
                 <input hidden type="file" accept="application/pdf,image/png,image/jpeg,text/plain,.pdf,.png,.jpg,.jpeg,.txt" onChange={(event) => uploadSelectedFile(type, event)} />
               </Button>
             </Stack>}
@@ -283,7 +285,7 @@ export function SupplierApplicationPage() {
         {extras.length > 0 && <Alert severity="warning">Your details changed, so {extras.length === 1 ? 'a previously uploaded document is' : 'some previously uploaded documents are'} no longer in the checklist. Remove {extras.length === 1 ? 'it' : 'them'} before submitting.</Alert>}
         {extras.map((document) => <Stack key={document.id} direction="row" justifyContent="space-between" alignItems="center" sx={{ p: 2, border: '1px solid', borderColor: 'warning.main', borderRadius: 2 }}>
           <Box><Typography fontWeight={700}>{fallbackLabels[document.document_type] ?? catalog?.requirements[document.document_type]?.label ?? 'Previously requested document'} · not requested</Typography><Typography variant="body2">{document.filename}</Typography></Box>
-          {!submitted && <IconButton aria-label={`Remove ${document.filename}`} disabled={busy} onClick={() => void removeDocument(document.id)}><DeleteOutlineRoundedIcon /></IconButton>}
+          {!submitted && <IconButton aria-label={`Remove ${document.filename}`} disabled={interactionBusy} onClick={() => void removeDocument(document.id)}><DeleteOutlineRoundedIcon /></IconButton>}
         </Stack>)}
         {history.length > 0 && <Box>
           <Typography variant="h6">Previous uploads</Typography>
@@ -296,12 +298,12 @@ export function SupplierApplicationPage() {
         </Box>}
         {!submitted && <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={1}>
           <Button startIcon={<ArrowBackRoundedIcon />} onClick={() => setStep(1)}>Edit details</Button>
-          <Button variant="contained" size="large" disabled={busy || application.requirements.documents.length === 0 || missing.length > 0 || extras.length > 0} onClick={() => void submit()}>
+          <Button variant="contained" size="large" disabled={interactionBusy || application.requirements.documents.length === 0 || missing.length > 0 || extras.length > 0} onClick={() => void submit()}>
             {busy ? 'Submitting application...' : 'Submit application for review'}
           </Button>
         </Stack>}
         {correctionMode && <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="flex-end" spacing={1}>
-          <Button variant="contained" size="large" disabled={busy || application.requirements.documents.length === 0 || missing.length > 0 || extras.length > 0} onClick={() => void resubmit()}>
+          <Button variant="contained" size="large" disabled={interactionBusy || application.requirements.documents.length === 0 || missing.length > 0 || extras.length > 0} onClick={() => void resubmit()}>
             {busy ? 'Resubmitting corrections...' : 'Resubmit corrections for review'}
           </Button>
         </Stack>}

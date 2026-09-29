@@ -473,7 +473,7 @@ frontend/src/theme/theme.ts         Single source for all brand colors
 - AI-configured submissions and resubmissions now enter `processing` before the background task starts, closing the gap where a reviewer could open a case before the processing state was visible.
 - The reviewer case polls lightweight supplier state every two seconds only while processing is active, then stops automatically and displays completed fields and policy checks without a manual refresh.
 - The manual AI action is disabled during an active run, preventing a redundant zero-token processing workflow while the original extraction is still finishing.
-- Supplier evidence uploads and flagged-document replacements now begin immediately after a file is selected. The redundant second Upload/Replace button was removed and inline progress is shown.
+- Supplier evidence uploads and flagged-document replacements now begin immediately after a file is selected. The redundant second Upload/Replace button was removed, and upload progress is isolated to the selected requirement row so unrelated controls no longer display a loading state.
 - Verification: 79 backend tests passed; frontend production build passed; frontend lint completed with zero errors and the same two pre-existing warnings.
 
 ## Resume Commands
