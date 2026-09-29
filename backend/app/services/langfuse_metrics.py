@@ -3,13 +3,52 @@
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
+import json
 import logging
+import re
 from typing import Any
 
 from app.config import Settings
 from app.services.tracing import get_langfuse_tracer
 
 logger = logging.getLogger(__name__)
+
+
+def _safe_diagnostic(exc: Exception, settings: Settings) -> str:
+    """Expose temporary admin-only diagnostics without leaking credentials."""
+
+    response = getattr(exc, "response", None)
+    status = getattr(exc, "status_code", None) or getattr(response, "status_code", None)
+    body = getattr(exc, "body", None)
+    if body is None and response is not None:
+        try:
+            body = response.text
+        except Exception:
+            body = None
+    if body is not None and not isinstance(body, str):
+        try:
+            body = json.dumps(body, default=str)
+        except Exception:
+            body = repr(body)
+    message = str(body or exc)
+    secrets = [settings.langfuse_public_key or ""]
+    if settings.langfuse_secret_key:
+        secrets.append(settings.langfuse_secret_key.get_secret_value())
+    for secret in secrets:
+        if secret:
+            message = message.replace(secret, "[redacted]")
+    message = re.sub(
+        r"(?i)(authorization|secret[_ -]?key|public[_ -]?key)(\s*[:=]\s*)([^\s,;}]+)",
+        r"\1\2[redacted]",
+        message,
+    )
+    message = " ".join(message.split())[:500]
+    parts = [type(exc).__name__]
+    if status is not None:
+        parts.append(f"HTTP {status}")
+    if message:
+        parts.append(message)
+    return " · ".join(parts)
 
 
 @dataclass(frozen=True)
@@ -98,9 +137,9 @@ def fetch_langfuse_metrics(
         )
         trace_count = int(traces.meta.total_items)
         trace_available = True
-    except Exception:  # pragma: no cover - depends on external Langfuse availability
+    except Exception as exc:  # pragma: no cover - depends on external Langfuse availability
         logger.warning("Langfuse trace metrics could not be loaded.", exc_info=True)
-        errors.append("traces")
+        errors.append(f"traces [{_safe_diagnostic(exc, settings)}]")
 
     try:
         cursor: str | None = None
@@ -116,10 +155,10 @@ def fetch_langfuse_metrics(
             if not cursor:
                 break
         usage_available = True
-    except Exception:  # pragma: no cover - depends on external Langfuse availability
+    except Exception as exc:  # pragma: no cover - depends on external Langfuse availability
         logger.warning("Langfuse usage metrics could not be loaded.", exc_info=True)
         observations = []
-        errors.append("cost and observations")
+        errors.append(f"cost and observations [{_safe_diagnostic(exc, settings)}]")
 
     try:
         cursor = None
@@ -134,10 +173,10 @@ def fetch_langfuse_metrics(
             if not cursor:
                 break
         scores_available = True
-    except Exception:  # pragma: no cover - depends on external Langfuse availability
+    except Exception as exc:  # pragma: no cover - depends on external Langfuse availability
         logger.warning("Langfuse score metrics could not be loaded.", exc_info=True)
         score_rows = []
-        errors.append("scores")
+        errors.append(f"scores [{_safe_diagnostic(exc, settings)}]")
 
     model_costs: dict[str, float] = defaultdict(float)
     model_counts: dict[str, int] = defaultdict(int)
@@ -147,6 +186,12 @@ def fetch_langfuse_metrics(
             continue
         model_counts[str(model)] += 1
         model_costs[str(model)] += float(observation.total_cost or 0)
+
+    if usage_available and observations and not model_counts:
+        errors.append(
+            f"cost attribution [received {len(observations)} observations, but Langfuse returned "
+            "no provided model names in the requested model fields]"
+        )
 
     score_values: dict[str, list[float]] = defaultdict(list)
     for score in score_rows:

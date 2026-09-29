@@ -92,7 +92,24 @@ def test_langfuse_metric_failures_are_isolated():
     assert result.scores_available is True
     assert result.trace_count == 0
     assert result.observation_count == 4
-    assert result.error == "Some Langfuse metrics could not be loaded: traces."
+    assert result.error is not None
+    assert "traces [RuntimeError" in result.error
+    assert "trace endpoint unavailable" in result.error
+
+
+def test_diagnostics_redact_langfuse_credentials():
+    class _LeakyTraceApi:
+        def list(self, **_):
+            raise RuntimeError("request used pk-test and sk-test")
+
+    api = _api()
+    api.trace = _LeakyTraceApi()
+    result = fetch_langfuse_metrics(_settings(), None, api=api)
+
+    assert result.error is not None
+    assert "pk-test" not in result.error
+    assert "sk-test" not in result.error
+    assert "[redacted]" in result.error
 
 
 def test_langfuse_metrics_are_optional_and_fail_safe():
