@@ -76,6 +76,18 @@ export interface AdminMetricGroup {
   failures: number
 }
 
+export interface AdminLangfuseCostGroup {
+  model: string
+  cost_usd: number
+  observations: number
+}
+
+export interface AdminLangfuseScoreGroup {
+  name: string
+  average: number
+  count: number
+}
+
 export interface AdminObservability {
   generated_at: string
   window_days: number
@@ -88,6 +100,14 @@ export interface AdminObservability {
   langfuse_configured: boolean
   langfuse_content_capture: boolean
   langfuse_dashboard_url: string | null
+  langfuse_metrics_available: boolean
+  langfuse_metrics_error: string | null
+  langfuse_trace_count: number
+  langfuse_observation_count: number
+  langfuse_score_count: number
+  langfuse_total_cost_usd: number
+  langfuse_cost_by_model: AdminLangfuseCostGroup[]
+  langfuse_scores: AdminLangfuseScoreGroup[]
   total_runs: number
   successful_runs: number
   failed_runs: number
@@ -106,9 +126,11 @@ export interface AdminObservability {
   ocr_assisted_documents: number
   failed_text_extractions: number
   ocr_pages: number
+  ocr_enabled: boolean
   erp_attempts: number
   erp_failures: number
   erp_average_latency_ms: number
+  erp_mode: string
   by_model: AdminMetricGroup[]
   by_operation: AdminMetricGroup[]
   by_prompt_version: AdminMetricGroup[]

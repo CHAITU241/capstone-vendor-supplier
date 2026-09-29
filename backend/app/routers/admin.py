@@ -16,6 +16,7 @@ from app.config import Settings, get_settings
 from app.database import get_db
 from app.models import AiRun, AiRunStatus, Document, DocumentRevision, ErpSupplierRecord, ErpToolAttempt, PortalAccount, PortalSession, Supplier, SupplierStatus
 from app.services.portal_auth import hash_password, require_admin
+from app.services.langfuse_metrics import fetch_langfuse_metrics
 from app.services.retrieval import delete_supplier_chunks, get_chunk_collection
 
 router = APIRouter(prefix="/admin", tags=["admin"], dependencies=[Depends(require_admin)])
@@ -59,6 +60,18 @@ class AdminRecentRun(BaseModel):
     created_at: datetime
 
 
+class AdminLangfuseCostGroup(BaseModel):
+    model: str
+    cost_usd: float
+    observations: int
+
+
+class AdminLangfuseScoreGroup(BaseModel):
+    name: str
+    average: float
+    count: int
+
+
 class AdminObservability(BaseModel):
     generated_at: datetime
     window_days: int
@@ -71,6 +84,14 @@ class AdminObservability(BaseModel):
     langfuse_configured: bool
     langfuse_content_capture: bool
     langfuse_dashboard_url: str | None
+    langfuse_metrics_available: bool
+    langfuse_metrics_error: str | None
+    langfuse_trace_count: int
+    langfuse_observation_count: int
+    langfuse_score_count: int
+    langfuse_total_cost_usd: float
+    langfuse_cost_by_model: list[AdminLangfuseCostGroup]
+    langfuse_scores: list[AdminLangfuseScoreGroup]
     total_runs: int
     successful_runs: int
     failed_runs: int
@@ -89,9 +110,11 @@ class AdminObservability(BaseModel):
     ocr_assisted_documents: int
     failed_text_extractions: int
     ocr_pages: int
+    ocr_enabled: bool
     erp_attempts: int
     erp_failures: int
     erp_average_latency_ms: int
+    erp_mode: str
     by_model: list[AdminMetricGroup]
     by_operation: list[AdminMetricGroup]
     by_prompt_version: list[AdminMetricGroup]
@@ -176,6 +199,7 @@ def observability(
         and settings.langfuse_public_key
         and langfuse_secret
     )
+    langfuse_metrics = fetch_langfuse_metrics(settings, cutoff)
 
     return AdminObservability(
         generated_at=datetime.now(timezone.utc),
@@ -190,6 +214,18 @@ def observability(
         langfuse_content_capture=settings.langfuse_capture_content,
         langfuse_dashboard_url=(settings.langfuse_dashboard_url or settings.langfuse_base_url)
             if langfuse_configured else None,
+        langfuse_metrics_available=langfuse_metrics.available,
+        langfuse_metrics_error=langfuse_metrics.error,
+        langfuse_trace_count=langfuse_metrics.trace_count,
+        langfuse_observation_count=langfuse_metrics.observation_count,
+        langfuse_score_count=langfuse_metrics.score_count,
+        langfuse_total_cost_usd=langfuse_metrics.total_cost_usd,
+        langfuse_cost_by_model=[
+            AdminLangfuseCostGroup(**vars(group)) for group in langfuse_metrics.cost_by_model
+        ],
+        langfuse_scores=[
+            AdminLangfuseScoreGroup(**vars(group)) for group in langfuse_metrics.scores
+        ],
         total_runs=len(runs),
         successful_runs=successful,
         failed_runs=failed,
@@ -211,9 +247,11 @@ def observability(
         ocr_assisted_documents=sum(document.text_extraction_method in {"ocr", "mixed"} for document in documents),
         failed_text_extractions=sum(document.processing_status.value == "failed" for document in documents),
         ocr_pages=sum(len(document.ocr_pages or []) for document in documents),
+        ocr_enabled=settings.ocr_enabled,
         erp_attempts=len(erp_attempts),
         erp_failures=sum(attempt.status != "succeeded" for attempt in erp_attempts),
         erp_average_latency_ms=round(sum(erp_latencies) / len(erp_latencies)) if erp_latencies else 0,
+        erp_mode="MCP service" if settings.mock_erp_mcp_url else "In-process demo",
         by_model=_metric_groups(runs, lambda run: run.model),
         by_operation=_metric_groups(runs, lambda run: run.run_type.value),
         by_prompt_version=_metric_groups(runs, lambda run: run.prompt_version),

@@ -52,6 +52,7 @@ class Settings(BaseSettings):
     langfuse_dashboard_url: str | None = None
     langfuse_capture_content: bool = False
     langfuse_release: str | None = None
+    langfuse_metrics_timeout_seconds: float = Field(default=5.0, ge=1.0, le=30.0)
     chunk_size_tokens: int = 500
     chunk_overlap_tokens: int = 75
     rag_top_k: int = 4
