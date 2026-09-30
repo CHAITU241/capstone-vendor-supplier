@@ -45,6 +45,9 @@ class UploadValidationOutcome:
     redacted_text: str
     redaction_counts: dict[str, int]
     details: dict
+    ocr_quality_score: int | None = None
+    ocr_quality_status: str | None = None
+    ocr_quality_details: dict | None = None
 
 
 LEGAL_SUFFIXES = {
@@ -103,6 +106,59 @@ def _document_label(supplier: Supplier, document_type: DocumentType) -> str:
     )
 
 
+def _quality_status(score: int, settings: Settings) -> str:
+    if score < settings.ocr_quality_reject_threshold:
+        return "poor"
+    if score < settings.ocr_quality_review_threshold:
+        return "review"
+    return "good"
+
+
+def _ocr_reliability(
+    extracted: ExtractedDocument,
+    fields: list[FieldCandidate],
+    expected_type: DocumentType,
+    settings: Settings,
+) -> tuple[int | None, str | None, dict | None]:
+    if not extracted.ocr_pages:
+        return None, None, None
+    visual_score = extracted.ocr_quality_score or 0
+    average_confidence = (
+        sum(field.confidence for field in fields) / len(fields) * 100
+        if fields else 0.0
+    )
+    required = set(required_extraction_field_names(expected_type))
+    found = {field.field_name for field in fields}
+    coverage = len(required & found) / max(len(required), 1) * 100
+    score = round(
+        0.45 * visual_score
+        + 0.40 * average_confidence
+        + 0.15 * coverage
+    )
+    score = max(0, min(100, score))
+    if visual_score < settings.ocr_quality_reject_threshold:
+        score = min(score, max(settings.ocr_quality_reject_threshold - 1, 0))
+    elif visual_score < settings.ocr_quality_review_threshold:
+        score = min(score, max(settings.ocr_quality_review_threshold - 1, 0))
+    return score, _quality_status(score, settings), {
+        "meaning": "Estimated OCR extraction reliability; not document authenticity.",
+        "visual_quality_score": visual_score,
+        "average_field_confidence": round(average_confidence),
+        "required_field_coverage": round(coverage),
+        "page_metrics": list(extracted.ocr_quality_details),
+    }
+
+
+def _poor_quality_issue(score: int) -> UploadValidationIssue:
+    return UploadValidationIssue(
+        code="low_ocr_quality",
+        message=(
+            f"Image quality is too low for reliable OCR (reliability score {score}/100). "
+            "Upload a sharper, well-lit image showing the complete document."
+        ),
+    )
+
+
 def validate_staged_upload(
     *,
     supplier: Supplier,
@@ -114,6 +170,18 @@ def validate_staged_upload(
 ) -> UploadValidationOutcome:
     redaction = redact_pii(extracted.text)
     if not settings.upload_ai_validation_enabled:
+        quality_score = extracted.ocr_quality_score
+        quality_status = (
+            _quality_status(quality_score, settings)
+            if quality_score is not None else None
+        )
+        if quality_score is not None and quality_status == "poor":
+            raise UploadValidationError([_poor_quality_issue(quality_score)])
+        quality_details = {
+            "meaning": "Estimated OCR extraction reliability; not document authenticity.",
+            "visual_quality_score": quality_score,
+            "page_metrics": list(extracted.ocr_quality_details),
+        } if quality_score is not None else None
         return UploadValidationOutcome(
             status="text_only",
             fields=[],
@@ -123,7 +191,11 @@ def validate_staged_upload(
                 "mode": "text_only",
                 "text_extraction_method": extracted.text_extraction_method,
                 "ocr_pages": list(extracted.ocr_pages),
+                "ocr_quality": quality_details,
             },
+            ocr_quality_score=quality_score,
+            ocr_quality_status=quality_status,
+            ocr_quality_details=quality_details,
         )
     if ai is None:
         raise RuntimeError(
@@ -186,6 +258,25 @@ def validate_staged_upload(
             if current is None or candidate.confidence > current.confidence:
                 best_fields[field.field_name] = candidate
 
+        quality_score, quality_status, quality_details = _ocr_reliability(
+            extracted, list(best_fields.values()), expected_type, settings,
+        )
+        if quality_score is not None and quality_status == "poor":
+            issues.append(_poor_quality_issue(quality_score))
+        if quality_status == "review":
+            best_fields = {
+                name: FieldCandidate(
+                    document_id=field.document_id,
+                    document_type=field.document_type,
+                    field_name=field.field_name,
+                    value=field.value,
+                    page_number=field.page_number,
+                    confidence=field.confidence,
+                    needs_review=True,
+                )
+                for name, field in best_fields.items()
+            }
+
         missing = [
             field_name
             for field_name in required_extraction_field_names(expected_type)
@@ -198,6 +289,7 @@ def validate_staged_upload(
                 message=f"Expected information could not be found: {labels}.",
             ))
 
+        uncertain_mismatches: list[str] = []
         comparisons = (
             ("supplier_name", supplier.name, names_are_plausibly_same, "supplier_name_mismatch"),
             ("tax_identifier", supplier.tax_reference, lambda a, b: _compact(a) == _compact(b), "tax_reference_mismatch"),
@@ -209,6 +301,9 @@ def validate_staged_upload(
             if not observed or not expected_value or matcher(observed.value, expected_value):
                 continue
             label = _field_label(field_name)
+            if observed.needs_review:
+                uncertain_mismatches.append(field_name)
+                continue
             issues.append(UploadValidationIssue(
                 code=code,
                 field=field_name,
@@ -235,6 +330,12 @@ def validate_staged_upload(
             "detected_document_type": extraction.classified_document_type.value,
             "issue_codes": [issue.code for issue in issues],
             "field_count": len(best_fields),
+            "manual_review_fields": sorted(
+                field.field_name for field in best_fields.values() if field.needs_review
+            ),
+            "uncertain_mismatches": sorted(uncertain_mismatches),
+            "ocr_quality_score": quality_score,
+            "ocr_quality_status": quality_status,
         })
         trace.score_trace(name="upload_validation_passed", value=0 if issues else 1)
         if issues:
@@ -248,6 +349,10 @@ def validate_staged_upload(
                 "mode": "ai",
                 "detected_document_type": extraction.classified_document_type.value,
                 "validated_fields": sorted(best_fields),
+                "manual_review_fields": sorted(
+                    field.field_name for field in best_fields.values() if field.needs_review
+                ),
+                "uncertain_mismatches": sorted(uncertain_mismatches),
                 "policy_assessments": policy_assessments,
                 "text_extraction_method": extracted.text_extraction_method,
                 "ocr_pages": list(extracted.ocr_pages),
@@ -255,5 +360,9 @@ def validate_staged_upload(
                 "output_tokens": result.output_tokens,
                 "model": settings.active_extraction_model,
                 "prompt_version": settings.extraction_prompt_version,
+                "ocr_quality": quality_details,
             },
+            ocr_quality_score=quality_score,
+            ocr_quality_status=quality_status,
+            ocr_quality_details=quality_details,
         )

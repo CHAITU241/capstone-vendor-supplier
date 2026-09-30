@@ -17,6 +17,7 @@ from app.models import (
     DocumentType, Supplier, SupplierStatus,
 )
 from app.services.document_policy import extraction_field_names
+from app.services.documents import ExtractedDocument
 from app.services.openai_service import (
     DocumentExtraction,
     ExtractedValue,
@@ -44,7 +45,7 @@ class FakeUploadAI:
             values["supplier_name"] = "Unrelated Trading Company Limited"
         elif mode == "tax_mismatch":
             values["tax_identifier"] = "ZZZZZ9999Z"
-        elif mode == "account_mismatch":
+        elif mode in {"account_mismatch", "uncertain_account_mismatch"}:
             values["bank_account_number"] = "880000000069"
         elif mode == "ifsc_mismatch":
             values["bank_ifsc"] = "WRNG0001234"
@@ -58,7 +59,7 @@ class FakeUploadAI:
                 field_name=field_name,
                 value=value,
                 page_number=1,
-                confidence=0.98,
+                confidence=0.65 if mode == "uncertain_account_mismatch" and field_name == "bank_account_number" else 0.98,
             ))
         return ModelResult(
             value=DocumentExtraction(
@@ -239,6 +240,109 @@ def test_basic_file_rejections_are_specific_and_not_persisted(
     assert message in response.json()["message"]
     with Session(engine) as db:
         assert db.scalars(select(Document)).all() == []
+
+
+def test_uncertain_ocr_mismatch_is_routed_to_reviewer_instead_of_rejected(
+    upload_app,
+) -> None:
+    client, headers, _, engine, _, state = upload_app
+    state["mode"] = "uncertain_account_mismatch"
+    response = upload(client, headers, "bank")
+    assert response.status_code == 201, response.text
+    assert response.json()["review_status"] == "attention"
+    with Session(engine) as db:
+        document = db.scalar(select(Document))
+        assert document is not None
+        assert document.upload_validation_details["uncertain_mismatches"] == [
+            "bank_account_number"
+        ]
+        account = next(
+            field for field in document.extracted_fields
+            if field.field_name == "bank_account_number"
+        )
+        assert account.needs_review is True
+
+
+def test_low_quality_ocr_is_rejected_before_permanent_storage(
+    upload_app, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    client, headers, _, engine, _, _ = upload_app
+    monkeypatch.setattr(
+        "app.routers.documents.extract_document_text",
+        lambda *_: ExtractedDocument(
+            text="[Page 1]\nComplete supplier evidence",
+            page_count=1,
+            text_extraction_method="ocr",
+            ocr_pages=(1,),
+            ocr_language="eng",
+            ocr_quality_score=10,
+            ocr_quality_status="poor",
+            ocr_quality_details=({"page_number": 1, "visual_score": 10},),
+        ),
+    )
+    response = upload(client, headers, "bank")
+    assert response.status_code == 422, response.text
+    assert "Image quality is too low" in response.json()["message"]
+    with Session(engine) as db:
+        assert db.scalars(select(Document)).all() == []
+
+
+def test_supplier_can_only_preview_ocr_and_reviewer_can_auditably_correct_it(
+    upload_app, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    client, headers, profile, engine, _, _ = upload_app
+    monkeypatch.setattr(
+        "app.routers.documents.extract_document_text",
+        lambda *_: ExtractedDocument(
+            text="[Page 1]\nComplete supplier bank evidence",
+            page_count=1,
+            text_extraction_method="ocr",
+            ocr_pages=(1,),
+            ocr_language="eng",
+            ocr_quality_score=50,
+            ocr_quality_status="review",
+            ocr_quality_details=({"page_number": 1, "visual_score": 50},),
+        ),
+    )
+    accepted = upload(client, headers, "bank")
+    assert accepted.status_code == 201, accepted.text
+    assert accepted.json()["ocr_quality_status"] == "review"
+    assert accepted.json()["review_status"] == "attention"
+
+    application = client.get("/api/portal/application", headers=headers)
+    assert application.status_code == 200, application.text
+    fields = application.json()["extracted_fields"]
+    account = next(field for field in fields if field["field_name"] == "bank_account_number")
+    assert account["needs_review"] is True
+    supplier_edit = client.patch(
+        f"/api/portal/application/fields/{account['id']}",
+        headers=headers,
+        json={"value": "123", "page_number": 1},
+    )
+    assert supplier_edit.status_code in {404, 405}
+
+    reviewer = client.post("/api/portal/auth/reviewer-demo").json()
+    corrected = client.patch(
+        f"/api/suppliers/{profile['id']}/fields/{account['id']}",
+        headers={"Authorization": f"Bearer {reviewer['token']}"},
+        json={
+            "value": "9900000000069",
+            "page_number": 1,
+            "reviewer_name": "OCR reviewer",
+        },
+    )
+    assert corrected.status_code == 200, corrected.text
+    assert corrected.json()["review_status"] == "corrected"
+    assert corrected.json()["needs_review"] is False
+    with Session(engine) as db:
+        event = db.scalar(select(AuditEvent).where(
+            AuditEvent.action == "extracted_field.corrected"
+        ))
+        assert event is not None
+        assert event.details["reviewer_name"] == "OCR reviewer"
+        assert event.details["previous_value"] == "990000000069"
+        assert event.details["corrected_value"] == "9900000000069"
+        assert event.details["previous_ai_confidence"] == 0.98
 
 
 def test_failed_replacement_keeps_current_flagged_document(upload_app) -> None:

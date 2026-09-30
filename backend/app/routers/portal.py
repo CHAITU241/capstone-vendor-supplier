@@ -13,10 +13,10 @@ from sqlalchemy.orm import Session
 
 from app.config import Settings, get_settings
 from app.database import SessionLocal, get_db
-from app.models import AuditEvent, Document, DocumentType, PortalAccount, PortalSession, ProcessingStatus, Supplier, SupplierStatus
+from app.models import AuditEvent, Document, DocumentType, ExtractedField, PortalAccount, PortalSession, ProcessingStatus, Supplier, SupplierStatus
 from app.routers.documents import delete_document, document_history, ingest_document, original_file_response, retry_text_extraction
 from app.schemas import (
-    AssistantHistoryMessage, DocumentRead, DocumentRevisionRead, GeneralAssistantMessage, GeneralAssistantRequest,
+    AssistantHistoryMessage, DocumentRead, DocumentRevisionRead, ExtractedFieldRead, GeneralAssistantMessage, GeneralAssistantRequest,
     GeneralAssistantResponse, GeneralAssistantRun,
 )
 from app.routers.assistant import answer_chat
@@ -75,6 +75,7 @@ class ApplicationRead(BaseModel):
     submitted_at: datetime | None
     status: SupplierStatus
     documents: list[DocumentRead]
+    extracted_fields: list[ExtractedFieldRead]
     requirements: Checklist
 
 
@@ -87,6 +88,9 @@ def get_application(db: Session, session: PortalSession) -> Supplier:
 
 def application_response(db: Session, supplier: Supplier) -> ApplicationRead:
     documents = db.scalars(select(Document).where(Document.supplier_id == supplier.id).order_by(Document.created_at.desc())).all()
+    extracted_fields = db.scalars(select(ExtractedField).where(
+        ExtractedField.supplier_id == supplier.id,
+    ).order_by(ExtractedField.document_id, ExtractedField.field_name)).all()
     return ApplicationRead(
         id=supplier.id, category=supplier.category, subcategory=supplier.subcategory,
         name=supplier.name, country=supplier.country, contact_email=supplier.contact_email,
@@ -94,6 +98,7 @@ def application_response(db: Session, supplier: Supplier) -> ApplicationRead:
         bank_ifsc=supplier.bank_ifsc,
         submitted_at=supplier.submitted_at, status=supplier.status,
         documents=[DocumentRead.model_validate(item) for item in documents],
+        extracted_fields=[ExtractedFieldRead.model_validate(item) for item in extracted_fields],
         requirements=checklist_for(supplier),
     )
 

@@ -46,6 +46,13 @@ def _apply_text_extraction(document: Document, file_path: Path, settings: Settin
     document.ocr_pages = list(extracted.ocr_pages)
     document.ocr_language = extracted.ocr_language
     document.ocr_warnings = list(extracted.ocr_warnings)
+    document.ocr_quality_score = extracted.ocr_quality_score
+    document.ocr_quality_status = extracted.ocr_quality_status
+    document.ocr_quality_details = {
+        "meaning": "Estimated OCR extraction reliability; not document authenticity.",
+        "visual_quality_score": extracted.ocr_quality_score,
+        "page_metrics": list(extracted.ocr_quality_details),
+    } if extracted.ocr_quality_score is not None else None
     document.processing_status = ProcessingStatus.READY
     document.error_message = None
     document.ai_extraction_status = "pending"
@@ -59,6 +66,8 @@ def _apply_text_extraction(document: Document, file_path: Path, settings: Settin
         "ocr_pages": document.ocr_pages,
         "ocr_language": document.ocr_language,
         "ocr_warnings": document.ocr_warnings,
+        "ocr_quality_score": document.ocr_quality_score,
+        "ocr_quality_status": document.ocr_quality_status,
     }
 
 
@@ -251,6 +260,15 @@ async def ingest_document(
         validation_details = dict(validation.details)
         for assessment in validation_details.get("policy_assessments", []):
             assessment["document_id"] = str(document_id)
+        manual_review_required = (
+            validation.ocr_quality_status == "review"
+            or any(field.needs_review for field in validation.fields)
+        )
+        review_comment = None
+        if validation.ocr_quality_status == "review":
+            review_comment = "OCR reliability requires manual comparison with the original document."
+        elif manual_review_required:
+            review_comment = "One or more extracted values require comparison with the original document."
         document = Document(
             id=document_id,
             supplier_id=supplier.id,
@@ -267,6 +285,9 @@ async def ingest_document(
             ocr_pages=list(extracted.ocr_pages),
             ocr_language=extracted.ocr_language,
             ocr_warnings=list(extracted.ocr_warnings),
+            ocr_quality_score=validation.ocr_quality_score,
+            ocr_quality_status=validation.ocr_quality_status,
+            ocr_quality_details=validation.ocr_quality_details,
             redacted_text=validation.redacted_text,
             redaction_summary=validation.redaction_counts,
             processing_status=ProcessingStatus.READY,
@@ -274,6 +295,8 @@ async def ingest_document(
             ai_index_status="pending",
             upload_validation_status=validation.status,
             upload_validation_details=validation_details,
+            review_status="attention" if manual_review_required else "pending",
+            review_comment=review_comment,
         )
         db.add(document)
         for field in validation.fields:
@@ -304,6 +327,8 @@ async def ingest_document(
                 "validation_status": validation.status,
                 "text_extraction_method": extracted.text_extraction_method,
                 "ocr_pages": list(extracted.ocr_pages),
+                "ocr_quality_score": validation.ocr_quality_score,
+                "ocr_quality_status": validation.ocr_quality_status,
                 "replaced_document_id": str(replacement_id) if replacement_id else None,
             },
         ))

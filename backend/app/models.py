@@ -183,6 +183,9 @@ class Document(Base):
     ocr_pages: Mapped[list[int]] = mapped_column(JSON, default=list)
     ocr_language: Mapped[str | None] = mapped_column(String(50), nullable=True)
     ocr_warnings: Mapped[list[str]] = mapped_column(JSON, default=list)
+    ocr_quality_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    ocr_quality_status: Mapped[str | None] = mapped_column(String(20), nullable=True, index=True)
+    ocr_quality_details: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     redacted_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     redaction_summary: Mapped[dict[str, int] | None] = mapped_column(JSON, nullable=True)
     processing_status: Mapped[ProcessingStatus] = mapped_column(

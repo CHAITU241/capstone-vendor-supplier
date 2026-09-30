@@ -217,6 +217,9 @@ def correct_extracted_field(
             detail="Page number is outside the source document.",
         )
 
+    previous_value = field.value
+    previous_page_number = field.page_number
+    previous_confidence = field.confidence
     field.value = payload.value.strip()
     field.page_number = payload.page_number
     field.confidence = 1.0
@@ -235,7 +238,11 @@ def correct_extracted_field(
             details={
                 "field_name": field.field_name,
                 "source_document_id": str(field.document_id),
+                "previous_value": previous_value,
+                "corrected_value": field.value,
+                "previous_page_number": previous_page_number,
                 "page_number": field.page_number,
+                "previous_ai_confidence": previous_confidence,
                 "reviewer_name": payload.reviewer_name.strip(),
                 "compliance_results_invalidated": True,
             },

@@ -20,6 +20,9 @@ class ExtractedDocument:
     ocr_pages: tuple[int, ...] = ()
     ocr_language: str | None = None
     ocr_warnings: tuple[str, ...] = ()
+    ocr_quality_score: int | None = None
+    ocr_quality_status: str | None = None
+    ocr_quality_details: tuple[dict, ...] = ()
 
 
 def _native_text_is_usable(text: str, settings: Settings) -> bool:
@@ -49,6 +52,93 @@ def _large_image_coverage(page: pymupdf.Page, threshold: float) -> bool:
     return min(image_area / page_area, 1.0) >= threshold
 
 
+def _clamp_score(value: float) -> float:
+    return max(0.0, min(100.0, value))
+
+
+def _ocr_visual_quality(page: pymupdf.Page, recognized_text: str, page_number: int) -> dict:
+    """Estimate OCR suitability from pixels and recognised-text yield.
+
+    This is deliberately labelled extraction reliability, not document
+    authenticity. It detects blur, weak contrast, poor illumination and
+    undersized source images without making a fraud judgment.
+    """
+    pixmap = page.get_pixmap(
+        matrix=pymupdf.Matrix(0.5, 0.5),
+        colorspace=pymupdf.csGRAY,
+        alpha=False,
+    )
+    samples = pixmap.samples
+    sample_step = max(len(samples) // 50000, 1)
+    sampled = samples[::sample_step] or bytes([255])
+    mean = sum(sampled) / len(sampled)
+    variance = sum((value - mean) ** 2 for value in sampled) / len(sampled)
+    contrast = variance ** 0.5
+
+    horizontal_step = max(pixmap.width // 250, 1)
+    vertical_step = max(pixmap.height // 250, 1)
+    differences: list[int] = []
+    stride = pixmap.stride
+    for y in range(0, pixmap.height, vertical_step):
+        row = y * stride
+        for x in range(horizontal_step, pixmap.width, horizontal_step):
+            current = samples[row + x]
+            previous = samples[row + x - horizontal_step]
+            differences.append(abs(current - previous))
+    edge_strength = sum(differences) / max(len(differences), 1)
+
+    source_dimensions = [
+        (int(image[2]), int(image[3]))
+        for image in page.get_images(full=True)
+        if len(image) > 3 and int(image[2]) > 0 and int(image[3]) > 0
+    ]
+    source_short_edge = max(
+        (min(width, height) for width, height in source_dimensions),
+        default=min(pixmap.width * 2, pixmap.height * 2),
+    )
+    alphanumeric_chars = sum(character.isalnum() for character in recognized_text)
+    word_count = len(re.findall(r"\b\w+\b", recognized_text, flags=re.UNICODE))
+
+    resolution_score = _clamp_score((source_short_edge - 250) / 750 * 100)
+    contrast_score = _clamp_score((contrast - 8) / 32 * 100)
+    sharpness_score = _clamp_score((edge_strength - 1.5) / 10.5 * 100)
+    text_yield_score = _clamp_score(
+        0.65 * min(alphanumeric_chars / 180, 1) * 100
+        + 0.35 * min(word_count / 35, 1) * 100
+    )
+    if mean < 35:
+        illumination_score = _clamp_score(mean / 35 * 100)
+    elif mean > 225:
+        illumination_score = _clamp_score((255 - mean) / 30 * 100)
+    else:
+        illumination_score = 100.0
+    score = round(
+        0.25 * resolution_score
+        + 0.25 * contrast_score
+        + 0.25 * sharpness_score
+        + 0.20 * text_yield_score
+        + 0.05 * illumination_score
+    )
+    return {
+        "page_number": page_number,
+        "visual_score": int(_clamp_score(score)),
+        "source_short_edge_px": source_short_edge,
+        "contrast": round(contrast, 2),
+        "edge_strength": round(edge_strength, 2),
+        "mean_brightness": round(mean, 2),
+        "recognised_alphanumeric_chars": alphanumeric_chars,
+        "recognised_words": word_count,
+    }
+
+
+def _quality_status(score: int, settings: Settings) -> str:
+    if score < settings.ocr_quality_reject_threshold:
+        return "poor"
+    if score < settings.ocr_quality_review_threshold:
+        return "review"
+    return "good"
+
+
 def _ocr_page(page: pymupdf.Page, settings: Settings, *, full: bool) -> str:
     try:
         text_page = page.get_textpage_ocr(
@@ -74,6 +164,7 @@ def _extract_visual_document(path: Path, settings: Settings) -> ExtractedDocumen
         pages: list[str] = []
         ocr_pages: list[int] = []
         warnings: list[str] = []
+        quality_details: list[dict] = []
         for index, page in enumerate(document, start=1):
             native_text = page.get_text("text").strip()
             native_usable = _native_text_is_usable(native_text, settings)
@@ -93,6 +184,7 @@ def _extract_visual_document(path: Path, settings: Settings) -> ExtractedDocumen
                         )
                     text = _ocr_page(page, settings, full=not native_usable)
                     ocr_pages.append(index)
+                    quality_details.append(_ocr_visual_quality(page, text, index))
                     if not text:
                         warnings.append(f"Page {index}: OCR did not recognise any text.")
             pages.append(f"[Page {index}]\n{text}")
@@ -108,6 +200,10 @@ def _extract_visual_document(path: Path, settings: Settings) -> ExtractedDocumen
             method = "mixed"
         else:
             method = "native"
+        visual_score = (
+            round(sum(item["visual_score"] for item in quality_details) / len(quality_details))
+            if quality_details else None
+        )
         return ExtractedDocument(
             text="\n\n".join(pages),
             page_count=document.page_count,
@@ -115,6 +211,9 @@ def _extract_visual_document(path: Path, settings: Settings) -> ExtractedDocumen
             ocr_pages=tuple(ocr_pages),
             ocr_language=settings.ocr_language if ocr_pages else None,
             ocr_warnings=tuple(warnings),
+            ocr_quality_score=visual_score,
+            ocr_quality_status=_quality_status(visual_score, settings) if visual_score is not None else None,
+            ocr_quality_details=tuple(quality_details),
         )
 
 
@@ -167,6 +266,8 @@ def extract_document_text(path: Path, content_type: str, settings: Settings | No
             "ocr_page_count": len(result.ocr_pages),
             "warning_count": len(result.ocr_warnings),
             "text_chars": len(result.text),
+            "ocr_quality_score": result.ocr_quality_score,
+            "ocr_quality_status": result.ocr_quality_status,
         })
         trace.score_trace(name="text_extraction_success", value=1)
         return result

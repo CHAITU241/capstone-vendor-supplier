@@ -23,6 +23,8 @@ class Settings(BaseSettings):
     ocr_min_native_words: int = Field(default=5, ge=0, le=200)
     ocr_image_coverage_threshold: float = Field(default=0.5, ge=0.1, le=1.0)
     ocr_max_pages: int = Field(default=30, ge=1, le=200)
+    ocr_quality_reject_threshold: int = Field(default=35, ge=0, le=100)
+    ocr_quality_review_threshold: int = Field(default=70, ge=0, le=100)
     reviewer_auth_enabled: bool = False
     reviewer_email: str | None = None
     reviewer_password: SecretStr | None = None

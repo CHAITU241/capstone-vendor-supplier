@@ -165,6 +165,7 @@ export interface SupplierApplication {
   submitted_at: string | null
   status: SupplierStatus
   documents: SupplierDocument[]
+  extracted_fields: ExtractedField[]
   requirements: DocumentChecklist
 }
 
@@ -184,6 +185,9 @@ export interface SupplierDocument {
   ocr_pages: number[]
   ocr_language: string | null
   ocr_warnings: string[]
+  ocr_quality_score: number | null
+  ocr_quality_status: 'poor' | 'review' | 'good' | null
+  ocr_quality_details: Record<string, unknown> | null
   ai_extraction_status: 'pending' | 'processing' | 'ready' | 'failed'
   ai_extraction_error: string | null
   ai_index_status: 'pending' | 'processing' | 'ready' | 'failed'

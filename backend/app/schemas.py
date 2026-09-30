@@ -59,6 +59,9 @@ class DocumentRead(BaseModel):
     ocr_pages: list[int] = Field(default_factory=list)
     ocr_language: str | None = None
     ocr_warnings: list[str] = Field(default_factory=list)
+    ocr_quality_score: float | None = None
+    ocr_quality_status: Literal["poor", "review", "good"] | None = None
+    ocr_quality_details: dict | None = None
     ai_extraction_status: Literal["pending", "processing", "ready", "failed"] = "pending"
     ai_extraction_error: str | None = None
     ai_index_status: Literal["pending", "processing", "ready", "failed"] = "pending"

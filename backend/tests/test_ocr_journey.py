@@ -40,6 +40,8 @@ def test_unreadable_scan_is_not_saved_and_can_be_uploaded_after_ocr_is_available
             chroma_path=tmp_path / "chroma",
             ocr_enabled=ocr_state["enabled"],
             upload_ai_validation_enabled=False,
+            ocr_quality_reject_threshold=0,
+            ocr_quality_review_threshold=100,
         )
 
     app.dependency_overrides[get_db] = db_override
@@ -95,6 +97,8 @@ def test_unreadable_scan_is_not_saved_and_can_be_uploaded_after_ocr_is_available
             assert recovered["text_extraction_method"] == "ocr"
             assert recovered["ocr_pages"] == [1]
             assert recovered["ocr_language"] == "eng"
+            assert recovered["ocr_quality_score"] is not None
+            assert recovered["ocr_quality_status"] == "review"
 
             with Session(engine) as db:
                 actions = db.scalars(select(AuditEvent.action)).all()

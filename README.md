@@ -6,6 +6,7 @@ VendorLens is an AI-assisted supplier onboarding application. It turns registrat
 
 - Creates supplier cases and accepts one document in each required category.
 - Stages uploads temporarily, rejects unreadable/wrong-type/wrong-supplier evidence with exact feedback, and promotes only validated files to permanent storage.
+- Scores OCR extraction reliability from image clarity, OCR yield and AI field confidence; poor scans are rejected, uncertain scans are routed to human review, suppliers receive a read-only preview, and reviewer corrections remain auditable.
 - Extracts native PDF/text content and uses page-selective local Tesseract OCR for scanned PDFs, PNGs and JPEGs; records OCR provenance, redacts PII before AI calls, and stores supplier-scoped ChromaDB embeddings.
 - Uses OpenRouter when configured, with Azure OpenAI as the configuration fallback, for structured extraction, embeddings, and cited document Q&A.
 - Shows confidence, source pages, conflicts, compliance checks, and editable fields.
