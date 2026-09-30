@@ -2,6 +2,7 @@ import type { ErpRecord } from '../api/types'
 
 export interface VendorMasterRow {
   vendorId: string
+  erpRecordId: string
   portalReference: string
   legalName: string
   status: string
@@ -35,6 +36,7 @@ export interface VendorMasterColumn {
 
 export const vendorMasterColumns: VendorMasterColumn[] = [
   { key: 'vendorId', label: 'Vendor ID' },
+  { key: 'erpRecordId', label: 'ERP record ID' },
   { key: 'legalName', label: 'Vendor name' },
   { key: 'portalReference', label: 'Portal reference' },
   { key: 'status', label: 'Status' },
@@ -69,7 +71,8 @@ function payloadValue(record: ErpRecord, ...keys: string[]) {
 
 export function toVendorMasterRow(record: ErpRecord): VendorMasterRow {
   return {
-    vendorId: record.erp_supplier_id,
+    vendorId: record.vendor_id,
+    erpRecordId: record.erp_record_id,
     portalReference: record.supplier_reference ?? payloadValue(record, 'supplier_reference'),
     legalName: record.legal_name,
     status: record.status,

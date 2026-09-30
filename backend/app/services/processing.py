@@ -298,6 +298,7 @@ def _process_supplier_documents(
     supplier.decision_reason = None
     supplier.decided_at = None
     supplier.erp_supplier_id = None
+    supplier.erp_record_id = None
     supplier.erp_payload = None
     db.commit()
 

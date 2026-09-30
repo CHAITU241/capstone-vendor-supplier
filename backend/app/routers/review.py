@@ -554,7 +554,7 @@ def retrieve_erp_record(
         raise HTTPException(status_code=404, detail="This supplier does not have an ERP record yet.")
     try:
         result = ErpMcpClient().call(db, "get_supplier_record", {
-            "erp_supplier_id": supplier.erp_supplier_id,
+            "vendor_id": supplier.erp_supplier_id,
             "source_supplier_id": str(supplier.id),
         })
     except ErpToolFailure as exc:
@@ -577,6 +577,8 @@ def approve_supplier(
             status=supplier.status,
             message="Supplier was already approved.",
             erp_supplier_id=supplier.erp_supplier_id,
+            erp_record_id=supplier.erp_record_id,
+            vendor_id=supplier.vendor_id,
             decided_at=supplier.decided_at or datetime.now(UTC),
         )
 
@@ -617,14 +619,23 @@ def approve_supplier(
     supplier.decision_reason = "Approved after human review."
     supplier.decided_at = datetime.now(UTC)
     supplier.erp_supplier_id = str(erp_result["erp_supplier_id"])
+    supplier.erp_record_id = str(erp_result["erp_record_id"])
     supplier.erp_payload = dict(erp_result["payload"])
     db.add(
         AuditEvent(
             supplier_id=supplier.id,
             action="erp.supplier.created",
             entity_type="supplier",
-            entity_id=supplier.erp_supplier_id,
-            details={"status": erp_result["status"], "payload_fields": sorted(supplier.erp_payload), "idempotent_replay": erp_result.get("idempotent_replay", False), "transport": "mcp"},
+            entity_id=supplier.erp_record_id,
+            details={
+                "status": erp_result["status"],
+                "portal_reference": erp_result.get("supplier_reference"),
+                "erp_record_id": supplier.erp_record_id,
+                "vendor_id": supplier.vendor_id,
+                "payload_fields": sorted(supplier.erp_payload),
+                "idempotent_replay": erp_result.get("idempotent_replay", False),
+                "transport": "mcp",
+            },
         )
     )
     db.add(
@@ -636,6 +647,8 @@ def approve_supplier(
             details={
                 "reviewer_name": payload.reviewer_name.strip(),
                 "erp_supplier_id": supplier.erp_supplier_id,
+                "erp_record_id": supplier.erp_record_id,
+                "vendor_id": supplier.vendor_id,
             },
         )
     )
@@ -644,8 +657,10 @@ def approve_supplier(
     return DecisionResponse(
         supplier_id=supplier.id,
         status=supplier.status,
-        message="Supplier approved and created in the mock ERP.",
+        message="Supplier approved and sent to the mock ERP for creation.",
         erp_supplier_id=supplier.erp_supplier_id,
+        erp_record_id=supplier.erp_record_id,
+        vendor_id=supplier.vendor_id,
         decided_at=supplier.decided_at,
     )
 
@@ -665,6 +680,8 @@ def reject_supplier(
             status=supplier.status,
             message="Supplier was already rejected.",
             erp_supplier_id=None,
+            erp_record_id=None,
+            vendor_id=None,
             decided_at=supplier.decided_at or datetime.now(UTC),
         )
 
@@ -673,6 +690,7 @@ def reject_supplier(
     supplier.decision_reason = payload.reason.strip()
     supplier.decided_at = decided_at
     supplier.erp_supplier_id = None
+    supplier.erp_record_id = None
     supplier.erp_payload = None
     db.add(
         AuditEvent(
@@ -693,5 +711,7 @@ def reject_supplier(
         status=supplier.status,
         message="Supplier rejected with an audited reason.",
         erp_supplier_id=None,
+        erp_record_id=None,
+        vendor_id=None,
         decided_at=decided_at,
     )

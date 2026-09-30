@@ -314,6 +314,7 @@ async def ingest_document(
         supplier.decision_reason = None
         supplier.decided_at = None
         supplier.erp_supplier_id = None
+        supplier.erp_record_id = None
         supplier.erp_payload = None
         db.add(AuditEvent(
             supplier_id=supplier.id,
@@ -501,6 +502,7 @@ def delete_document(
     supplier.decision_reason = None
     supplier.decided_at = None
     supplier.erp_supplier_id = None
+    supplier.erp_record_id = None
     supplier.erp_payload = None
     db.commit()
 

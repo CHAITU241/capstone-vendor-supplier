@@ -1,3 +1,4 @@
+import re
 import uuid
 
 import pytest
@@ -62,13 +63,19 @@ def test_create_is_idempotent_and_retrievable() -> None:
         source_id = uuid.uuid4()
         first = execute_erp_tool(db, "create_supplier_record", arguments(source_id))
         second = execute_erp_tool(db, "create_supplier_record", arguments(source_id))
-        retrieved = execute_erp_tool(db, "get_supplier_record", {"erp_supplier_id": first["erp_supplier_id"], "source_supplier_id": str(source_id)})
+        retrieved = execute_erp_tool(db, "get_supplier_record", {"vendor_id": first["vendor_id"], "source_supplier_id": str(source_id)})
 
         assert first["created"] is True
+        assert re.fullmatch(r"\d{10}", first["vendor_id"])
+        assert first["erp_record_id"].startswith("ERP-REC-")
+        assert first["supplier_reference"] == "SUP-ABC12345"
+        assert len({first["vendor_id"], first["erp_record_id"], first["supplier_reference"]}) == 3
         assert second["created"] is False
         assert second["idempotent_replay"] is True
-        assert second["erp_supplier_id"] == first["erp_supplier_id"]
+        assert second["vendor_id"] == first["vendor_id"]
+        assert second["erp_record_id"] == first["erp_record_id"]
         assert retrieved["payload"] == payload()
+        assert retrieved["vendor_id"] == first["vendor_id"]
         assert db.scalar(select(func.count(ErpSupplierRecord.id))) == 1
     finally:
         db.close()

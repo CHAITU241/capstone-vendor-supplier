@@ -14,7 +14,7 @@ app = FastAPI(title="VendorLens Mock ERP MCP")
 TOOL_DESCRIPTIONS = {
     "validate_supplier_record": "Validate required fields, ERP mappings, and duplicate master data before approval.",
     "create_supplier_record": "Create an idempotent supplier master record after explicit reviewer approval.",
-    "get_supplier_record": "Retrieve one created ERP supplier record by ERP supplier ID.",
+    "get_supplier_record": "Retrieve one created ERP supplier record by final Vendor ID.",
     "list_supplier_records": "List supplier master records created in the mock ERP.",
 }
 
@@ -26,8 +26,8 @@ def _tool_schema(name: str) -> dict[str, Any]:
         properties.update({"payload": {"type": "object"}, "idempotency_key": {"type": "string"}, "source_supplier_id": {"type": "string", "format": "uuid"}})
         required.extend(["payload", "idempotency_key", "source_supplier_id"])
     elif name == "get_supplier_record":
-        properties.update({"erp_supplier_id": {"type": "string"}, "source_supplier_id": {"type": "string", "format": "uuid"}})
-        required.append("erp_supplier_id")
+        properties.update({"vendor_id": {"type": "string"}, "source_supplier_id": {"type": "string", "format": "uuid"}})
+        required.append("vendor_id")
     return {"name": name, "description": TOOL_DESCRIPTIONS[name], "inputSchema": {"type": "object", "properties": properties, "required": required}}
 
 

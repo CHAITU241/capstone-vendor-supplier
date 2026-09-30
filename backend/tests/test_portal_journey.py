@@ -314,8 +314,12 @@ def test_human_review_gates_approval_and_retains_erp_payload(tmp_path):
                 "confirmed": True, "reviewer_name": "Demo reviewer",
             })
             assert approved.status_code == 200, approved.text
-            assert approved.json()["erp_supplier_id"].startswith("ERP-")
+            assert approved.json()["vendor_id"].isdigit()
+            assert len(approved.json()["vendor_id"]) == 10
+            assert approved.json()["erp_record_id"].startswith("ERP-REC-")
             final = client.get(f"/api/suppliers/{supplier_id}", headers=review_headers).json()
+            assert final["vendor_id"] == approved.json()["vendor_id"]
+            assert final["erp_record_id"] == approved.json()["erp_record_id"]
             assert final["erp_payload"]["legal_name"] == "Review Gate Supplies Corrected Ltd"
             assert final["erp_payload"]["tax_reference"] == "DEMO-PAN-900"
     finally:

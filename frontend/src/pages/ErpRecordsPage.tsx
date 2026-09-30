@@ -32,6 +32,7 @@ const tableColumns: Array<{
   kind?: 'status' | 'date' | 'multiline'
 }> = [
   { key: 'vendorId', label: 'Vendor ID', width: 150, sortKey: 'vendorId' },
+  { key: 'erpRecordId', label: 'ERP record ID', width: 190 },
   { key: 'legalName', label: 'Vendor name', width: 230, sortKey: 'legalName' },
   { key: 'portalReference', label: 'Portal reference', width: 150 },
   { key: 'status', label: 'Status', width: 110, sortKey: 'status', kind: 'status' },
@@ -176,7 +177,7 @@ export function ErpRecordsPage() {
     <Paper variant="outlined" sx={{ overflow: 'hidden', borderRadius: 2 }}>
       <Stack direction={{ xs: 'column', lg: 'row' }} spacing={1.25} alignItems={{ lg: 'center' }} sx={{ p: 2, borderBottom: 1, borderColor: 'divider', bgcolor: 'background.paper' }}>
         <TextField
-          size="small" placeholder="Search Vendor ID, name, tax, bank, contact…" value={query}
+          size="small" placeholder="Search Vendor ID, ERP record ID, portal reference, name…" value={query}
           onChange={(event) => { setQuery(event.target.value); setPage(0) }} sx={{ minWidth: { lg: 360 }, flexGrow: 1 }}
           slotProps={{ input: { startAdornment: <InputAdornment position="start"><SearchRoundedIcon fontSize="small" /></InputAdornment> } }}
         />
@@ -191,9 +192,9 @@ export function ErpRecordsPage() {
 
       {loading ? <Box sx={{ display: 'grid', placeItems: 'center', py: 10 }}><CircularProgress /></Box> : rows.length === 0 ? <Box sx={{ py: 8, textAlign: 'center' }}><StorageRoundedIcon sx={{ fontSize: 48, color: 'primary.main', mb: 1 }} /><Typography variant="h6">No ERP vendors yet</Typography><Typography color="text.secondary">A vendor appears here only after policy review, ERP validation, and explicit reviewer acceptance.</Typography></Box> : <>
         <TableContainer sx={{ maxHeight: '62vh' }}>
-          <Table stickyHeader size="small" aria-label="Vendor Master" sx={{ minWidth: 3450, tableLayout: 'fixed' }}>
+          <Table stickyHeader size="small" aria-label="Vendor Master" sx={{ minWidth: 3640, tableLayout: 'fixed' }}>
             <TableHead>
-              <TableRow><TableCell colSpan={3} sx={{ ...groupHeaderSx, top: 0, zIndex: 4 }}>Vendor identity</TableCell><TableCell colSpan={3} sx={{ ...groupHeaderSx, top: 0, zIndex: 4 }}>Classification</TableCell><TableCell colSpan={8} sx={{ ...groupHeaderSx, top: 0, zIndex: 4 }}>Contact and address</TableCell><TableCell colSpan={3} sx={{ ...groupHeaderSx, top: 0, zIndex: 4 }}>Tax and payment</TableCell><TableCell colSpan={4} sx={{ ...groupHeaderSx, top: 0, zIndex: 4 }}>Risk and terms</TableCell><TableCell colSpan={2} sx={{ ...groupHeaderSx, top: 0, zIndex: 4 }}>Lifecycle</TableCell><TableCell rowSpan={2} align="center" sx={{ ...groupHeaderSx, position: 'sticky', top: 0, right: 0, zIndex: 5 }}>Actions</TableCell></TableRow>
+              <TableRow><TableCell colSpan={4} sx={{ ...groupHeaderSx, top: 0, zIndex: 4 }}>Vendor identity</TableCell><TableCell colSpan={3} sx={{ ...groupHeaderSx, top: 0, zIndex: 4 }}>Classification</TableCell><TableCell colSpan={8} sx={{ ...groupHeaderSx, top: 0, zIndex: 4 }}>Contact and address</TableCell><TableCell colSpan={3} sx={{ ...groupHeaderSx, top: 0, zIndex: 4 }}>Tax and payment</TableCell><TableCell colSpan={4} sx={{ ...groupHeaderSx, top: 0, zIndex: 4 }}>Risk and terms</TableCell><TableCell colSpan={2} sx={{ ...groupHeaderSx, top: 0, zIndex: 4 }}>Lifecycle</TableCell><TableCell rowSpan={2} align="center" sx={{ ...groupHeaderSx, position: 'sticky', top: 0, right: 0, zIndex: 5 }}>Actions</TableCell></TableRow>
               <TableRow>{tableColumns.map((column) => <TableCell key={column.key} sx={{ top: 31, width: column.width, minWidth: column.width, bgcolor: '#EAF2F8', color: '#16324F', fontWeight: 750, borderBottom: '2px solid #9CBBD4', zIndex: 3 }} sortDirection={sortKey === column.sortKey ? sortDirection : false}>{column.sortKey ? <TableSortLabel active={sortKey === column.sortKey} direction={sortKey === column.sortKey ? sortDirection : 'asc'} onClick={() => changeSort(column.sortKey!)}>{column.label}</TableSortLabel> : column.label}</TableCell>)}</TableRow>
             </TableHead>
             <TableBody>
@@ -212,7 +213,7 @@ export function ErpRecordsPage() {
                   </Stack>
                 </TableCell>
               </TableRow>)}
-              {visibleRows.length === 0 && <TableRow><TableCell colSpan={24} align="center" sx={{ py: 7 }}><Typography fontWeight={700}>No vendors match these filters</Typography><Typography variant="body2" color="text.secondary">Change the search or filter values.</Typography></TableCell></TableRow>}
+              {visibleRows.length === 0 && <TableRow><TableCell colSpan={25} align="center" sx={{ py: 7 }}><Typography fontWeight={700}>No vendors match these filters</Typography><Typography variant="body2" color="text.secondary">Change the search or filter values.</Typography></TableCell></TableRow>}
             </TableBody>
           </Table>
         </TableContainer>

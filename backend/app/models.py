@@ -111,7 +111,15 @@ class Supplier(Base):
         DateTime(timezone=True), nullable=True
     )
     erp_supplier_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    erp_record_id: Mapped[str | None] = mapped_column(
+        String(100), nullable=True, unique=True, index=True
+    )
     erp_payload: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+
+    @property
+    def vendor_id(self) -> str | None:
+        """Final ERP Vendor ID; the legacy column name is retained for compatibility."""
+        return self.erp_supplier_id
 
     documents: Mapped[list["Document"]] = relationship(
         back_populates="supplier", cascade="all, delete-orphan"

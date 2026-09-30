@@ -35,6 +35,25 @@ def _value(payload: dict[str, Any], name: str) -> str:
     return "" if value is None else str(value).strip()
 
 
+def _erp_record_id(record_id: uuid.UUID) -> str:
+    return f"ERP-REC-{record_id.hex[:12].upper()}"
+
+
+def _vendor_id(db: Session, idempotency_key: str) -> str:
+    """Return a stable SAP-style 10-digit vendor account number."""
+    candidate = 1_000_000_000 + (
+        int(hashlib.sha256(idempotency_key.encode("utf-8")).hexdigest()[:16], 16)
+        % 9_000_000_000
+    )
+    while db.scalar(
+        select(ErpSupplierRecord.id).where(
+            ErpSupplierRecord.erp_supplier_id == str(candidate)
+        )
+    ) is not None:
+        candidate = 1_000_000_000 + ((candidate - 999_999_999) % 9_000_000_000)
+    return str(candidate)
+
+
 def validate_supplier_record(db: Session, payload: dict[str, Any], idempotency_key: str) -> dict[str, Any]:
     errors: list[dict[str, str]] = []
     warnings: list[dict[str, str]] = []
@@ -62,7 +81,14 @@ def validate_supplier_record(db: Session, payload: dict[str, Any], idempotency_k
 
     existing_key = db.scalar(select(ErpSupplierRecord).where(ErpSupplierRecord.idempotency_key == idempotency_key))
     if existing_key:
-        return {"valid": True, "errors": [], "warnings": [], "existing_erp_supplier_id": existing_key.erp_supplier_id, "idempotent_replay": True}
+        return {
+            "valid": True,
+            "errors": [],
+            "warnings": [],
+            "existing_erp_supplier_id": existing_key.erp_supplier_id,
+            "existing_vendor_id": existing_key.erp_supplier_id,
+            "idempotent_replay": True,
+        }
 
     tax_reference, bank_account = _value(payload, "tax_reference"), _value(payload, "bank_account_number")
     if tax_reference or bank_account:
@@ -72,19 +98,28 @@ def validate_supplier_record(db: Session, payload: dict[str, Any], idempotency_k
         ))).all()
         for record in duplicates:
             if tax_reference and record.tax_reference == tax_reference:
-                errors.append({"field": "tax_reference", "code": "DUPLICATE_TAX_REFERENCE", "message": f"This tax reference already belongs to {record.erp_supplier_id}."})
+                errors.append({"field": "tax_reference", "code": "DUPLICATE_TAX_REFERENCE", "message": f"This tax reference already belongs to Vendor ID {record.erp_supplier_id}."})
             if bank_account and record.bank_account_number == bank_account:
-                errors.append({"field": "bank_account_number", "code": "DUPLICATE_BANK_ACCOUNT", "message": f"This bank account already belongs to {record.erp_supplier_id}."})
+                errors.append({"field": "bank_account_number", "code": "DUPLICATE_BANK_ACCOUNT", "message": f"This bank account already belongs to Vendor ID {record.erp_supplier_id}."})
 
     for optional in ("registered_address", "contact_name", "payment_terms"):
         if not _value(payload, optional):
             warnings.append({"field": optional, "code": "OPTIONAL_FIELD_EMPTY", "message": f"{optional.replace('_', ' ').title()} is not populated."})
-    return {"valid": not errors, "errors": errors, "warnings": warnings, "existing_erp_supplier_id": None, "idempotent_replay": False}
+    return {
+        "valid": not errors,
+        "errors": errors,
+        "warnings": warnings,
+        "existing_erp_supplier_id": None,
+        "existing_vendor_id": None,
+        "idempotent_replay": False,
+    }
 
 
 def _record_dict(record: ErpSupplierRecord) -> dict[str, Any]:
     return {
         "erp_supplier_id": record.erp_supplier_id,
+        "erp_record_id": _erp_record_id(record.id),
+        "vendor_id": record.erp_supplier_id,
         "supplier_reference": record.payload.get("supplier_reference"),
         "source_supplier_id": str(record.source_supplier_id),
         "legal_name": record.legal_name,
@@ -105,9 +140,8 @@ def create_supplier_record(db: Session, payload: dict[str, Any], idempotency_key
     validation = validate_supplier_record(db, payload, idempotency_key)
     if not validation["valid"]:
         raise ErpToolFailure("ERP_VALIDATION_FAILED", "The proposed supplier record failed ERP validation.", details=validation["errors"])
-    digest = hashlib.sha256(idempotency_key.encode("utf-8")).hexdigest()[:10].upper()
     record = ErpSupplierRecord(
-        erp_supplier_id=f"ERP-{digest}", idempotency_key=idempotency_key,
+        erp_supplier_id=_vendor_id(db, idempotency_key), idempotency_key=idempotency_key,
         source_supplier_id=source_supplier_id, legal_name=_value(payload, "legal_name"),
         tax_reference=_value(payload, "tax_reference"), bank_account_number=_value(payload, "bank_account_number"),
         category=_value(payload, "category"), subcategory=_value(payload, "subcategory"),
@@ -118,8 +152,8 @@ def create_supplier_record(db: Session, payload: dict[str, Any], idempotency_key
     return {**_record_dict(record), "created": True, "idempotent_replay": False}
 
 
-def get_supplier_record(db: Session, erp_supplier_id: str) -> dict[str, Any]:
-    record = db.scalar(select(ErpSupplierRecord).where(ErpSupplierRecord.erp_supplier_id == erp_supplier_id))
+def get_supplier_record(db: Session, vendor_id: str) -> dict[str, Any]:
+    record = db.scalar(select(ErpSupplierRecord).where(ErpSupplierRecord.erp_supplier_id == vendor_id))
     if not record:
         raise ErpToolFailure("ERP_RECORD_NOT_FOUND", "The ERP supplier record was not found.")
     return _record_dict(record)
@@ -141,7 +175,7 @@ def execute_erp_tool(db: Session, tool_name: str, arguments: dict[str, Any]) -> 
     )) or 0) + 1
     request_summary = {
         "idempotency_key": arguments.get("idempotency_key"),
-        "erp_supplier_id": arguments.get("erp_supplier_id"),
+        "vendor_id": arguments.get("vendor_id") or arguments.get("erp_supplier_id"),
         "payload_fields": sorted((arguments.get("payload") or {}).keys()),
     }
     tracer = get_langfuse_tracer()
@@ -159,7 +193,9 @@ def execute_erp_tool(db: Session, tool_name: str, arguments: dict[str, Any]) -> 
             elif tool_name == "create_supplier_record":
                 result = create_supplier_record(db, arguments["payload"], arguments["idempotency_key"], supplier_id)
             elif tool_name == "get_supplier_record":
-                result = get_supplier_record(db, arguments["erp_supplier_id"])
+                result = get_supplier_record(
+                    db, arguments.get("vendor_id") or arguments["erp_supplier_id"]
+                )
             else:
                 result = list_supplier_records(db)
             latency_ms = round((time.perf_counter() - started) * 1000)
@@ -173,7 +209,12 @@ def execute_erp_tool(db: Session, tool_name: str, arguments: dict[str, Any]) -> 
             db.add(ErpToolAttempt(
                 supplier_id=supplier_id, operation=tool_name, status="succeeded", attempt_number=attempt_number,
                 latency_ms=latency_ms, request_summary=request_summary,
-                response_summary={"valid": result.get("valid"), "erp_supplier_id": result.get("erp_supplier_id"), "record_count": result.get("count")},
+                response_summary={
+                    "valid": result.get("valid"),
+                    "erp_record_id": result.get("erp_record_id"),
+                    "vendor_id": result.get("vendor_id"),
+                    "record_count": result.get("count"),
+                },
             ))
             db.commit()
             return result

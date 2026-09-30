@@ -41,6 +41,8 @@ export interface SupplierSummary {
   decision_reason: string | null
   decided_at: string | null
   erp_supplier_id: string | null
+  erp_record_id: string | null
+  vendor_id: string | null
   erp_payload: Record<string, unknown> | null
   document_count: number
 }
@@ -305,6 +307,8 @@ export interface DecisionResponse {
   status: SupplierStatus
   message: string
   erp_supplier_id: string | null
+  erp_record_id: string | null
+  vendor_id: string | null
   decided_at: string
 }
 
@@ -313,11 +317,14 @@ export interface ErpValidation {
   errors: Array<{ field: string; code: string; message: string }>
   warnings: Array<{ field: string; code: string; message: string }>
   existing_erp_supplier_id: string | null
+  existing_vendor_id: string | null
   idempotent_replay: boolean
 }
 
 export interface ErpRecord {
   erp_supplier_id: string
+  erp_record_id: string
+  vendor_id: string
   supplier_reference: string | null
   source_supplier_id: string
   legal_name: string
