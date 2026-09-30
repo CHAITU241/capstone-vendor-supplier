@@ -1,0 +1,19 @@
+{
+  "supplier_id": "SUP-063",
+  "legal_name": "Cobalt Events 063 Pvt Ltd",
+  "primary_code": "FOOD-EVT",
+  "contracted_service": "Events and Hospitality",
+  "portal_legal_name": "Cobalt Events 063 Pvt Ltd",
+  "portal_pan_tax_reference": "DEMO-PAN-0063",
+  "portal_gst_status": "registered",
+  "portal_gstin": "DEMO-GST-00063",
+  "portal_bank_account": "9900000000063",
+  "portal_ifsc": "DEMO0001234",
+  "portal_offered_sku": "MDL-0063",
+  "contact_name": "A. Rao 063",
+  "contact_email": "onboarding063@supplier.example",
+  "submission_id": "SUP-063_v01",
+  "submission_version": 1,
+  "evaluation_date_ist": "2026-09-19",
+  "final_submission_gate": true
+}
