@@ -10,7 +10,7 @@ from uuid import UUID
 from app.config import Settings, get_settings
 from app.database import Base, get_db
 from app.main import app
-from app.models import DocumentRevision, ExtractedField, Supplier
+from app.models import ComplianceResult, ComplianceStatus, DocumentRevision, ExtractedField, Supplier
 
 
 def test_supplier_can_resume_and_submit_without_ai(tmp_path):
@@ -118,6 +118,21 @@ def test_supplier_assistant_explains_rejection_wording_as_requested_changes_and_
                     "A registered supplier supplies a GSTIN; a supplier marked not registered supplies a declaration "
                     "signed within 180 calendar days."
                 )
+                db.add(ComplianceResult(
+                    supplier_id=supplier.id,
+                    rule_code="BASE-002.CHECK-1",
+                    status=ComplianceStatus.FAIL,
+                    message="Policy evaluation found a mismatch in the PAN/tax reference.",
+                    evidence={
+                        "kind": "policy_check",
+                        "document_id": str(tax.id),
+                        "check_number": 1,
+                        "ai_reason": (
+                            "PAN/tax reference does not match. Observed ‘DEMO-PAN-007’; "
+                            "expected ‘DEMO-PAN-0007’."
+                        ),
+                    },
+                ))
                 db.add(ExtractedField(
                     supplier_id=supplier.id, document_id=registration.id,
                     field_name="supplier_name", value="Correct Evidence Company Pvt Ltd",
@@ -141,6 +156,7 @@ def test_supplier_assistant_explains_rejection_wording_as_requested_changes_and_
             assert "registration.txt, page 1" in answered.json()["answer"]
             assert "do not match" in answered.json()["answer"]
             assert "registered supplier supplies a GSTIN" in answered.json()["answer"]
+            assert "Observed ‘DEMO-PAN-007’; expected ‘DEMO-PAN-0007’" in answered.json()["answer"]
             assert answered.json()["answer"].count("Name entered in the portal") == 1
             assert "tax.txt, page 1" not in answered.json()["answer"]
             assert "Choose replacement" in answered.json()["answer"]

@@ -4,7 +4,7 @@ import re
 from functools import lru_cache
 from pathlib import Path
 
-from app.models import AiRunStatus, AiRunType, ProcessingStatus, Supplier, SupplierStatus
+from app.models import AiRunStatus, AiRunType, ComplianceStatus, ProcessingStatus, Supplier, SupplierStatus
 from app.services.document_policy import checklist_for, load_policy
 
 SOURCE_DIR = Path(__file__).resolve().parents[2] / "policy" / "source"
@@ -145,6 +145,20 @@ def application_answer_for(supplier: Supplier, question: str) -> str | None:
                     f"- **{labels.get(document.document_type, document.document_type.value)}**: "
                     f"{document.review_comment or 'The reviewer asked for this item to be corrected.'}"
                 )
+                calculated_findings = [
+                    result for result in supplier.compliance_results
+                    if result.status != ComplianceStatus.PASS
+                    and isinstance(result.evidence, dict)
+                    and result.evidence.get("kind") == "policy_check"
+                    and result.evidence.get("document_id") == str(document.id)
+                ]
+                for result in sorted(
+                    calculated_findings,
+                    key=lambda item: int(item.evidence.get("check_number") or 0),
+                ):
+                    reason = result.evidence.get("ai_reason") or result.message
+                    if reason and reason.casefold() not in (document.review_comment or "").casefold():
+                        lines.append(f"  - System finding: {reason}")
                 extracted_names = [
                     field for field in document.extracted_fields
                     if field.field_name.casefold() in NAME_FIELDS and field.value.strip()
