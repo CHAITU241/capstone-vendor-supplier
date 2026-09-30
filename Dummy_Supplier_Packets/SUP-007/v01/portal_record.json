@@ -1,0 +1,19 @@
+{
+  "supplier_id": "SUP-007",
+  "legal_name": "Grove Talent Search 007 Pvt Ltd",
+  "primary_code": "WORK-REC",
+  "contracted_service": "Recruitment",
+  "portal_legal_name": "Grove Talent Search 007 Pvt Ltd",
+  "portal_pan_tax_reference": "DEMO-PAN-0007",
+  "portal_gst_status": "not registered",
+  "portal_gstin": null,
+  "portal_bank_account": "9900000000007",
+  "portal_ifsc": "DEMO0001234",
+  "portal_offered_sku": "MDL-0007",
+  "contact_name": "A. Rao 007",
+  "contact_email": "onboarding007@supplier.example",
+  "submission_id": "SUP-007_v01",
+  "submission_version": 1,
+  "evaluation_date_ist": "2026-09-19",
+  "final_submission_gate": false
+}
