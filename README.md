@@ -12,6 +12,7 @@ VendorLens is an AI-assisted supplier onboarding application. It turns registrat
 - Shows confidence, source pages, conflicts, compliance checks, and editable fields.
 - Prefills reviewer flag reasons from calculated findings plus retrieved policy context; the reviewer can edit the draft and remains the decision-maker.
 - Validates and creates supplier master records through a separate mock ERP MCP service, with idempotent retries and retrieval.
+- Gives reviewers a searchable SAP-style Vendor Master for accepted ERP suppliers, with full-record drill-down and filtered CSV export.
 
 ## Architecture
 

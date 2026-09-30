@@ -27,7 +27,8 @@ export default function App() {
         <Route path="admin" element={<RequireRole role="admin"><AdminDashboardPage /></RequireRole>} />
         <Route path="supplier/application" element={<RequireRole role="supplier"><SupplierApplicationPage /></RequireRole>} />
         <Route path="review" element={<RequireRole role="reviewer"><DashboardPage /></RequireRole>} />
-        <Route path="review/erp" element={<RequireRole role="reviewer"><ErpRecordsPage /></RequireRole>} />
+        <Route path="review/vendor-master" element={<RequireRole role="reviewer"><ErpRecordsPage /></RequireRole>} />
+        <Route path="review/erp" element={<Navigate to="/review/vendor-master" replace />} />
         <Route path="review/suppliers/:supplierId" element={<RequireRole role="reviewer"><SupplierReviewPage /></RequireRole>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
