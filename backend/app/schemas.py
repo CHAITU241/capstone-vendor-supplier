@@ -63,6 +63,8 @@ class DocumentRead(BaseModel):
     ai_extraction_error: str | None = None
     ai_index_status: Literal["pending", "processing", "ready", "failed"] = "pending"
     ai_index_error: str | None = None
+    upload_validation_status: Literal["pending", "text_only", "passed"] = "pending"
+    upload_validation_details: dict | None = None
     review_status: str = "pending"
     review_comment: str | None = None
     reviewed_by: str | None = None
@@ -171,6 +173,12 @@ class EvidenceReviewRequest(BaseModel):
     action: Literal["verify", "dispute"]
     reason: str | None = Field(default=None, max_length=1000)
     reviewer_name: str = Field(default="Demo reviewer", min_length=2, max_length=100)
+
+
+class FlagReasonDraftRead(BaseModel):
+    reason: str
+    source: Literal["ai_rag", "deterministic_fallback"]
+    finding_count: int = Field(ge=0)
 
 
 class ComplianceRunResponse(BaseModel):

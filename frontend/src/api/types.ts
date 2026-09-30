@@ -188,11 +188,19 @@ export interface SupplierDocument {
   ai_extraction_error: string | null
   ai_index_status: 'pending' | 'processing' | 'ready' | 'failed'
   ai_index_error: string | null
+  upload_validation_status: 'pending' | 'text_only' | 'passed'
+  upload_validation_details: Record<string, unknown> | null
   review_status: 'pending' | 'attention' | 'verified' | 'disputed'
   review_comment: string | null
   reviewed_by: string | null
   reviewed_at: string | null
   created_at: string
+}
+
+export interface FlagReasonDraft {
+  reason: string
+  source: 'ai_rag' | 'deterministic_fallback'
+  finding_count: number
 }
 
 export interface DocumentRevision {

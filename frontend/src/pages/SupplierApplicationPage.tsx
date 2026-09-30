@@ -96,7 +96,7 @@ export function SupplierApplicationPage() {
     try {
       await api.uploadApplicationDocument(type, file)
       await load()
-      setNotice(`${application?.requirements.documents.find((item) => item.document_type === type)?.label ?? fallbackLabels[type] ?? type} uploaded.`)
+      setNotice(`${application?.requirements.documents.find((item) => item.document_type === type)?.label ?? fallbackLabels[type] ?? type} validated and uploaded.`)
     } catch (err) { setError(err instanceof Error ? err.message : 'Could not upload document.') }
     finally { setUploadingFile(null) }
   }
@@ -239,7 +239,7 @@ export function SupplierApplicationPage() {
             <Button variant="outlined" disabled={interactionBusy || name.trim().length < 2 || !email.trim() || !taxReference.trim() || !bankAccountNumber.trim() || !bankIfsc.trim()} onClick={() => void saveDetails()}>Save corrected details</Button>
           </Stack>
         </Box>}
-        <Alert severity="info">These documents are based on the service you selected. A reviewer will check their contents after you submit.</Alert>
+        <Alert severity="info">Each file is checked for readability, document type, expected fields, and obvious supplier-detail mismatches before it is accepted. A reviewer still makes the final assessment after submission.</Alert>
         <Typography variant="body2" color="text.secondary">Upload one PDF, PNG, JPEG or UTF-8 text file (up to 10 MB) for each item. Scanned pages are read with OCR. If an item asks for two pieces of evidence, combine them into one PDF.</Typography>
         {application.requirements.documents.map(({ document_type: type, requirement_id: requirementId, label, why, accepted_evidence, required_fields, checks }) => {
           const document = documents.get(type)

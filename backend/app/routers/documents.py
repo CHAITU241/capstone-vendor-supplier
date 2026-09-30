@@ -25,7 +25,9 @@ from app.schemas import DocumentRead, DocumentRevisionRead
 from app.services.portal_auth import require_reviewer
 from app.services.document_policy import required_types_for
 from app.services.documents import DocumentExtractionError, extract_document_text
+from app.services.openai_service import AIConfigurationError, build_openai_service
 from app.services.retrieval import delete_document_chunks, get_chunk_collection
+from app.services.upload_validation import UploadValidationError, validate_staged_upload
 
 router = APIRouter(prefix="/suppliers", tags=["documents"], dependencies=[Depends(require_reviewer)])
 ALLOWED_CONTENT_TYPES = {
@@ -60,6 +62,287 @@ def _apply_text_extraction(document: Document, file_path: Path, settings: Settin
     }
 
 
+def _archive_document_record(
+    document: Document,
+    supplier: Supplier,
+    db: Session,
+    settings: Settings,
+    *,
+    delete_vectors: bool = True,
+) -> None:
+    """Archive an active document inside the caller's transaction."""
+    file_path = _private_file_path(document.storage_path, settings)
+    if not file_path.is_file():
+        raise HTTPException(status_code=503, detail="The current original is unavailable in file storage.")
+    db.execute(delete(ExtractedField).where(ExtractedField.document_id == document.id))
+    db.execute(delete(ComplianceResult).where(ComplianceResult.supplier_id == supplier.id))
+    if delete_vectors:
+        delete_document_chunks(get_chunk_collection(), str(supplier.id), str(document.id))
+    db.add(DocumentRevision(
+        id=document.id,
+        supplier_id=supplier.id,
+        document_type=document.document_type.value,
+        revision=document.revision,
+        filename=document.filename,
+        storage_path=document.storage_path,
+        content_type=document.content_type,
+        file_size=document.file_size,
+        sha256=document.sha256 or hashlib.sha256(file_path.read_bytes()).hexdigest(),
+        uploaded_at=document.created_at,
+    ))
+    db.add(AuditEvent(
+        supplier_id=supplier.id,
+        action="document.archived",
+        entity_type="document",
+        entity_id=str(document.id),
+        details={
+            "filename": document.filename,
+            "document_type": document.document_type.value,
+            "revision": document.revision,
+            "document_ai_results_cleared": True,
+        },
+    ))
+    db.delete(document)
+    db.flush()
+
+
+def _record_upload_rejection(
+    db: Session,
+    supplier_id: uuid.UUID,
+    document_type: DocumentType,
+    filename: str,
+    reason: str,
+    issue_codes: list[str],
+) -> None:
+    db.add(AuditEvent(
+        supplier_id=supplier_id,
+        action="document.upload_rejected",
+        entity_type="document",
+        entity_id=None,
+        details={
+            "filename": filename,
+            "document_type": document_type.value,
+            "reason": reason[:500],
+            "issue_codes": issue_codes,
+            "permanent_file_created": False,
+        },
+    ))
+    db.commit()
+
+
+async def ingest_document(
+    *,
+    supplier: Supplier,
+    document_type: DocumentType,
+    file: UploadFile,
+    db: Session,
+    settings: Settings,
+    replacement: Document | None = None,
+) -> Document:
+    """Validate a temporary upload completely before promoting it to permanent storage."""
+    existing_document = db.scalar(select(Document).where(
+        Document.supplier_id == supplier.id,
+        Document.document_type == document_type,
+    ))
+    if existing_document is not None and (
+        replacement is None or existing_document.id != replacement.id
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"A {document_type.value} document has already been uploaded. "
+                "Delete it before uploading a replacement."
+            ),
+        )
+
+    content_type = file.content_type or ""
+    if content_type not in ALLOWED_CONTENT_TYPES:
+        await file.close()
+        raise HTTPException(
+            status_code=415,
+            detail="Unsupported file type: choose a PDF, PNG, JPEG or UTF-8 plain-text file.",
+        )
+    contents = await file.read(settings.max_upload_size_bytes + 1)
+    await file.close()
+    filename = Path(file.filename or "document").name[:255]
+    if not contents:
+        raise HTTPException(status_code=400, detail="Empty file: choose a file that contains readable evidence.")
+    if len(contents) > settings.max_upload_size_bytes:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Oversized file: the maximum allowed size is {settings.max_upload_size_mb} MB.",
+        )
+
+    staging_directory = settings.upload_dir.resolve() / ".staging" / str(supplier.id)
+    staging_directory.mkdir(parents=True, exist_ok=True)
+    staged_path = staging_directory / f"{uuid.uuid4()}{ALLOWED_CONTENT_TYPES[content_type]}"
+    staged_path.write_bytes(contents)
+    permanent_path: Path | None = None
+    accepted = False
+    replacement_id = replacement.id if replacement is not None else None
+    try:
+        try:
+            extracted = extract_document_text(staged_path, content_type, settings)
+        except DocumentExtractionError as exc:
+            message = f"Unreadable file: {exc} The file was not saved."
+            _record_upload_rejection(
+                db, supplier.id, document_type, filename, message, ["unreadable_file"],
+            )
+            raise HTTPException(status_code=422, detail=message) from exc
+
+        try:
+            ai = build_openai_service(settings) if settings.upload_ai_validation_enabled else None
+            validation = validate_staged_upload(
+                supplier=supplier,
+                expected_type=document_type,
+                filename=filename,
+                extracted=extracted,
+                settings=settings,
+                ai=ai,
+            )
+        except UploadValidationError as exc:
+            message = "Upload rejected. " + " ".join(issue.message for issue in exc.issues)
+            _record_upload_rejection(
+                db,
+                supplier.id,
+                document_type,
+                filename,
+                message,
+                [issue.code for issue in exc.issues],
+            )
+            raise HTTPException(status_code=422, detail=message) from exc
+        except AIConfigurationError as exc:
+            message = (
+                "Upload validation could not be completed, so the file was not saved. "
+                f"{str(exc)}"
+            )
+            _record_upload_rejection(
+                db, supplier.id, document_type, filename, message, ["validation_unavailable"],
+            )
+            raise HTTPException(status_code=503, detail=message) from exc
+        except Exception as exc:
+            message = (
+                "Upload validation could not be completed, so the file was not saved. "
+                "The AI provider did not return a usable validation result; retry the upload."
+            )
+            _record_upload_rejection(
+                db, supplier.id, document_type, filename, message, ["validation_unavailable"],
+            )
+            raise HTTPException(status_code=503, detail=message) from exc
+
+        previous_revision = db.scalar(select(func.max(DocumentRevision.revision)).where(
+            DocumentRevision.supplier_id == supplier.id,
+            DocumentRevision.document_type == document_type.value,
+        )) or 0
+        if replacement is not None:
+            previous_revision = max(previous_revision, replacement.revision)
+
+        document_id = uuid.uuid4()
+        supplier_directory = settings.upload_dir.resolve() / str(supplier.id)
+        supplier_directory.mkdir(parents=True, exist_ok=True)
+        permanent_path = supplier_directory / f"{document_id}{ALLOWED_CONTENT_TYPES[content_type]}"
+        staged_path.replace(permanent_path)
+
+        if replacement is not None:
+            _archive_document_record(
+                replacement, supplier, db, settings, delete_vectors=False,
+            )
+
+        validation_details = dict(validation.details)
+        for assessment in validation_details.get("policy_assessments", []):
+            assessment["document_id"] = str(document_id)
+        document = Document(
+            id=document_id,
+            supplier_id=supplier.id,
+            document_type=document_type,
+            filename=filename,
+            storage_path=str(permanent_path),
+            content_type=content_type,
+            file_size=len(contents),
+            sha256=hashlib.sha256(contents).hexdigest(),
+            revision=previous_revision + 1,
+            page_count=extracted.page_count,
+            extracted_text=extracted.text,
+            text_extraction_method=extracted.text_extraction_method,
+            ocr_pages=list(extracted.ocr_pages),
+            ocr_language=extracted.ocr_language,
+            ocr_warnings=list(extracted.ocr_warnings),
+            redacted_text=validation.redacted_text,
+            redaction_summary=validation.redaction_counts,
+            processing_status=ProcessingStatus.READY,
+            ai_extraction_status="ready" if validation.status == "passed" else "pending",
+            ai_index_status="pending",
+            upload_validation_status=validation.status,
+            upload_validation_details=validation_details,
+        )
+        db.add(document)
+        for field in validation.fields:
+            db.add(ExtractedField(
+                supplier_id=supplier.id,
+                document_id=document.id,
+                field_name=field.field_name,
+                value=field.value,
+                page_number=field.page_number,
+                confidence=field.confidence,
+                needs_review=field.needs_review,
+                review_status="attention" if field.needs_review else "pending",
+            ))
+        supplier.status = SupplierStatus.NEW
+        supplier.decision_reason = None
+        supplier.decided_at = None
+        supplier.erp_supplier_id = None
+        supplier.erp_payload = None
+        db.add(AuditEvent(
+            supplier_id=supplier.id,
+            action="document.accepted_after_validation",
+            entity_type="document",
+            entity_id=str(document.id),
+            details={
+                "filename": filename,
+                "document_type": document_type.value,
+                "revision": document.revision,
+                "validation_status": validation.status,
+                "text_extraction_method": extracted.text_extraction_method,
+                "ocr_pages": list(extracted.ocr_pages),
+                "replaced_document_id": str(replacement_id) if replacement_id else None,
+            },
+        ))
+        try:
+            db.commit()
+        except IntegrityError as exc:
+            db.rollback()
+            permanent_path.unlink(missing_ok=True)
+            permanent_path = None
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"A {document_type.value} document has already been uploaded.",
+            ) from exc
+        accepted = True
+        db.refresh(document)
+        if replacement_id is not None:
+            try:
+                delete_document_chunks(
+                    get_chunk_collection(), str(supplier.id), str(replacement_id),
+                )
+            except Exception:
+                try:
+                    db.add(AuditEvent(
+                        supplier_id=supplier.id,
+                        action="document.archived_vector_cleanup_failed",
+                        entity_type="document",
+                        entity_id=str(replacement_id),
+                        details={"replacement_document_id": str(document.id)},
+                    ))
+                    db.commit()
+                except Exception:
+                    db.rollback()
+        return document
+    finally:
+        staged_path.unlink(missing_ok=True)
+        if permanent_path is not None and not accepted:
+            permanent_path.unlink(missing_ok=True)
+
+
 @router.post(
     "/{supplier_id}/documents",
     response_model=DocumentRead,
@@ -83,92 +366,13 @@ async def upload_document(
     if document_type not in required_types_for(supplier):
         raise HTTPException(status_code=422, detail="This document type is not in the selected checklist.")
 
-    existing_document = db.scalar(
-        select(Document).where(
-            Document.supplier_id == supplier_id,
-            Document.document_type == document_type,
-        )
-    )
-    if existing_document is not None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=(
-                f"A {document_type.value} document has already been uploaded. "
-                "Delete it before uploading a replacement."
-            ),
-        )
-
-    content_type = file.content_type or ""
-    if content_type not in ALLOWED_CONTENT_TYPES:
-        raise HTTPException(status_code=415, detail="Only PDF, PNG, JPEG and plain-text files are supported.")
-
-    contents = await file.read(settings.max_upload_size_bytes + 1)
-    await file.close()
-    if not contents:
-        raise HTTPException(status_code=400, detail="The uploaded file is empty.")
-    if len(contents) > settings.max_upload_size_bytes:
-        raise HTTPException(
-            status_code=413,
-            detail=f"Files must not exceed {settings.max_upload_size_mb} MB.",
-        )
-
-    supplier_directory = settings.upload_dir.resolve() / str(supplier_id)
-    supplier_directory.mkdir(parents=True, exist_ok=True)
-    document_id = uuid.uuid4()
-    file_path = supplier_directory / f"{document_id}{ALLOWED_CONTENT_TYPES[content_type]}"
-    file_path.write_bytes(contents)
-
-    previous_revision = db.scalar(select(func.max(DocumentRevision.revision)).where(
-        DocumentRevision.supplier_id == supplier_id,
-        DocumentRevision.document_type == document_type.value,
-    )) or 0
-
-    document = Document(
-        id=document_id,
-        supplier_id=supplier_id,
+    return await ingest_document(
+        supplier=supplier,
         document_type=document_type,
-        filename=Path(file.filename or "document").name[:255],
-        storage_path=str(file_path),
-        content_type=content_type,
-        file_size=len(contents),
-        sha256=hashlib.sha256(contents).hexdigest(),
-        revision=previous_revision + 1,
-        processing_status=ProcessingStatus.PROCESSING,
+        file=file,
+        db=db,
+        settings=settings,
     )
-    db.add(document)
-
-    try:
-        audit_details = _apply_text_extraction(document, file_path, settings)
-        audit_action = "document.ready"
-    except DocumentExtractionError as exc:
-        document.processing_status = ProcessingStatus.FAILED
-        document.error_message = str(exc)
-        audit_action = "document.failed"
-        audit_details = {"filename": document.filename, "reason": str(exc)}
-
-    db.add(
-        AuditEvent(
-            supplier_id=supplier_id,
-            action=audit_action,
-            entity_type="document",
-            entity_id=str(document.id),
-            details=audit_details,
-        )
-    )
-    try:
-        db.commit()
-    except IntegrityError as exc:
-        db.rollback()
-        file_path.unlink(missing_ok=True)
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=(
-                f"A {document_type.value} document has already been uploaded. "
-                "Delete it before uploading a replacement."
-            ),
-        ) from exc
-    db.refresh(document)
-    return document
 
 
 def retry_text_extraction(
@@ -266,44 +470,13 @@ def delete_document(
             status_code=409,
             detail="A finalized supplier cannot be changed in this demo workflow.",
         )
-    db.execute(
-        delete(ExtractedField).where(ExtractedField.document_id == document_id)
-    )
-    db.execute(
-        delete(ComplianceResult).where(ComplianceResult.supplier_id == supplier_id)
-    )
-    delete_document_chunks(
-        get_chunk_collection(), str(supplier_id), str(document_id)
-    )
-    if supplier is not None:
-        supplier.status = SupplierStatus.NEW
-        supplier.decision_reason = None
-        supplier.decided_at = None
-        supplier.erp_supplier_id = None
-        supplier.erp_payload = None
-    db.add(DocumentRevision(
-        id=document.id, supplier_id=supplier_id,
-        document_type=document.document_type.value, revision=document.revision,
-        filename=document.filename, storage_path=document.storage_path,
-        content_type=document.content_type, file_size=document.file_size,
-        sha256=document.sha256 or hashlib.sha256(file_path.read_bytes()).hexdigest(),
-        uploaded_at=document.created_at,
-    ))
-    db.add(
-        AuditEvent(
-            supplier_id=supplier_id,
-            action="document.archived",
-            entity_type="document",
-            entity_id=str(document.id),
-            details={
-                "filename": document.filename,
-                "document_type": document.document_type.value,
-                "revision": document.revision,
-                "document_ai_results_cleared": True,
-            },
-        )
-    )
-    db.delete(document)
+    assert supplier is not None
+    _archive_document_record(document, supplier, db, settings)
+    supplier.status = SupplierStatus.NEW
+    supplier.decision_reason = None
+    supplier.decided_at = None
+    supplier.erp_supplier_id = None
+    supplier.erp_payload = None
     db.commit()
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)

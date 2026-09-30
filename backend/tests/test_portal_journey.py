@@ -22,7 +22,7 @@ def test_supplier_can_resume_and_submit_without_ai(tmp_path):
             yield db
 
     app.dependency_overrides[get_db] = db_override
-    app.dependency_overrides[get_settings] = lambda: Settings(upload_dir=tmp_path / "uploads", chroma_path=tmp_path / "chroma")
+    app.dependency_overrides[get_settings] = lambda: Settings(upload_dir=tmp_path / "uploads", chroma_path=tmp_path / "chroma", upload_ai_validation_enabled=False)
     try:
         with TestClient(app) as client:
             signup = client.post("/api/portal/auth/register", json={"email": "SAMPLE@EXAMPLE.COM", "password": "demo-password"})
@@ -84,7 +84,7 @@ def test_supplier_assistant_explains_rejection_wording_as_requested_changes_and_
             yield db
 
     app.dependency_overrides[get_db] = db_override
-    app.dependency_overrides[get_settings] = lambda: Settings(upload_dir=tmp_path / "uploads", chroma_path=tmp_path / "chroma")
+    app.dependency_overrides[get_settings] = lambda: Settings(upload_dir=tmp_path / "uploads", chroma_path=tmp_path / "chroma", upload_ai_validation_enabled=False)
     try:
         with TestClient(app) as client:
             account = client.post("/api/portal/auth/register", json={
@@ -182,7 +182,7 @@ def test_human_review_gates_approval_and_retains_erp_payload(tmp_path):
             yield db
 
     app.dependency_overrides[get_db] = db_override
-    app.dependency_overrides[get_settings] = lambda: Settings(upload_dir=tmp_path / "uploads", chroma_path=tmp_path / "chroma")
+    app.dependency_overrides[get_settings] = lambda: Settings(upload_dir=tmp_path / "uploads", chroma_path=tmp_path / "chroma", upload_ai_validation_enabled=False)
     try:
         with TestClient(app) as client:
             account = client.post("/api/portal/auth/register", json={
@@ -332,7 +332,7 @@ def test_originals_are_private_and_retained_after_replacement(tmp_path):
             yield db
 
     app.dependency_overrides[get_db] = db_override
-    app.dependency_overrides[get_settings] = lambda: Settings(upload_dir=tmp_path / "uploads", chroma_path=tmp_path / "chroma")
+    app.dependency_overrides[get_settings] = lambda: Settings(upload_dir=tmp_path / "uploads", chroma_path=tmp_path / "chroma", upload_ai_validation_enabled=False)
     try:
         with TestClient(app) as client:
             first_account = client.post("/api/portal/auth/register", json={"email": "original@example.com", "password": "demo-password"})
@@ -396,7 +396,7 @@ def test_checklist_changes_with_profile_and_is_frozen_on_submission(tmp_path):
             yield db
 
     app.dependency_overrides[get_db] = db_override
-    app.dependency_overrides[get_settings] = lambda: Settings(upload_dir=tmp_path / "uploads")
+    app.dependency_overrides[get_settings] = lambda: Settings(upload_dir=tmp_path / "uploads", upload_ai_validation_enabled=False)
     try:
         with TestClient(app) as client:
             signup = client.post("/api/portal/auth/register", json={"email": "software@example.com", "password": "demo-password"})

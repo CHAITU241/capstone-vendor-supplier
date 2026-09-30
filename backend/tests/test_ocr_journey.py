@@ -9,7 +9,7 @@ from sqlalchemy.pool import StaticPool
 from app.config import Settings, get_settings
 from app.database import Base, get_db
 from app.main import app
-from app.models import AuditEvent
+from app.models import AuditEvent, Document
 
 
 def scanned_png(text: str) -> bytes:
@@ -21,7 +21,7 @@ def scanned_png(text: str) -> bytes:
     return image
 
 
-def test_supplier_can_retry_a_failed_scan_after_ocr_becomes_available(tmp_path: Path) -> None:
+def test_unreadable_scan_is_not_saved_and_can_be_uploaded_after_ocr_is_available(tmp_path: Path) -> None:
     engine = create_engine(
         "sqlite+pysqlite://",
         connect_args={"check_same_thread": False},
@@ -39,6 +39,7 @@ def test_supplier_can_retry_a_failed_scan_after_ocr_becomes_available(tmp_path: 
             upload_dir=tmp_path / "uploads",
             chroma_path=tmp_path / "chroma",
             ocr_enabled=ocr_state["enabled"],
+            upload_ai_validation_enabled=False,
         )
 
     app.dependency_overrides[get_db] = db_override
@@ -71,17 +72,24 @@ def test_supplier_can_retry_a_failed_scan_after_ocr_becomes_available(tmp_path: 
                     "image/png",
                 )},
             )
-            assert uploaded.status_code == 201, uploaded.text
-            failed = uploaded.json()
-            assert failed["processing_status"] == "failed"
-            assert "OCR is disabled" in failed["error_message"]
+            assert uploaded.status_code == 422, uploaded.text
+            assert "Unreadable file" in uploaded.json()["message"]
+            assert "OCR is disabled" in uploaded.json()["message"]
+            with Session(engine) as db:
+                assert db.scalars(select(Document)).all() == []
 
             ocr_state["enabled"] = True
             retried = client.post(
-                f"/api/portal/application/documents/{failed['id']}/text-extraction/retry",
+                "/api/portal/application/documents",
                 headers=headers,
+                data={"document_type": "registration"},
+                files={"file": (
+                    "registration-scan.png",
+                    scanned_png("SCANNED SUPPLIER PRIVATE LIMITED"),
+                    "image/png",
+                )},
             )
-            assert retried.status_code == 200, retried.text
+            assert retried.status_code == 201, retried.text
             recovered = retried.json()
             assert recovered["processing_status"] == "ready"
             assert recovered["text_extraction_method"] == "ocr"
@@ -90,8 +98,8 @@ def test_supplier_can_retry_a_failed_scan_after_ocr_becomes_available(tmp_path: 
 
             with Session(engine) as db:
                 actions = db.scalars(select(AuditEvent.action)).all()
-                assert "document.failed" in actions
-                assert "document.text_extraction_retried" in actions
+                assert "document.upload_rejected" in actions
+                assert "document.accepted_after_validation" in actions
     finally:
         app.dependency_overrides.clear()
         engine.dispose()

@@ -61,6 +61,10 @@ class ReviewerAssistantAnswer(BaseModel):
     cited_chunk_ids: list[str] = Field(default_factory=list, max_length=8)
 
 
+class ReviewerFlagReason(BaseModel):
+    reason: str = Field(min_length=10, max_length=1000)
+
+
 T = TypeVar("T")
 
 
@@ -198,6 +202,65 @@ class OpenAIService:
                 generation.update(
                     output={"embedding_count": len(result.embeddings)},
                     usage_details={"input": result.input_tokens},
+                )
+                return result
+
+    def draft_reviewer_flag_reason(
+        self,
+        *,
+        finding_context: str,
+        policy_context: str,
+    ) -> ModelResult[ReviewerFlagReason]:
+        prompt = _read_prompt("reviewer_flag_reason_v1.txt")
+        input_metadata = {
+            "finding_chars": len(finding_context),
+            "policy_context_chars": len(policy_context),
+        }
+        content = {"findings": finding_context, "retrieved_policy": policy_context}
+        with observe_ai_call(
+            "supplier.reviewer.flag_reason", self.settings.active_answer_model
+        ) as ai_metrics:
+            with self.tracer.generation(
+                name="supplier.reviewer.flag_reason",
+                model=self.settings.active_answer_model,
+                input_data=self.tracer.input_payload(input_metadata, content),
+                metadata={
+                    **input_metadata,
+                    "prompt_version": self.settings.reviewer_flag_prompt_version,
+                    "feature": "reviewer_flag_reason",
+                    "grounding": "calculated_findings_and_policy_rag",
+                },
+            ) as generation:
+                response = self.client.beta.chat.completions.parse(
+                    model=self.settings.active_answer_model,
+                    messages=[
+                        {"role": "system", "content": prompt},
+                        {
+                            "role": "user",
+                            "content": (
+                                f"CALCULATED FINDINGS:\n{finding_context}\n\n"
+                                f"RETRIEVED POLICY:\n{policy_context}"
+                            ),
+                        },
+                    ],
+                    response_format=ReviewerFlagReason,
+                    temperature=0.1,
+                    **self._structured_output_options(),
+                )
+                parsed = response.choices[0].message.parsed
+                if parsed is None:
+                    raise AIResponseError("The flag-reason model returned no structured result.")
+                usage = response.usage
+                result = ModelResult(
+                    value=parsed,
+                    input_tokens=int(getattr(usage, "prompt_tokens", 0) or 0),
+                    output_tokens=int(getattr(usage, "completion_tokens", 0) or 0),
+                )
+                ai_metrics.input_tokens = result.input_tokens
+                ai_metrics.output_tokens = result.output_tokens
+                generation.update(
+                    output={"reason_chars": len(parsed.reason)},
+                    usage_details={"input": result.input_tokens, "output": result.output_tokens},
                 )
                 return result
 

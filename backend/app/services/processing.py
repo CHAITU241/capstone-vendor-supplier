@@ -313,6 +313,13 @@ def _process_supplier_documents(
 
     for document in documents:
         processed_document_ids.add(document.id)
+        if not force_reprocess and document.ai_extraction_status == "ready":
+            validation_details = document.upload_validation_details or {}
+            stored_assessments = validation_details.get("policy_assessments", [])
+            if isinstance(stored_assessments, list):
+                policy_assessments.extend(
+                    item for item in stored_assessments if isinstance(item, dict)
+                )
         redaction = redact_pii(document.extracted_text or "")
         document.redacted_text = redaction.text
         document.redaction_summary = redaction.counts

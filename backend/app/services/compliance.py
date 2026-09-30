@@ -131,6 +131,10 @@ def _policy_assessment_lookup(
                 lookup.setdefault((document_id, check_number), item)
 
     add(current_assessments)
+    for document in getattr(supplier, "documents", []):
+        details = getattr(document, "upload_validation_details", None)
+        if isinstance(details, dict):
+            add(details.get("policy_assessments"))
     for run in sorted(
         getattr(supplier, "ai_runs", []),
         key=lambda item: item.created_at,

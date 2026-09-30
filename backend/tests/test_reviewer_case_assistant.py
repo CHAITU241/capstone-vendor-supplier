@@ -39,7 +39,7 @@ def test_reviewer_assistant_receives_case_state_and_keeps_separate_history(tmp_p
             yield db
 
     app.dependency_overrides[get_db] = db_override
-    app.dependency_overrides[get_settings] = lambda: Settings(upload_dir=tmp_path / "uploads", chroma_path=tmp_path / "chroma")
+    app.dependency_overrides[get_settings] = lambda: Settings(upload_dir=tmp_path / "uploads", chroma_path=tmp_path / "chroma", upload_ai_validation_enabled=False)
     monkeypatch.setattr("app.routers.ai._get_ai_service", lambda: FakeAssistant())
     monkeypatch.setattr("app.routers.ai.get_chunk_collection", lambda: EmptyCollection())
     try:

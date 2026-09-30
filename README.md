@@ -5,9 +5,11 @@ VendorLens is an AI-assisted supplier onboarding application. It turns registrat
 ## What it does
 
 - Creates supplier cases and accepts one document in each required category.
+- Stages uploads temporarily, rejects unreadable/wrong-type/wrong-supplier evidence with exact feedback, and promotes only validated files to permanent storage.
 - Extracts native PDF/text content and uses page-selective local Tesseract OCR for scanned PDFs, PNGs and JPEGs; records OCR provenance, redacts PII before AI calls, and stores supplier-scoped ChromaDB embeddings.
 - Uses OpenRouter when configured, with Azure OpenAI as the configuration fallback, for structured extraction, embeddings, and cited document Q&A.
 - Shows confidence, source pages, conflicts, compliance checks, and editable fields.
+- Prefills reviewer flag reasons from calculated findings plus retrieved policy context; the reviewer can edit the draft and remains the decision-maker.
 - Validates and creates supplier master records through a separate mock ERP MCP service, with idempotent retries and retrieval.
 
 ## Architecture
@@ -61,5 +63,7 @@ Set `OPENROUTER_API_KEY` to route document extraction, embeddings, supplier Q&A,
 When `OPENROUTER_API_KEY` is empty or absent, the backend uses the existing Azure `OPENAI_API_KEY`, `AZURE_OPENAI_ENDPOINT`, and Azure deployment-name settings. Restart FastAPI after changing provider settings because the client is cached for the process lifetime.
 
 Provider selection is configuration-based. A failed OpenRouter request does not retry through Azure, which prevents an outage, invalid key, or quota failure from silently sending supplier data to a different provider.
+
+`UPLOAD_AI_VALIDATION_ENABLED=true` is the production/demo default. It requires a configured AI provider and prevents permanent acceptance until OCR/text extraction, document classification, required-field checks, and conservative supplier identity comparisons pass. Set it to `false` only for offline development; text/OCR readability checks still run before storage.
 
 The default OpenRouter embedding model is the same `text-embedding-3-small` family used by Azure. If you select an embedding model with a different vector size, recreate the local Chroma data and reprocess every supplier before asking document questions.

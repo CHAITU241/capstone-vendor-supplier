@@ -1,4 +1,6 @@
 import uuid
+import json
+import re
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -7,10 +9,12 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from app.database import get_db
+from app.config import Settings, get_settings
 from app.metrics import record_compliance_checks, record_supplier_decision
 from app.models import (
     AuditEvent,
     ComplianceResult,
+    ComplianceStatus,
     Document,
     ExtractedField,
     Supplier,
@@ -27,6 +31,7 @@ from app.schemas import (
     ErpValidationResponse,
     ExtractedFieldRead,
     ExtractedFieldUpdate,
+    FlagReasonDraftRead,
     ReviewSelectionRequest,
     RejectionRequest,
 )
@@ -38,6 +43,11 @@ from app.services.compliance import (
 from app.services.mock_erp import build_erp_preview
 from app.services.erp_mcp_client import ErpMcpClient, supplier_idempotency_key
 from app.services.erp_tools import ErpToolFailure
+from app.services.document_policy import checklist_for
+from app.services.openai_service import build_openai_service
+from app.services.policy_retrieval import policy_context_for
+from app.services.redaction import redact_pii
+from app.services.tracing import get_langfuse_tracer, telemetry_subject_id
 
 router = APIRouter(prefix="/suppliers", tags=["review"], dependencies=[Depends(require_reviewer)])
 
@@ -72,6 +82,85 @@ def _compliance_response(results: list[ComplianceResult]) -> ComplianceRunRespon
         results=[ComplianceResultRead.model_validate(item) for item in ordered],
         approval_ready=approval_ready(results),
     )
+
+
+def _safe_finding_text(value: str, supplier: Supplier) -> str:
+    for sensitive_value in (
+        supplier.tax_reference,
+        supplier.bank_account_number,
+        supplier.bank_ifsc,
+    ):
+        if sensitive_value:
+            value = re.sub(re.escape(sensitive_value), "the recorded value", value, flags=re.IGNORECASE)
+    redacted = redact_pii(value).text
+    redacted = re.sub(r"\[(?:GSTIN|PAN|CIN|EMAIL|PHONE|BANK_ACCOUNT)_\d+\]", "the recorded value", redacted)
+    return " ".join(redacted.split())[:500]
+
+
+def _flag_findings(supplier: Supplier, document: Document) -> list[dict]:
+    findings: list[dict] = []
+    for result in supplier.compliance_results:
+        evidence = result.evidence if isinstance(result.evidence, dict) else {}
+        if result.status == ComplianceStatus.PASS or evidence.get("document_id") != str(document.id):
+            continue
+        item = {
+            "message": _safe_finding_text(result.message, supplier),
+            "status": result.status.value,
+        }
+        ai_reason = evidence.get("ai_reason")
+        if isinstance(ai_reason, str) and ai_reason.strip():
+            item["assessment_reason"] = _safe_finding_text(ai_reason, supplier)
+        missing_fields = evidence.get("missing_fields")
+        if isinstance(missing_fields, list):
+            item["missing_fields"] = [
+                str(field).replace("_", " ") for field in missing_fields[:12]
+            ]
+        findings.append(item)
+    disputed_fields = [
+        field.field_name.replace("_", " ")
+        for field in supplier.extracted_fields
+        if field.document_id == document.id and field.review_status == "disputed"
+    ]
+    if disputed_fields:
+        findings.append({
+            "message": "The reviewer disputed extracted fields.",
+            "disputed_fields": disputed_fields,
+            "status": "needs_review",
+        })
+    if not findings and document.review_comment:
+        findings.append({
+            "message": _safe_finding_text(document.review_comment, supplier),
+            "status": document.review_status,
+        })
+    return findings
+
+
+def _fallback_flag_reason(label: str, findings: list[dict]) -> str:
+    missing = sorted({
+        field
+        for finding in findings
+        for field in finding.get("missing_fields", [])
+        if isinstance(field, str)
+    })
+    disputed = sorted({
+        field
+        for finding in findings
+        for field in finding.get("disputed_fields", [])
+        if isinstance(field, str)
+    })
+    if missing:
+        detail = f"The following required information could not be confirmed: {', '.join(missing)}."
+    elif disputed:
+        detail = f"The following extracted information needs correction: {', '.join(disputed)}."
+    else:
+        detail = next(
+            (finding["message"] for finding in findings if finding.get("message")),
+            "The evidence could not be confirmed against the requirement.",
+        )
+    return (
+        f"Please replace or correct the {label}. {detail} "
+        "Upload evidence that clearly contains the required information and matches the portal details."
+    )[:1000]
 
 
 @router.get("/{supplier_id}/compliance", response_model=ComplianceRunResponse)
@@ -188,6 +277,88 @@ def review_extracted_fields(
     persist_compliance_results(db, supplier, evaluate_compliance(supplier))
     db.commit()
     return [ExtractedFieldRead.model_validate(item) for item in selected]
+
+
+@router.post(
+    "/{supplier_id}/documents/{document_id}/flag-reason-draft",
+    response_model=FlagReasonDraftRead,
+)
+def draft_flag_reason(
+    supplier_id: uuid.UUID,
+    document_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> FlagReasonDraftRead:
+    supplier = _get_review_supplier(db, supplier_id)
+    _ensure_reviewable(supplier)
+    document = next((item for item in supplier.documents if item.id == document_id), None)
+    if document is None:
+        raise HTTPException(status_code=404, detail="Evidence document was not found.")
+    requirement = next(
+        (item for item in checklist_for(supplier).documents if item.document_type == document.document_type),
+        None,
+    )
+    label = requirement.label if requirement else document.document_type.value.replace("_", " ").title()
+    findings = _flag_findings(supplier, document)
+    fallback = _fallback_flag_reason(label, findings)
+    source = "deterministic_fallback"
+    reason = fallback
+
+    if settings.ai_configured and findings:
+        query_parts = [label]
+        if requirement:
+            query_parts.extend([requirement.requirement_id, *requirement.checks])
+        try:
+            policy_context = policy_context_for(" ".join(query_parts))
+            finding_context = json.dumps(
+                {"document_label": label, "findings": findings},
+                ensure_ascii=True,
+            )
+            with get_langfuse_tracer().trace(
+                name="supplier.reviewer.flag_reason_workflow",
+                subject_id=telemetry_subject_id(supplier.id),
+                input_data={"document_type": document.document_type.value, "finding_count": len(findings)},
+                metadata={
+                    "feature": "reviewer_flag_reason",
+                    "grounding": "calculated_findings_and_policy_rag",
+                },
+                tags=["reviewer", "rag", "flag-draft"],
+            ) as trace:
+                draft = build_openai_service(settings).draft_reviewer_flag_reason(
+                    finding_context=finding_context,
+                    policy_context=policy_context,
+                )
+                proposed = " ".join(draft.value.reason.split()).strip()
+                repeats_sensitive_value = any(
+                    value and value.casefold() in proposed.casefold()
+                    for value in (
+                        supplier.tax_reference,
+                        supplier.bank_account_number,
+                        supplier.bank_ifsc,
+                    )
+                )
+                if len(proposed) >= 10 and not repeats_sensitive_value and not re.search(
+                    r"\[(?:GSTIN|PAN|CIN|EMAIL|PHONE|BANK_ACCOUNT)_\d+\]",
+                    proposed,
+                ):
+                    reason = proposed[:1000]
+                    source = "ai_rag"
+                trace.update(output={"source": source, "reason_chars": len(reason)})
+                trace.score_trace(name="flag_reason_ai_draft_used", value=1 if source == "ai_rag" else 0)
+        except Exception:
+            # Draft generation is assistive: a grounded deterministic draft keeps the reviewer unblocked.
+            source = "deterministic_fallback"
+            reason = fallback
+
+    db.add(AuditEvent(
+        supplier_id=supplier.id,
+        action="reviewer.flag_reason_drafted",
+        entity_type="document",
+        entity_id=str(document.id),
+        details={"source": source, "finding_count": len(findings)},
+    ))
+    db.commit()
+    return FlagReasonDraftRead(reason=reason, source=source, finding_count=len(findings))
 
 
 @router.post("/{supplier_id}/documents/{document_id}/review", response_model=DocumentRead)

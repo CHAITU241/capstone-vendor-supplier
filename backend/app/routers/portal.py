@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 from app.config import Settings, get_settings
 from app.database import SessionLocal, get_db
 from app.models import AuditEvent, Document, DocumentType, PortalAccount, PortalSession, ProcessingStatus, Supplier, SupplierStatus
-from app.routers.documents import delete_document, document_history, original_file_response, retry_text_extraction, upload_document
+from app.routers.documents import delete_document, document_history, ingest_document, original_file_response, retry_text_extraction
 from app.schemas import (
     AssistantHistoryMessage, DocumentRead, DocumentRevisionRead, GeneralAssistantMessage, GeneralAssistantRequest,
     GeneralAssistantResponse, GeneralAssistantRun,
@@ -436,16 +436,21 @@ async def upload_application_document(
         raise HTTPException(status_code=409, detail="Complete your details before uploading, or this application is already submitted.")
     if document_type not in required_types_for(supplier):
         raise HTTPException(status_code=422, detail="This document type is not in your current checklist.")
+    existing = db.scalar(select(Document).where(
+        Document.supplier_id == supplier.id,
+        Document.document_type == document_type,
+    ))
     if supplier.submitted_at:
-        existing = db.scalar(select(Document).where(
-            Document.supplier_id == supplier.id,
-            Document.document_type == document_type,
-        ))
         if existing is not None and existing.review_status != "disputed":
             raise HTTPException(status_code=409, detail="Only evidence flagged by the reviewer can be replaced.")
-        if existing is not None:
-            delete_document(supplier.id, existing.id, db, settings)
-    document = await upload_document(supplier.id, document_type, file, db, settings)
+    document = await ingest_document(
+        supplier=supplier,
+        document_type=document_type,
+        file=file,
+        db=db,
+        settings=settings,
+        replacement=existing if supplier.submitted_at else None,
+    )
     if supplier.submitted_at:
         supplier = get_application(db, session)
         supplier.status = SupplierStatus.NEW

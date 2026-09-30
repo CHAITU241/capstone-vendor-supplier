@@ -10,6 +10,7 @@ import type {
   DocumentRevision,
   ErpRecord,
   ErpValidation,
+  FlagReasonDraft,
   GeneralAssistantMessage,
   GeneralAssistantResponse,
   ProcessSupplierResponse,
@@ -204,6 +205,10 @@ export const api = {
     request<SupplierDocument>(`/suppliers/${supplierId}/documents/${documentId}/review`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action, reason }),
+    }),
+  draftFlagReason: (supplierId: string, documentId: string) =>
+    request<FlagReasonDraft>(`/suppliers/${supplierId}/documents/${documentId}/flag-reason-draft`, {
+      method: 'POST',
     }),
   validateErpRecord: (supplierId: string) =>
     request<ErpValidation>(`/suppliers/${supplierId}/erp/validate`, { method: 'POST' }),
