@@ -1,6 +1,7 @@
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
 import LaunchRoundedIcon from '@mui/icons-material/LaunchRounded'
 import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded'
-import { Alert, Box, Button, Card, CardContent, Chip, CircularProgress, Divider, FormControl, InputLabel, MenuItem, Select, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from '@mui/material'
+import { Alert, Box, Button, Card, CardContent, Chip, CircularProgress, Divider, FormControl, IconButton, InputLabel, MenuItem, Select, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Tooltip, Typography } from '@mui/material'
 import { useCallback, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { api } from '../api/client'
@@ -13,25 +14,37 @@ function duration(milliseconds: number) {
   return milliseconds >= 1000 ? `${(milliseconds / 1000).toFixed(1)}s` : `${milliseconds}ms`
 }
 
-function MetricCard({ label, value, helper }: { label: string; value: string; helper: string }) {
+function InfoTip({ label, description }: { label: string; description: string }) {
+  return <Tooltip title={description} arrow placement="top"><IconButton size="small" aria-label={`About ${label}`} sx={{ p: .35, color: 'text.secondary' }}><InfoOutlinedIcon sx={{ fontSize: 17 }} /></IconButton></Tooltip>
+}
+
+function CardHeading({ label, description, variant = 'h6' }: { label: string; description: string; variant?: 'h6' | 'caption' }) {
+  return <Stack direction="row" spacing={.5} alignItems="center">
+    <Typography variant={variant} color={variant === 'caption' ? 'text.secondary' : 'text.primary'} fontWeight={700}>{variant === 'caption' ? label.toUpperCase() : label}</Typography>
+    <InfoTip label={label} description={description} />
+  </Stack>
+}
+
+function MetricCard({ label, value, helper, description }: { label: string; value: string; helper: string; description: string }) {
   return <Card variant="outlined"><CardContent>
-    <Typography variant="caption" color="text.secondary" fontWeight={700}>{label.toUpperCase()}</Typography>
+    <CardHeading label={label} description={description} variant="caption" />
     <Typography variant="h4" sx={{ mt: .5 }}>{value}</Typography>
     <Typography variant="body2" color="text.secondary" sx={{ mt: .5 }}>{helper}</Typography>
   </CardContent></Card>
 }
 
-function IntegrationCard({ title, status, color, summary, detail, action }: {
+function IntegrationCard({ title, status, color, summary, detail, description, action }: {
   title: string
   status: string
   color: 'success' | 'warning' | 'error' | 'default'
   summary: string
   detail: string
+  description: string
   action?: ReactNode
 }) {
   return <Card variant="outlined"><CardContent sx={{ height: '100%' }}>
     <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
-      <Typography variant="h6">{title}</Typography>
+      <CardHeading label={title} description={description} />
       <Chip size="small" color={color} label={status} />
     </Stack>
     <Typography fontWeight={750} sx={{ mt: 2 }}>{summary}</Typography>
@@ -43,7 +56,7 @@ function IntegrationCard({ title, status, color, summary, detail, action }: {
 function CostByModel({ rows }: { rows: AdminLangfuseCostGroup[] }) {
   const largest = Math.max(...rows.map((row) => row.cost_usd), 0)
   return <Card><CardContent sx={{ p: 3 }}>
-    <Typography variant="h6">Cost by model</Typography>
+    <CardHeading label="Cost by model" description="Langfuse attributes priced model observations to their provided model name. This is usage cost attribution, not supplier or business cost." />
     <Typography variant="body2" color="text.secondary">Langfuse-calculated generation and embedding cost.</Typography>
     <Stack spacing={2} sx={{ mt: 2 }}>
       {rows.length === 0 && <Typography color="text.secondary">No priced model observations in this window.</Typography>}
@@ -67,7 +80,7 @@ function scoreValue(row: AdminLangfuseScoreGroup) {
 
 function QualityScores({ rows }: { rows: AdminLangfuseScoreGroup[] }) {
   return <Card><CardContent sx={{ p: 3 }}>
-    <Typography variant="h6">Quality scores</Typography>
+    <CardHeading label="Quality scores" description="Named numeric scores emitted by VendorLens traces, such as technical success or grounding signals. They are automated indicators, not a measured model-accuracy percentage." />
     <Typography variant="body2" color="text.secondary">Averages from the scores already emitted to Langfuse.</Typography>
     <Stack divider={<Divider flexItem />} sx={{ mt: 1.5 }}>
       {rows.length === 0 && <Typography color="text.secondary" sx={{ py: 1 }}>No numeric scores in this window.</Typography>}
@@ -79,10 +92,10 @@ function QualityScores({ rows }: { rows: AdminLangfuseScoreGroup[] }) {
   </CardContent></Card>
 }
 
-function Breakdown({ title, rows }: { title: string; rows: AdminMetricGroup[] }) {
+function Breakdown({ title, description, rows }: { title: string; description: string; rows: AdminMetricGroup[] }) {
   const largest = Math.max(...rows.map((row) => row.calls), 1)
   return <Card><CardContent sx={{ p: 3 }}>
-    <Typography variant="h6">{title}</Typography>
+    <CardHeading label={title} description={description} />
     <Stack spacing={2} sx={{ mt: 2 }}>
       {rows.length === 0 && <Typography color="text.secondary">No runs in this window.</Typography>}
       {rows.map((row) => <Box key={row.label}>
@@ -135,10 +148,10 @@ export function AdminObservabilityPanel() {
 
     {error && <Alert severity="warning" onClose={() => setError('')}>{error}</Alert>}
     <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(4, 1fr)' }, gap: 2 }}>
-      <MetricCard label="Persisted AI runs" value={number.format(data.total_runs)} helper={`${data.successful_runs} succeeded · ${data.failed_runs} failed`} />
-      <MetricCard label="Success rate" value={`${data.success_rate.toFixed(1)}%`} helper={`${data.in_progress_runs} currently processing`} />
-      <MetricCard label="Total tokens" value={number.format(totalTokens)} helper={`${number.format(data.input_tokens)} input · ${number.format(data.output_tokens)} output`} />
-      <MetricCard label="P95 latency" value={duration(data.p95_latency_ms)} helper={`${duration(data.average_latency_ms)} average`} />
+      <MetricCard label="Persisted AI runs" value={number.format(data.total_runs)} helper={`${data.successful_runs} succeeded · ${data.failed_runs} failed`} description="AI extraction and question-answering runs stored by VendorLens during the selected time window. This is an operation count, not a count of suppliers." />
+      <MetricCard label="Runs completed without error" value={`${data.success_rate.toFixed(1)}%`} helper={`${data.successful_runs} of ${data.successful_runs + data.failed_runs} finished runs · ${data.in_progress_runs} processing`} description="The percentage of finished AI runs that ended without a recorded technical failure. In-progress runs are excluded. This does not measure extraction accuracy, answer correctness, or approval quality." />
+      <MetricCard label="Total tokens" value={number.format(totalTokens)} helper={`${number.format(data.input_tokens)} input · ${number.format(data.output_tokens)} output`} description="The sum of model input and output tokens recorded for persisted AI runs in the selected window. Token volume indicates usage, not response quality." />
+      <MetricCard label="P95 latency" value={duration(data.p95_latency_ms)} helper={`${duration(data.average_latency_ms)} average`} description="Ninety-five percent of completed AI runs finished at or below this duration. The remaining five percent were slower." />
     </Box>
 
     <Box>
@@ -147,6 +160,7 @@ export function AdminObservabilityPanel() {
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'repeat(3, 1fr)' }, gap: 2, mt: 2 }}>
         <IntegrationCard
           title="Langfuse"
+          description="Connection and telemetry-read health for Langfuse. Connected means VendorLens can read configured trace, usage, cost, or score metadata; it does not grade model accuracy."
           status={data.langfuse_metrics_error && data.langfuse_metrics_available ? 'Partially connected' : data.langfuse_metrics_available ? 'Connected' : data.langfuse_configured ? 'Metrics unavailable' : 'Not configured'}
           color={data.langfuse_metrics_available && !data.langfuse_metrics_error ? 'success' : 'warning'}
           summary={data.langfuse_trace_metrics_available ? `${number.format(data.langfuse_trace_count)} traces · ${data.langfuse_usage_metrics_available ? currency.format(data.langfuse_total_cost_usd) : 'cost unavailable'}` : data.langfuse_usage_metrics_available ? `${number.format(data.langfuse_observation_count)} observations · ${currency.format(data.langfuse_total_cost_usd)}` : 'Tracing dashboard is not currently readable'}
@@ -155,6 +169,7 @@ export function AdminObservabilityPanel() {
         />
         <IntegrationCard
           title="OCR"
+          description="Operational health of local text extraction for scanned documents. Counts show OCR usage and extraction failures; they do not certify document authenticity or OCR correctness."
           status={data.ocr_enabled ? (data.failed_text_extractions ? 'Attention' : 'Healthy') : 'Disabled'}
           color={!data.ocr_enabled ? 'default' : data.failed_text_extractions ? 'warning' : 'success'}
           summary={`${number.format(data.ocr_assisted_documents)} OCR-assisted documents`}
@@ -162,6 +177,7 @@ export function AdminObservabilityPanel() {
         />
         <IntegrationCard
           title="ERP"
+          description="Health of validation, creation, retrieval, and listing calls to the mock ERP boundary. Failures are integration errors, not supplier-review outcomes."
           status={data.erp_failures ? 'Attention' : data.erp_attempts ? 'Healthy' : 'Ready'}
           color={data.erp_failures ? 'warning' : 'success'}
           summary={`${number.format(data.erp_attempts)} tool calls · ${data.erp_failures} failed`}
@@ -176,10 +192,10 @@ export function AdminObservabilityPanel() {
       {data.langfuse_metrics_error && <Alert severity="warning" sx={{ mt: 2 }}>{data.langfuse_metrics_error}</Alert>}
       {!data.langfuse_configured && <Alert severity="info" sx={{ mt: 2 }}>Add Langfuse credentials to populate cost, trace, and score metrics.</Alert>}
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(4, 1fr)' }, gap: 2, mt: 2 }}>
-        <MetricCard label="Langfuse cost" value={data.langfuse_usage_metrics_available ? currency.format(data.langfuse_total_cost_usd) : '—'} helper="Calculated using Langfuse model pricing" />
-        <MetricCard label="Traces" value={data.langfuse_trace_metrics_available ? number.format(data.langfuse_trace_count) : '—'} helper="End-to-end instrumented workflows" />
-        <MetricCard label="Observations" value={data.langfuse_usage_metrics_available ? number.format(data.langfuse_observation_count) : '—'} helper="Spans, generations, tools and embeddings" />
-        <MetricCard label="Quality scores" value={data.langfuse_score_metrics_available ? number.format(data.langfuse_score_count) : '—'} helper="Automated success and grounding signals" />
+        <MetricCard label="Langfuse cost" value={data.langfuse_usage_metrics_available ? currency.format(data.langfuse_total_cost_usd) : '—'} helper="Calculated using Langfuse model pricing" description="Estimated USD cost reported by Langfuse for priced generations and embeddings in the selected window. A dash means usable cost attribution was not returned." />
+        <MetricCard label="Traces" value={data.langfuse_trace_metrics_available ? number.format(data.langfuse_trace_count) : '—'} helper="End-to-end instrumented workflows" description="Top-level instrumented workflows in Langfuse. One trace can contain several observations, such as generations, embeddings, or tool calls." />
+        <MetricCard label="Observations" value={data.langfuse_usage_metrics_available ? number.format(data.langfuse_observation_count) : '—'} helper="Spans, generations, tools and embeddings" description="Individual instrumented operations inside traces. Observation count is normally higher than trace count because one workflow can perform several operations." />
+        <MetricCard label="Quality scores" value={data.langfuse_score_metrics_available ? number.format(data.langfuse_score_count) : '—'} helper="Automated success and grounding signals" description="The number of score records attached to Langfuse traces or observations. These are named operational and grounding signals, not a single overall accuracy score." />
       </Box>
       {(data.langfuse_usage_metrics_available || data.langfuse_score_metrics_available) && <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'repeat(2, 1fr)' }, gap: 2, mt: 2 }}>
         {data.langfuse_usage_metrics_available && <CostByModel rows={data.langfuse_cost_by_model} />}
@@ -188,25 +204,25 @@ export function AdminObservabilityPanel() {
     </Box>
 
     <Card><CardContent sx={{ p: 3 }}>
-      <Typography variant="h6">Active AI configuration</Typography>
+      <CardHeading label="Active AI configuration" description="The currently configured model identifiers for structured extraction, generated answers, and vector embeddings. This shows configuration, not availability or quality." />
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' }, gap: 2, mt: 2 }}>
         {[['Extraction', data.extraction_model], ['Answers', data.answer_model], ['Embeddings', data.embedding_model]].map(([label, value]) => <Box key={label} sx={{ p: 2, borderRadius: 2, bgcolor: 'action.hover' }}><Typography variant="caption" color="text.secondary" fontWeight={700}>{label.toUpperCase()}</Typography><Typography variant="body2" fontWeight={750} sx={{ mt: .5, overflowWrap: 'anywhere' }}>{value}</Typography></Box>)}
       </Box>
     </CardContent></Card>
 
     <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'repeat(3, 1fr)' }, gap: 2 }}>
-      <Breakdown title="Usage by model" rows={data.by_model} />
-      <Breakdown title="Usage by operation" rows={data.by_operation} />
-      <Breakdown title="Usage by prompt version" rows={data.by_prompt_version} />
+      <Breakdown title="Usage by model" description="Persisted run count, token usage, average latency, and failures grouped by the model identifier recorded for each run." rows={data.by_model} />
+      <Breakdown title="Usage by operation" description="The same operational usage grouped by workflow type, such as document processing or question answering." rows={data.by_operation} />
+      <Breakdown title="Usage by prompt version" description="Operational usage grouped by the versioned prompt recorded on each run, useful for comparing deployments and regressions." rows={data.by_prompt_version} />
     </Box>
 
     <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' }, gap: 2 }}>
-      <MetricCard label="RAG grounding guard" value={`${groundingRate.toFixed(1)}%`} helper={`${data.grounded_answers}/${data.question_runs} answers grounded · ${data.guarded_not_found_answers} safe not-found`} />
-      <MetricCard label="AI configuration" value={data.ai_configured ? 'Ready' : 'Incomplete'} helper={`${data.provider} provider · extraction, answers and embeddings`} />
+      <MetricCard label="RAG grounded-answer rate" value={`${groundingRate.toFixed(1)}%`} helper={`${data.grounded_answers}/${data.question_runs} answers grounded · ${data.guarded_not_found_answers} safe not-found`} description="The share of recorded question runs that returned an answer grounded in retrieved supplier-document chunks. Safe not-found responses are counted separately and are not incorrect answers." />
+      <MetricCard label="AI configuration" value={data.ai_configured ? 'Ready' : 'Incomplete'} helper={`${data.provider} provider · extraction, answers and embeddings`} description="Whether the required provider credentials and endpoints are configured for extraction, answering, and embeddings. Ready does not guarantee the external provider is currently reachable." />
     </Box>
 
     <Card><CardContent sx={{ p: 0 }}>
-      <Box sx={{ px: 3, pt: 3, pb: 1 }}><Typography variant="h6">Recent persisted AI runs</Typography><Typography variant="body2" color="text.secondary">Supplier names and document filenames are deliberately excluded.</Typography></Box>
+      <Box sx={{ px: 3, pt: 3, pb: 1 }}><CardHeading label="Recent persisted AI runs" description="The newest database-backed AI execution records in the selected window, including model, prompt version, token usage, latency, and technical status. Sensitive supplier names and filenames are omitted." /><Typography variant="body2" color="text.secondary">Supplier names and document filenames are deliberately excluded.</Typography></Box>
       <TableContainer><Table size="small">
         <TableHead><TableRow><TableCell>Run</TableCell><TableCell>Model / prompt</TableCell><TableCell align="right">Tokens</TableCell><TableCell align="right">Latency</TableCell><TableCell>Status</TableCell></TableRow></TableHead>
         <TableBody>{data.recent_runs.length === 0 ? <TableRow><TableCell colSpan={5}><Typography color="text.secondary">No runs in this window.</Typography></TableCell></TableRow> : data.recent_runs.map((run) => <TableRow key={run.id} hover>

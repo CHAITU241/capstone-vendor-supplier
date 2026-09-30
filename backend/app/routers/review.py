@@ -22,6 +22,8 @@ from app.models import (
 )
 from app.schemas import (
     ApprovalRequest,
+    ConfirmReadyRequirementsRequest,
+    ConfirmReadyRequirementsResponse,
     ComplianceResultRead,
     ComplianceRunResponse,
     DecisionResponse,
@@ -74,6 +76,45 @@ def _ensure_reviewable(supplier: Supplier) -> None:
             status_code=409,
             detail="A finalized supplier cannot be changed in this demo workflow.",
         )
+
+
+def _verify_document(
+    db: Session,
+    supplier: Supplier,
+    document: Document,
+    *,
+    reviewer_name: str,
+    now: datetime,
+    bulk_action: bool = False,
+) -> None:
+    document.review_status = "verified"
+    document.review_comment = "Requirement confirmed against the original evidence."
+    document.reviewed_by = reviewer_name
+    document.reviewed_at = now
+    reviewed_fields = [
+        field for field in supplier.extracted_fields if field.document_id == document.id
+    ]
+    for field in reviewed_fields:
+        if field.review_status != "corrected":
+            field.review_status = "verified"
+            field.review_comment = "Verified with the source requirement."
+        field.needs_review = False
+        field.reviewed_by = reviewer_name
+        field.reviewed_at = now
+    db.add(AuditEvent(
+        supplier_id=supplier.id,
+        action="document.verified",
+        entity_type="document",
+        entity_id=str(document.id),
+        details={
+            "reviewer_name": reviewer_name,
+            "reason": None,
+            "bulk_action": bulk_action,
+            "extracted_field_ids": [str(field.id) for field in reviewed_fields],
+            "extracted_field_count": len(reviewed_fields),
+            "compliance_results_recalculated": True,
+        },
+    ))
 
 
 def _compliance_response(results: list[ComplianceResult]) -> ComplianceRunResponse:
@@ -382,40 +423,107 @@ def review_evidence(
         raise HTTPException(status_code=404, detail="Evidence document was not found.")
     if payload.action == "dispute" and not (payload.reason or "").strip():
         raise HTTPException(status_code=422, detail="A reason is required when evidence is flagged.")
-    now = datetime.now(UTC)
     reviewer_name = payload.reviewer_name.strip()
-    document.review_status = "verified" if payload.action == "verify" else "disputed"
-    document.review_comment = (payload.reason or "Requirement confirmed against the original evidence.").strip()
-    document.reviewed_by = reviewer_name
-    document.reviewed_at = now
-    reviewed_fields: list[ExtractedField] = []
     if payload.action == "verify":
-        reviewed_fields = [
-            field for field in supplier.extracted_fields if field.document_id == document.id
-        ]
-        for field in reviewed_fields:
-            if field.review_status != "corrected":
-                field.review_status = "verified"
-                field.review_comment = "Verified with the source requirement."
-            field.needs_review = False
-            field.reviewed_by = reviewer_name
-            field.reviewed_at = now
-    event_action = "verified" if payload.action == "verify" else "disputed"
-    db.add(AuditEvent(
-        supplier_id=supplier_id, action=f"document.{event_action}",
-        entity_type="document", entity_id=str(document.id),
-        details={
-            "reviewer_name": reviewer_name,
-            "reason": payload.reason,
-            "extracted_field_ids": [str(field.id) for field in reviewed_fields],
-            "extracted_field_count": len(reviewed_fields),
-            "compliance_results_recalculated": True,
-        },
-    ))
+        _verify_document(
+            db, supplier, document,
+            reviewer_name=reviewer_name,
+            now=datetime.now(UTC),
+        )
+    else:
+        document.review_status = "disputed"
+        document.review_comment = payload.reason.strip() if payload.reason else ""
+        document.reviewed_by = reviewer_name
+        document.reviewed_at = datetime.now(UTC)
+        db.add(AuditEvent(
+            supplier_id=supplier_id,
+            action="document.disputed",
+            entity_type="document",
+            entity_id=str(document.id),
+            details={
+                "reviewer_name": reviewer_name,
+                "reason": payload.reason,
+                "extracted_field_ids": [],
+                "extracted_field_count": 0,
+                "compliance_results_recalculated": True,
+            },
+        ))
     persist_compliance_results(db, supplier, evaluate_compliance(supplier))
     db.commit()
     db.refresh(document)
     return DocumentRead.model_validate(document)
+
+
+@router.post(
+    "/{supplier_id}/requirements/confirm-ready",
+    response_model=ConfirmReadyRequirementsResponse,
+)
+def confirm_ready_requirements(
+    supplier_id: uuid.UUID,
+    payload: ConfirmReadyRequirementsRequest,
+    db: Session = Depends(get_db),
+) -> ConfirmReadyRequirementsResponse:
+    """Confirm only technically ready requirements with matched policy checks."""
+    supplier = _get_review_supplier(db, supplier_id)
+    _ensure_reviewable(supplier)
+    documents = {document.document_type: document for document in supplier.documents}
+    policy_checks = [
+        result for result in supplier.compliance_results
+        if result.evidence.get("kind") == "policy_check"
+    ]
+    ready: list[Document] = []
+    for requirement in checklist_for(supplier).documents:
+        document = documents.get(requirement.document_type)
+        checks = [
+            result for result in policy_checks
+            if result.evidence.get("requirement_id") == requirement.requirement_id
+        ]
+        checks_matched = bool(checks) and all(
+            result.status == ComplianceStatus.PASS
+            or result.evidence.get("ai_assessment") in {"matched", "human_verified"}
+            for result in checks
+        )
+        if (
+            document is not None
+            and document.review_status == "pending"
+            and document.processing_status.value == "ready"
+            and document.ai_extraction_status == "ready"
+            and document.ai_index_status != "failed"
+            and checks_matched
+        ):
+            ready.append(document)
+    if not ready:
+        raise HTTPException(
+            status_code=409,
+            detail="No requirements are currently ready for bulk confirmation.",
+        )
+
+    reviewer_name = payload.reviewer_name.strip()
+    now = datetime.now(UTC)
+    for document in ready:
+        _verify_document(
+            db, supplier, document,
+            reviewer_name=reviewer_name,
+            now=now,
+            bulk_action=True,
+        )
+    db.add(AuditEvent(
+        supplier_id=supplier.id,
+        action="reviewer.ready_requirements.bulk_confirmed",
+        entity_type="supplier",
+        entity_id=str(supplier.id),
+        details={
+            "reviewer_name": reviewer_name,
+            "document_ids": [str(document.id) for document in ready],
+            "confirmed_count": len(ready),
+        },
+    ))
+    persist_compliance_results(db, supplier, evaluate_compliance(supplier))
+    db.commit()
+    return ConfirmReadyRequirementsResponse(
+        confirmed_count=len(ready),
+        document_ids=[document.id for document in ready],
+    )
 
 
 @router.post("/{supplier_id}/erp/validate", response_model=ErpValidationResponse)

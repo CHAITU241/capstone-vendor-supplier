@@ -295,6 +295,11 @@ export interface ComplianceRunResponse {
   approval_ready: boolean
 }
 
+export interface ConfirmReadyRequirementsResponse {
+  confirmed_count: number
+  document_ids: string[]
+}
+
 export interface DecisionResponse {
   supplier_id: string
   status: SupplierStatus

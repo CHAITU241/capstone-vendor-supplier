@@ -178,6 +178,15 @@ class EvidenceReviewRequest(BaseModel):
     reviewer_name: str = Field(default="Demo reviewer", min_length=2, max_length=100)
 
 
+class ConfirmReadyRequirementsRequest(BaseModel):
+    reviewer_name: str = Field(default="Demo reviewer", min_length=2, max_length=100)
+
+
+class ConfirmReadyRequirementsResponse(BaseModel):
+    confirmed_count: int = Field(ge=1)
+    document_ids: list[uuid.UUID]
+
+
 class FlagReasonDraftRead(BaseModel):
     reason: str
     source: Literal["ai_rag", "deterministic_fallback"]
