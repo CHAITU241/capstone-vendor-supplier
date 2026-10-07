@@ -3,9 +3,12 @@
 import json
 import uuid
 from collections import Counter
+from datetime import UTC, datetime
 from pathlib import Path
 
-from app.models import Document, DocumentType, ExtractedField, ProcessingStatus, Supplier
+from app.models import (
+    Document, DocumentType, ExtractedField, ProcessingStatus, Supplier, SupplierStatus,
+)
 from app.services.document_policy import checklist_for, extraction_field_names, load_policy
 from app.services.policy_retrieval import (
     application_answer_for, application_context_for, policy_context_for,
@@ -247,3 +250,43 @@ def test_application_context_uses_selected_service_and_exact_checklist():
     checklist_answer = application_answer_for(supplier, "What documents am I supposed to upload?")
     assert checklist_answer and "Cyber liability coverage" in checklist_answer
     assert "Recruitment" not in checklist_answer
+
+
+def test_flagged_application_status_and_review_reason_surface_supplier_action():
+    supplier = Supplier(
+        name="Example Recruiter Ltd",
+        category="WORK",
+        subcategory="WORK-REC",
+        status=SupplierStatus.NEEDS_REVIEW,
+        submitted_at=datetime.now(UTC),
+    )
+    supplier.documents = [
+        Document(
+            document_type=DocumentType.BASE_002_DECLARATION,
+            filename="tax-status-declaration.pdf",
+            storage_path="uploads/tax-status-declaration.pdf",
+            content_type="application/pdf",
+            file_size=100,
+            page_count=1,
+            processing_status=ProcessingStatus.READY,
+            review_status="disputed",
+            review_comment=(
+                "Please upload a signed tax-status declaration showing the supplier's legal name, "
+                "non-GST-registered status, declaration date, and authorized signature."
+            ),
+        )
+    ]
+    supplier.extracted_fields = []
+    supplier.ai_runs = []
+    supplier.compliance_results = []
+
+    status_answer = application_answer_for(supplier, "What's the current status of the application?")
+    reason_answer = application_answer_for(supplier, "Why does it need review?")
+    action_answer = application_answer_for(supplier, "What do I need to do next?")
+
+    for answer in (status_answer, reason_answer, action_answer):
+        assert answer is not None
+        assert "Supplier action is required" in answer
+        assert "signed tax-status declaration" in answer
+        assert "Resubmit corrections for review" in answer
+        assert "Human reviewer verification is still in progress" not in answer

@@ -15,6 +15,17 @@ UPLOAD_CHECK_QUESTION = re.compile(r"\b(?:uploaded|upload)\b.*\b(?:all|correct|c
 CHECKLIST_QUESTION = re.compile(r"\b(?:what|which)\b.*\b(?:documents?|evidence|files?)\b.*\b(?:upload|provide|need|required|supposed)\b|\bdocuments?\b.*\b(?:supposed|required)\b.*\bupload\b", re.IGNORECASE)
 ISSUE_QUESTION = re.compile(r"\b(?:issue|problem|wrong|flagged|mismatch|not match|changes? requested)\b", re.IGNORECASE)
 REJECTION_QUESTION = re.compile(r"\b(?:reject(?:ed|ion)?|declined?|denied)\b", re.IGNORECASE)
+REVIEW_REASON_QUESTION = re.compile(
+    r"\bwhy\b.*\b(?:review|reviewed|reviewing|pending|attention)\b|"
+    r"\b(?:review|reviewed|reviewing)\b.*\bwhy\b",
+    re.IGNORECASE,
+)
+ACTION_QUESTION = re.compile(
+    r"\bwhat\b.*\b(?:do|should|must|need)\b.*\b(?:do|change|correct|upload|provide)\b|"
+    r"\b(?:action|changes?|corrections?)\b.*\b(?:needed|required|pending)\b|"
+    r"\bwhat(?:'s| is)\s+next\b",
+    re.IGNORECASE,
+)
 NAME_FIELDS = {"supplier_name", "legal_name", "registered_name", "policyholder_legal_name"}
 SENSITIVE_FIELDS = {
     "bank_account_number", "bank_ifsc", "ifsc", "pan", "gstin", "tax_reference",
@@ -96,10 +107,20 @@ def _application_facts(supplier: Supplier):
     documents = {item.document_type: item for item in supplier.documents}
     processing_runs = [run for run in supplier.ai_runs if run.run_type == AiRunType.PROCESSING]
     latest_run = max(processing_runs, key=lambda run: run.created_at) if processing_runs else None
+    flagged_documents = [
+        document for document in supplier.documents
+        if document.review_status == "disputed"
+    ]
     if supplier.status == SupplierStatus.APPROVED:
         journey_status = "Review is complete: the application was approved."
     elif supplier.status == SupplierStatus.REJECTED:
         journey_status = "Review is complete: the application was rejected. The reviewer decision is authoritative."
+    elif flagged_documents:
+        journey_status = (
+            f"Supplier action is required: the reviewer flagged {len(flagged_documents)} "
+            f"document{'s' if len(flagged_documents) != 1 else ''}. Review cannot continue until the requested "
+            "corrections are submitted."
+        )
     elif supplier.submitted_at is None:
         journey_status = "This application is still a draft and has not been submitted for review."
     elif supplier.status == SupplierStatus.PROCESSING:
@@ -133,32 +154,46 @@ def application_answer_for(supplier: Supplier, question: str) -> str | None:
             "Contact the reviewer if you need clarification or want to discuss a new application."
         )
 
-    if ISSUE_QUESTION.search(question) or asks_about_rejection:
-        flagged = [document for document in supplier.documents if document.review_status == "disputed"]
+    flagged = [document for document in supplier.documents if document.review_status == "disputed"]
+    asks_about_flagged_state = bool(
+        ISSUE_QUESTION.search(question)
+        or STATUS_QUESTION.search(question)
+        or REVIEW_REASON_QUESTION.search(question)
+        or ACTION_QUESTION.search(question)
+        or asks_about_rejection
+    )
+    if asks_about_flagged_state:
         if flagged:
             labels = {item.document_type: item.label for item in checklist.documents}
-            lines = [
-                "Your application has **not** been finally rejected. The reviewer requested changes to the following evidence:"
-            ]
+            opening = (
+                "Your application has **not** been finally rejected; **supplier action is required before the review can continue.**"
+                if asks_about_rejection
+                else "**Supplier action is required before the review can continue.**"
+            )
+            lines = [f"{opening} The reviewer requested changes to:"]
             for document in flagged:
                 lines.append(
                     f"- **{labels.get(document.document_type, document.document_type.value)}**: "
                     f"{document.review_comment or 'The reviewer asked for this item to be corrected.'}"
                 )
-                calculated_findings = [
-                    result for result in supplier.compliance_results
-                    if result.status != ComplianceStatus.PASS
-                    and isinstance(result.evidence, dict)
-                    and result.evidence.get("kind") == "policy_check"
-                    and result.evidence.get("document_id") == str(document.id)
-                ]
-                for result in sorted(
-                    calculated_findings,
-                    key=lambda item: int(item.evidence.get("check_number") or 0),
-                ):
-                    reason = result.evidence.get("ai_reason") or result.message
-                    if reason and reason.casefold() not in (document.review_comment or "").casefold():
-                        lines.append(f"  - System finding: {reason}")
+                # Preserve the existing detailed rejection explanation when the
+                # supplier explicitly asks whether they were rejected. Routine
+                # status/action answers stay focused on the reviewer's instruction.
+                if asks_about_rejection:
+                    calculated_findings = [
+                        result for result in supplier.compliance_results
+                        if result.status != ComplianceStatus.PASS
+                        and isinstance(result.evidence, dict)
+                        and result.evidence.get("kind") == "policy_check"
+                        and result.evidence.get("document_id") == str(document.id)
+                    ]
+                    for result in sorted(
+                        calculated_findings,
+                        key=lambda item: int(item.evidence.get("check_number") or 0),
+                    ):
+                        reason = result.evidence.get("ai_reason") or result.message
+                        if reason and reason.casefold() not in (document.review_comment or "").casefold():
+                            lines.append(f"  - System finding: {reason}")
                 extracted_names = [
                     field for field in document.extracted_fields
                     if field.field_name.casefold() in NAME_FIELDS and field.value.strip()
@@ -177,9 +212,9 @@ def application_answer_for(supplier: Supplier, question: str) -> str | None:
                         )
                     lines.append("  - These names do not match. Correct the portal entry if the document is right, or replace the document if the document is wrong.")
             lines.append(
-                "What to do next: follow the reviewer feedback above. Correct any wrong business details, or use "
-                "**Choose replacement** for each flagged document. When every requested change is complete, select "
-                "**Resubmit corrections for review**."
+                "**What to do next:** follow the reviewer feedback above. If a portal-entered value is wrong, correct it; "
+                "if the uploaded evidence is incomplete or wrong, use **Choose replacement** for that document. "
+                "When every requested change is complete, select **Resubmit corrections for review**."
             )
             return "\n".join(lines)
         if asks_about_rejection:
