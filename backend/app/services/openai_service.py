@@ -279,7 +279,7 @@ class OpenAIService:
         finding_context: str,
         policy_context: str,
     ) -> ModelResult[ReviewerFlagReason]:
-        prompt = _read_prompt("reviewer_flag_reason_v1.txt")
+        prompt = _read_prompt("reviewer_flag_reason_v2.txt")
         input_metadata = {
             "finding_chars": len(finding_context),
             "policy_context_chars": len(policy_context),
@@ -306,7 +306,7 @@ class OpenAIService:
                         {
                             "role": "user",
                             "content": (
-                                f"CALCULATED FINDINGS:\n{finding_context}\n\n"
+                                f"CALCULATED FINDINGS AND SUPPLIER-FACING RESOLUTION PLAN:\n{finding_context}\n\n"
                                 f"RETRIEVED POLICY:\n{policy_context}"
                             ),
                         },

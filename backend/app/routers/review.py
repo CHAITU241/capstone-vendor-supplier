@@ -47,7 +47,7 @@ from app.services.compliance import (
 from app.services.mock_erp import build_erp_preview
 from app.services.erp_mcp_client import ErpMcpClient, supplier_idempotency_key
 from app.services.erp_tools import ErpToolFailure
-from app.services.document_policy import checklist_for
+from app.services.document_policy import RequiredDocument, checklist_for
 from app.services.openai_service import build_openai_service
 from app.services.policy_retrieval import policy_context_for
 from app.services.redaction import redact_pii
@@ -145,7 +145,13 @@ def _flag_findings(supplier: Supplier, document: Document) -> list[dict]:
     findings: list[dict] = []
     for result in supplier.compliance_results:
         evidence = result.evidence if isinstance(result.evidence, dict) else {}
-        if result.status == ComplianceStatus.PASS or evidence.get("document_id") != str(document.id):
+        related_document_ids = evidence.get("document_ids")
+        applies_to_document = (
+            evidence.get("document_id") == str(document.id)
+            or isinstance(related_document_ids, list)
+            and str(document.id) in related_document_ids
+        )
+        if result.status == ComplianceStatus.PASS or not applies_to_document:
             continue
         item = {
             "message": _safe_finding_text(result.message, supplier),
@@ -179,7 +185,69 @@ def _flag_findings(supplier: Supplier, document: Document) -> list[dict]:
     return findings
 
 
-def _fallback_flag_reason(label: str, findings: list[dict]) -> str:
+_FIELD_LABELS = {
+    "declaration date and signatory when not registered": "declaration date and authorized signature",
+    "gst status registered or not registered": "GST registration status",
+    "gstin when registered": "GSTIN",
+    "supplier name": "supplier legal name",
+    "tax identifier": "PAN or tax reference",
+    "bank ifsc": "IFSC code",
+    "both signatures": "both parties' signatures",
+    "signature and date": "signature and date",
+}
+
+
+def _friendly_field(value: str) -> str:
+    normalized = " ".join(value.replace("_", " ").split()).casefold()
+    return _FIELD_LABELS.get(normalized, normalized)
+
+
+def _human_list(values: list[str]) -> str:
+    clean = list(dict.fromkeys(_friendly_field(value) for value in values if value.strip()))
+    if not clean:
+        return "the required information"
+    if len(clean) == 1:
+        return clean[0]
+    return f"{', '.join(clean[:-1])} and {clean[-1]}"
+
+
+def _plain_finding(value: str) -> str:
+    text = " ".join(value.split()).strip().rstrip(".")
+    text = re.sub(r"^(?:Human review required|Policy evaluation found a mismatch):\s*", "", text, flags=re.IGNORECASE)
+    text = re.sub(
+        r"could not be verified from extracted data",
+        "could not be confirmed in the uploaded document",
+        text,
+        flags=re.IGNORECASE,
+    )
+    text = re.sub(
+        r"Required extracted value\(s\) are unavailable:\s*",
+        "The document does not clearly show ",
+        text,
+        flags=re.IGNORECASE,
+    )
+    return text[:350]
+
+
+def _needs_tax_declaration_guidance(findings: list[dict]) -> bool:
+    text = " ".join(
+        str(value)
+        for finding in findings
+        for value in (
+            finding.get("message", ""),
+            finding.get("assessment_reason", ""),
+            *finding.get("missing_fields", []),
+        )
+    ).casefold()
+    return (
+        "not-registered declaration" in text
+        or "not registered declaration" in text
+        or "declaration date and signatory when not registered" in text
+    )
+
+
+def _fallback_flag_reason(requirement: RequiredDocument, findings: list[dict]) -> str:
+    label = requirement.label
     missing = sorted({
         field
         for finding in findings
@@ -192,19 +260,91 @@ def _fallback_flag_reason(label: str, findings: list[dict]) -> str:
         for field in finding.get("disputed_fields", [])
         if isinstance(field, str)
     })
-    if missing:
-        detail = f"The following required information could not be confirmed: {', '.join(missing)}."
-    elif disputed:
-        detail = f"The following extracted information needs correction: {', '.join(disputed)}."
-    else:
-        detail = next(
-            (finding["message"] for finding in findings if finding.get("message")),
-            "The evidence could not be confirmed against the requirement.",
+    finding_texts = [
+        str(finding.get("assessment_reason") or finding.get("message") or "")
+        for finding in findings
+        if finding.get("assessment_reason") or finding.get("message")
+    ]
+    combined = " ".join(finding_texts).casefold()
+
+    if _needs_tax_declaration_guidance(findings):
+        return (
+            "We could not confirm a dated and signed declaration for the supplier's non-GST-registered status. "
+            "This declaration records why a GSTIN is not being provided and confirms who made that statement. "
+            "Please upload a clear signed tax-status declaration showing the supplier's legal name, that the supplier is not registered for GST, the declaration date, and the authorized signatory's name and signature."
         )
-    return (
-        f"Please replace or correct the {label}. {detail} "
-        "Upload evidence that clearly contains the required information and matches the portal details."
-    )[:1000]
+
+    why = requirement.why.strip().rstrip(".")
+    why_sentence = (
+        f"This information is needed to {why[:1].lower() + why[1:]}."
+        if why
+        else "This information is needed to complete the requirement review."
+    )
+    evidence = requirement.accepted_evidence.strip().rstrip(".") or label
+    required_fields = requirement.required_fields.strip().rstrip(".")
+
+    if missing:
+        detail = f"We could not confirm {_human_list(missing)} in the uploaded {label.lower()}."
+        action = f"Please upload a clear {evidence[:1].lower() + evidence[1:]}"
+        if required_fields:
+            action += f" showing {required_fields[:1].lower() + required_fields[1:]}"
+        action += "."
+    elif disputed:
+        detail = f"The reviewer could not confirm {_human_list(disputed)} against the uploaded {label.lower()}."
+        action = (
+            f"Please correct the portal information if it is wrong, or replace the document with "
+            f"a {evidence[:1].lower() + evidence[1:]} that shows the correct details."
+        )
+    elif "does not match" in combined or "mismatch" in combined:
+        issue = _plain_finding(finding_texts[0]) if finding_texts else "The document details do not match the portal details"
+        detail = f"We found a mismatch in the {label.lower()}: {issue[:1].lower() + issue[1:]}."
+        action = (
+            "Please correct the portal information if it is wrong, or upload a replacement "
+            f"{evidence[:1].lower() + evidence[1:]} with matching details."
+        )
+    else:
+        issue = _plain_finding(finding_texts[0]) if finding_texts else "The document could not be confirmed against the requirement"
+        detail = f"We could not complete the {label.lower()} review because {issue[:1].lower() + issue[1:]}."
+        action = f"Please upload an updated or clearer {evidence[:1].lower() + evidence[1:]}"
+        if required_fields:
+            action += f" showing {required_fields[:1].lower() + required_fields[1:]}"
+        action += "."
+    return f"{detail} {why_sentence} {action}"[:1000]
+
+
+def _ai_flag_reason_is_usable(
+    proposed: str,
+    requirement: RequiredDocument,
+    findings: list[dict],
+) -> bool:
+    lower = proposed.casefold()
+    banned_phrases = (
+        "extracted data",
+        "clear evidence or documentation",
+        "resolve this issue",
+        "requires a verification of",
+        "not- registered",
+    )
+    sentence_count = len(re.findall(r"[.!?](?:\s|$)", proposed))
+    if not 25 <= len(proposed.split()) <= 170 or sentence_count != 3:
+        return False
+    if any(phrase in lower for phrase in banned_phrases):
+        return False
+    if re.search(r"\b(?:AI|RAG|OCR)\b", proposed, flags=re.IGNORECASE):
+        return False
+    if not any(
+        action in lower
+        for action in ("please upload", "please replace", "please correct", "please update")
+    ):
+        return False
+    if _needs_tax_declaration_guidance(findings):
+        return all(term in lower for term in ("declaration", "gst", "date")) and any(
+            term in lower for term in ("signatory", "signature", "signed")
+        )
+    return any(
+        token in lower
+        for token in re.findall(r"[a-z]{4,}", requirement.label.casefold())
+    )
 
 
 @router.get("/{supplier_id}/compliance", response_model=ComplianceRunResponse)
@@ -351,7 +491,13 @@ def draft_flag_reason(
     )
     label = requirement.label if requirement else document.document_type.value.replace("_", " ").title()
     findings = _flag_findings(supplier, document)
-    fallback = _fallback_flag_reason(label, findings)
+    fallback_requirement = requirement or RequiredDocument(
+        document_type=document.document_type,
+        label=label,
+        why="complete the document review",
+        accepted_evidence=label,
+    )
+    fallback = _fallback_flag_reason(fallback_requirement, findings)
     source = "deterministic_fallback"
     reason = fallback
 
@@ -362,7 +508,14 @@ def draft_flag_reason(
         try:
             policy_context = policy_context_for(" ".join(query_parts))
             finding_context = json.dumps(
-                {"document_label": label, "findings": findings},
+                {
+                    "document_label": label,
+                    "why_needed": fallback_requirement.why,
+                    "accepted_evidence": fallback_requirement.accepted_evidence,
+                    "required_information": fallback_requirement.required_fields,
+                    "findings": findings,
+                    "supplier_facing_resolution_plan": fallback,
+                },
                 ensure_ascii=True,
             )
             with get_langfuse_tracer().trace(
@@ -388,7 +541,11 @@ def draft_flag_reason(
                         supplier.bank_ifsc,
                     )
                 )
-                if len(proposed) >= 10 and not repeats_sensitive_value and not re.search(
+                if _ai_flag_reason_is_usable(
+                    proposed,
+                    fallback_requirement,
+                    findings,
+                ) and not repeats_sensitive_value and not re.search(
                     r"\[(?:GSTIN|PAN|CIN|EMAIL|PHONE|BANK_ACCOUNT)_\d+\]",
                     proposed,
                 ):

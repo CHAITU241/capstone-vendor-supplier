@@ -25,6 +25,8 @@ from app.services.openai_service import (
     PolicyCheckAssessment,
     ReviewerFlagReason,
 )
+from app.routers.review import _ai_flag_reason_is_usable, _fallback_flag_reason
+from app.services.document_policy import RequiredDocument
 from app.services.upload_validation import names_are_plausibly_same
 
 
@@ -87,8 +89,9 @@ class FakeFlagAI:
         assert policy_context
         return ModelResult(
             value=ReviewerFlagReason(reason=(
-                "Please replace the bank account evidence. The account number does not match "
-                "the portal details, so upload a current bank document for the same supplier."
+                "The bank account number does not match between the uploaded bank account verification and the portal details. "
+                "Matching payment details are needed to ensure payments are sent to the intended supplier account. "
+                "Please correct the portal value if it is wrong, or upload a current bank document showing the matching account details."
             )),
             input_tokens=80,
             output_tokens=30,
@@ -102,6 +105,53 @@ def test_name_matching_tolerates_small_ocr_noise_but_rejects_another_entity() ->
     assert not names_are_plausibly_same(
         "Indigo Office Supply Private Limited", "Unrelated Trading Company Limited",
     )
+
+
+def test_tax_declaration_flag_reason_explains_what_why_and_next_step() -> None:
+    requirement = RequiredDocument(
+        document_type=DocumentType.BASE_002_DECLARATION,
+        requirement_id="BASE-002",
+        label="Signed tax-status declaration",
+        why="Support a supplier whose GST status is not registered.",
+        accepted_evidence="Signed tax-status declaration required only when GST status is not registered.",
+        required_fields="Legal name; GST status; declaration date and signatory.",
+    )
+    findings = [{
+        "message": "Human review required: The not-registered declaration date/signatory could not be verified from extracted data.",
+        "assessment_reason": "The not-registered declaration date/signatory could not be verified from extracted data.",
+        "missing_fields": ["declaration_date_and_signatory_when_not_registered"],
+        "status": "needs_review",
+    }]
+
+    reason = _fallback_flag_reason(requirement, findings)
+
+    assert "non-GST-registered status" in reason
+    assert "why a GSTIN is not being provided" in reason
+    assert "Please upload a clear signed tax-status declaration" in reason
+    assert "declaration date" in reason
+    assert "authorized signatory's name and signature" in reason
+    assert "extracted data" not in reason
+
+
+def test_vague_or_system_sounding_ai_flag_reason_is_rejected() -> None:
+    requirement = RequiredDocument(
+        document_type=DocumentType.BASE_002_DECLARATION,
+        label="Signed tax-status declaration",
+        why="Support a supplier whose GST status is not registered.",
+        accepted_evidence="Signed tax-status declaration.",
+        required_fields="Legal name; GST status; declaration date and signatory.",
+    )
+    findings = [{
+        "assessment_reason": "The not-registered declaration date/signatory could not be verified from extracted data.",
+        "status": "needs_review",
+    }]
+    awkward = (
+        "The document requires a verification of the not- registered declaration date and signatory. "
+        "This could not be confirmed from extracted data. "
+        "Please provide clear evidence or documentation to resolve this issue."
+    )
+
+    assert not _ai_flag_reason_is_usable(awkward, requirement, findings)
 
 
 @pytest.fixture

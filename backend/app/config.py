@@ -48,7 +48,7 @@ class Settings(BaseSettings):
     extraction_prompt_version: str = "extraction-v4"
     answer_prompt_version: str = "rag-answer-v3"
     assistant_prompt_version: str = "supplier-assistant-v2"
-    reviewer_flag_prompt_version: str = "reviewer-flag-reason-v1"
+    reviewer_flag_prompt_version: str = "reviewer-flag-reason-v2"
     langfuse_enabled: bool = True
     langfuse_public_key: str | None = None
     langfuse_secret_key: SecretStr | None = None
