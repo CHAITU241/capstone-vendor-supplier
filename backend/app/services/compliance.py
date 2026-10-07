@@ -131,10 +131,6 @@ def _policy_assessment_lookup(
                 lookup.setdefault((document_id, check_number), item)
 
     add(current_assessments)
-    for document in getattr(supplier, "documents", []):
-        details = getattr(document, "upload_validation_details", None)
-        if isinstance(details, dict):
-            add(details.get("policy_assessments"))
     for run in sorted(
         getattr(supplier, "ai_runs", []),
         key=lambda item: item.created_at,
@@ -142,6 +138,10 @@ def _policy_assessment_lookup(
     ):
         if run.run_type.value == "processing" and isinstance(run.details, dict):
             add(run.details.get("policy_assessments"))
+    for document in getattr(supplier, "documents", []):
+        details = getattr(document, "upload_validation_details", None)
+        if isinstance(details, dict):
+            add(details.get("policy_assessments"))
     return lookup
 
 
@@ -275,10 +275,14 @@ def _evaluate_policy_compliance(
                     or document_fields[name].confidence < 0.75
                     for name in cited_fields
                 )
-                if low_confidence:
+                if assessment_result == "not_matched" and low_confidence:
                     status = ComplianceStatus.NEEDS_REVIEW
                     ai_assessment = "human_review"
-                    ai_reason = "The cited extracted evidence has low confidence and requires human confirmation."
+                    ai_reason = (
+                        "The calculated policy finding is a mismatch, but the cited extracted "
+                        "evidence has low confidence and requires human confirmation. "
+                        f"Calculated finding: {assessment_reason}"
+                    )
                 elif assessment_result == "not_matched":
                     status = ComplianceStatus.FAIL
                     ai_assessment = "not_matched"
