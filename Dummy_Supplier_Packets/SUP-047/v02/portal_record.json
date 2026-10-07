@@ -1,0 +1,19 @@
+{
+  "supplier_id": "SUP-047",
+  "legal_name": "Kite Office Supply 047 Pvt Ltd",
+  "primary_code": "GOODS-OFF",
+  "contracted_service": "Office and General Supplies",
+  "portal_legal_name": "Kite Office Supply 047 Pvt Ltd",
+  "portal_pan_tax_reference": "DEMO-PAN-0047",
+  "portal_gst_status": "registered",
+  "portal_gstin": "DEMO-GST-00047",
+  "portal_bank_account": "9900000000047",
+  "portal_ifsc": "DEMO0001234",
+  "portal_offered_sku": "MDL-0047",
+  "contact_name": "A. Rao 047",
+  "contact_email": "onboarding047@supplier.example",
+  "submission_id": "SUP-047_v02",
+  "submission_version": 2,
+  "evaluation_date_ist": "2026-09-19",
+  "final_submission_gate": false
+}
