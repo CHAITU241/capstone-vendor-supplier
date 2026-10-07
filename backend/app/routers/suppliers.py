@@ -65,6 +65,7 @@ def get_supplier(supplier_id: uuid.UUID, db: Session = Depends(get_db)) -> Suppl
         .where(Supplier.id == supplier_id)
         .options(
             selectinload(Supplier.documents),
+            selectinload(Supplier.additional_documents),
             selectinload(Supplier.audit_events),
             selectinload(Supplier.extracted_fields),
             selectinload(Supplier.ai_runs),
@@ -101,6 +102,9 @@ def get_supplier(supplier_id: uuid.UUID, db: Session = Depends(get_db)) -> Suppl
         **SupplierSummary.model_validate(supplier).model_dump(exclude={"document_count"}),
         document_count=len(supplier.documents),
         documents=supplier.documents,
+        additional_documents=sorted(
+            supplier.additional_documents, key=lambda item: item.created_at, reverse=True
+        ),
         audit_events=supplier.audit_events,
         extracted_fields=supplier.extracted_fields,
         ai_runs=supplier.ai_runs[:10],

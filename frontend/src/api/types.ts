@@ -34,6 +34,7 @@ export interface SupplierSummary {
   contact_email: string | null
   category: string | null
   subcategory: string | null
+  service_description: string | null
   submitted_at: string | null
   status: SupplierStatus
   created_at: string
@@ -45,6 +46,9 @@ export interface SupplierSummary {
   vendor_id: string | null
   erp_payload: Record<string, unknown> | null
   document_count: number
+  other_review_note: string | null
+  other_reviewed_by: string | null
+  other_review_completed_at: string | null
 }
 
 export interface PortalSession {
@@ -164,6 +168,7 @@ export interface SupplierApplication {
   tax_reference: string | null
   bank_account_number: string | null
   bank_ifsc: string | null
+  service_description: string | null
   submitted_at: string | null
   status: SupplierStatus
   documents: SupplierDocument[]
@@ -222,6 +227,18 @@ export interface DocumentRevision {
   archived_at: string
 }
 
+export interface AdditionalDocument {
+  id: string
+  supplier_id: string
+  filename: string
+  content_type: string
+  file_size: number
+  uploaded_by: string
+  verification_note: string
+  verified_at: string
+  created_at: string
+}
+
 export interface AuditEvent {
   id: string
   action: string
@@ -276,6 +293,7 @@ export interface SupplierDetail extends SupplierSummary {
   bank_ifsc: string | null
   requirements: DocumentChecklist
   documents: SupplierDocument[]
+  additional_documents: AdditionalDocument[]
   audit_events: AuditEvent[]
   extracted_fields: ExtractedField[]
   ai_runs: AiRun[]

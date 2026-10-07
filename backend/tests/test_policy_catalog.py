@@ -8,9 +8,9 @@ from app.services.policy_retrieval import (
 )
 
 
-def test_all_24_codes_have_exact_baseline_and_mapped_additions():
+def test_all_25_codes_have_exact_baseline_and_mapped_additions():
     catalog = load_policy()
-    assert len(catalog.categories) == 8
+    assert len(catalog.categories) == 9
     assert len(catalog.requirements) == 22
     for category in catalog.categories:
         for subcategory in category.subcategories:
@@ -25,9 +25,12 @@ def test_representative_subcategory_edges():
     goods = checklist_for(Supplier(category="GOODS", subcategory="GOODS-OFF"))
     cyber = checklist_for(Supplier(category="TECH", subcategory="TECH-CYB"))
     payments = checklist_for(Supplier(category="SENS", subcategory="SENS-PAY"))
+    other = checklist_for(Supplier(category="OTHER", subcategory="OTHER-GEN"))
     assert [item.document_type for item in goods.documents] == [DocumentType.REGISTRATION, DocumentType.TAX, DocumentType.BANK]
     assert cyber.documents[-1].requirement_id == "INS-CYB-001"
     assert {item.requirement_id for item in payments.documents} >= {"CRED-001", "PAY-001", "INS-CYB-001"}
+    assert [item.document_type for item in other.documents] == [DocumentType.REGISTRATION, DocumentType.TAX, DocumentType.BANK]
+    assert "Policy and Legal" in other.reason
     assert checklist_for(Supplier(category="TECH", subcategory="LOG-WH")).documents == []
 
 

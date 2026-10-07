@@ -597,6 +597,21 @@
           "boundary": "Selling a generic software tool without operating the data process belongs in TECH-SW. Supplying contract workers to perform work belongs in WORK-STA."
         }
       ]
+    },
+    {
+      "code": "OTHER",
+      "label": "Other / Not listed",
+      "subcategories": [
+        {
+          "code": "OTHER-GEN",
+          "label": "Other supplier product or service",
+          "requirements": [],
+          "source": "Controlled V1 exception path",
+          "definition": "Use this only when none of the listed categories reasonably describes the main product or service.",
+          "examples": "A new or unusual offering that is not represented in the current category catalogue.",
+          "boundary": "The three baseline documents are collected first. Policy and Legal must determine any additional evidence before approval."
+        }
+      ]
     }
   ]
 }

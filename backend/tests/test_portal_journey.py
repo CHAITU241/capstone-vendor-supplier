@@ -75,6 +75,86 @@ def test_supplier_can_resume_and_submit_without_ai(tmp_path):
         engine.dispose()
 
 
+def test_other_supplier_uses_baseline_documents_and_manual_policy_legal_checkpoint(tmp_path):
+    engine = create_engine("sqlite+pysqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
+    Base.metadata.create_all(engine)
+
+    def db_override():
+        with Session(engine) as db:
+            yield db
+
+    app.dependency_overrides[get_db] = db_override
+    app.dependency_overrides[get_settings] = lambda: Settings(
+        upload_dir=tmp_path / "uploads",
+        chroma_path=tmp_path / "chroma",
+        upload_ai_validation_enabled=False,
+    )
+    try:
+        with TestClient(app) as client:
+            signup = client.post("/api/portal/auth/register", json={
+                "email": "other@example.com", "password": "demo-password",
+            }).json()
+            supplier_headers = {"Authorization": f"Bearer {signup['token']}"}
+            category = client.patch("/api/portal/application", headers=supplier_headers, json={
+                "category": "OTHER", "subcategory": "OTHER-GEN",
+            })
+            assert category.status_code == 200, category.text
+            assert [item["document_type"] for item in category.json()["requirements"]["documents"]] == [
+                "registration", "tax", "bank",
+            ]
+
+            missing_note = client.patch("/api/portal/application", headers=supplier_headers, json={
+                "category": "OTHER", "subcategory": "OTHER-GEN", "name": "Novel Services Pvt Ltd",
+                "contact_email": "other@example.com", "tax_reference": "DEMO-PAN-OTHER",
+                "bank_account_number": "DEMO-ACCOUNT-OTHER", "bank_ifsc": "DEMO0123456",
+            })
+            assert missing_note.status_code == 422
+            details = client.patch("/api/portal/application", headers=supplier_headers, json={
+                "category": "OTHER", "subcategory": "OTHER-GEN", "name": "Novel Services Pvt Ltd",
+                "contact_email": "other@example.com", "tax_reference": "DEMO-PAN-OTHER",
+                "bank_account_number": "DEMO-ACCOUNT-OTHER", "bank_ifsc": "DEMO0123456",
+                "service_description": "We provide a specialist field service not represented in the current catalogue.",
+            })
+            assert details.status_code == 200, details.text
+            for kind in ("registration", "tax", "bank"):
+                uploaded = client.post(
+                    "/api/portal/application/documents", headers=supplier_headers,
+                    data={"document_type": kind},
+                    files={"file": (f"{kind}.txt", b"Novel Services Pvt Ltd", "text/plain")},
+                )
+                assert uploaded.status_code == 201, uploaded.text
+            submitted = client.post("/api/portal/application/submit", headers=supplier_headers)
+            assert submitted.status_code == 200, submitted.text
+
+            reviewer = client.post("/api/portal/auth/reviewer-demo").json()
+            reviewer_headers = {"Authorization": f"Bearer {reviewer['token']}"}
+            supplier_id = submitted.json()["id"]
+            detail = client.get(f"/api/suppliers/{supplier_id}", headers=reviewer_headers)
+            assert detail.status_code == 200, detail.text
+            assert detail.json()["service_description"].startswith("We provide")
+            assert detail.json()["other_review_completed_at"] is None
+
+            attachment = client.post(
+                f"/api/suppliers/{supplier_id}/additional-documents",
+                headers=reviewer_headers,
+                data={"verification_note": "Verified the signed scope received by email."},
+                files={"file": ("signed-scope.txt", b"Signed supporting scope", "text/plain")},
+            )
+            assert attachment.status_code == 201, attachment.text
+            review = client.post(
+                f"/api/suppliers/{supplier_id}/other-review",
+                headers=reviewer_headers,
+                json={"note": "Policy and Legal confirmed that the baseline evidence and signed scope are sufficient."},
+            )
+            assert review.status_code == 200, review.text
+            refreshed = client.get(f"/api/suppliers/{supplier_id}", headers=reviewer_headers).json()
+            assert len(refreshed["additional_documents"]) == 1
+            assert refreshed["other_review_completed_at"] is not None
+    finally:
+        app.dependency_overrides.clear()
+        engine.dispose()
+
+
 def test_supplier_assistant_explains_rejection_wording_as_requested_changes_and_persists_history(tmp_path):
     engine = create_engine("sqlite+pysqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
     Base.metadata.create_all(engine)

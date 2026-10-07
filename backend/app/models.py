@@ -90,6 +90,7 @@ class Supplier(Base):
     bank_ifsc: Mapped[str | None] = mapped_column(String(20), nullable=True)
     category: Mapped[str | None] = mapped_column(String(100), nullable=True)
     subcategory: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    service_description: Mapped[str | None] = mapped_column(Text, nullable=True)
     account_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("portal_accounts.id"), unique=True, nullable=True
     )
@@ -115,6 +116,11 @@ class Supplier(Base):
         String(100), nullable=True, unique=True, index=True
     )
     erp_payload: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    other_review_note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    other_reviewed_by: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    other_review_completed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     @property
     def vendor_id(self) -> str | None:
@@ -122,6 +128,9 @@ class Supplier(Base):
         return self.erp_supplier_id
 
     documents: Mapped[list["Document"]] = relationship(
+        back_populates="supplier", cascade="all, delete-orphan"
+    )
+    additional_documents: Mapped[list["AdditionalDocument"]] = relationship(
         back_populates="supplier", cascade="all, delete-orphan"
     )
     audit_events: Mapped[list["AuditEvent"]] = relationship(
@@ -220,6 +229,30 @@ class Document(Base):
     extracted_fields: Mapped[list["ExtractedField"]] = relationship(
         back_populates="document", cascade="all, delete-orphan"
     )
+
+
+class AdditionalDocument(Base):
+    """Reviewer-attached evidence received outside the V1 supplier portal flow."""
+
+    __tablename__ = "additional_documents"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    supplier_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("suppliers.id", ondelete="CASCADE"), index=True
+    )
+    filename: Mapped[str] = mapped_column(String(255))
+    storage_path: Mapped[str] = mapped_column(String(500))
+    content_type: Mapped[str] = mapped_column(String(100))
+    file_size: Mapped[int]
+    sha256: Mapped[str] = mapped_column(String(64))
+    uploaded_by: Mapped[str] = mapped_column(String(100))
+    verification_note: Mapped[str] = mapped_column(Text)
+    verified_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    supplier: Mapped[Supplier] = relationship(back_populates="additional_documents")
 
 
 class DocumentRevision(Base):

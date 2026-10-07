@@ -238,6 +238,11 @@ def application_context_for(supplier: Supplier) -> str:
         "An uploaded/readable file is not proof that its contents are correct; only the human reviewer confirms that.",
         "The exact checklist for this selected service is:",
     ]
+    if supplier.category == "OTHER":
+        lines.append(
+            f"Supplier description for tailored review: {supplier.service_description or 'Not provided'}. "
+            "Policy and Legal will determine any additional evidence and contact the supplier by email."
+        )
     for item in checklist.documents:
         document = documents.get(item.document_type)
         upload_state = (
@@ -271,6 +276,13 @@ def reviewer_context_for(supplier: Supplier) -> str:
             f"{item.label} ({item.requirement_id})" for item in checklist.documents
         ),
     ]
+    if supplier.category == "OTHER":
+        lines.extend([
+            f"Supplier's service description: {supplier.service_description or 'Not provided'}",
+            "This is the controlled Other path. Use the description and baseline evidence to help Policy and Legal determine additional requirements.",
+            f"Policy/Legal review recorded: {'Yes' if supplier.other_review_completed_at else 'No'}.",
+            f"Reviewer-attached email evidence: {len(supplier.additional_documents)} file(s).",
+        ])
     lines.extend(_case_facts(supplier, reviewer=True))
     return "\n".join(lines)[:22000]
 

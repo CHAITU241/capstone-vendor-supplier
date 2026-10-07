@@ -1,5 +1,6 @@
 import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded'
 import AutoAwesomeRoundedIcon from '@mui/icons-material/AutoAwesomeRounded'
+import AttachFileRoundedIcon from '@mui/icons-material/AttachFileRounded'
 import BlockRoundedIcon from '@mui/icons-material/BlockRounded'
 import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded'
 import DescriptionRoundedIcon from '@mui/icons-material/DescriptionRounded'
@@ -15,7 +16,7 @@ import {
   Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Divider,
   IconButton, Stack, TextField, Tooltip, Typography,
 } from '@mui/material'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState, type ChangeEvent } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { api } from '../api/client'
 import { downloadOriginal, openOriginal } from '../api/openOriginal'
@@ -130,6 +131,8 @@ export function SupplierReviewPage() {
   const [erpRecord, setErpRecord] = useState<ErpRecord | null>(null)
   const [showErpRecord, setShowErpRecord] = useState(false)
   const [confirmAllOpen, setConfirmAllOpen] = useState(false)
+  const [otherReviewNote, setOtherReviewNote] = useState('')
+  const [additionalVerificationNote, setAdditionalVerificationNote] = useState('')
 
   const loadSupplier = useCallback(async (options: { includeHistory?: boolean; validateErp?: boolean } = {}) => {
     const { includeHistory = true, validateErp = true } = options
@@ -166,6 +169,10 @@ export function SupplierReviewPage() {
 
   useEffect(() => { void loadSupplier() }, [loadSupplier])
 
+  useEffect(() => {
+    if (supplier?.category === 'OTHER' && supplier.other_review_note) setOtherReviewNote(supplier.other_review_note)
+  }, [supplier?.category, supplier?.other_review_note])
+
   const orderedEvidence = useMemo(() => {
     if (!supplier) return []
     const policyChecks = supplier.compliance_results.filter((result) => result.evidence.kind === 'policy_check')
@@ -184,7 +191,8 @@ export function SupplierReviewPage() {
   const finalized = supplier?.status === 'approved' || supplier?.status === 'rejected'
   const processingActive = supplier?.status === 'processing' || latestProcessingRun?.status === 'processing'
   const complianceReady = Boolean(supplier?.compliance_results.length && supplier.compliance_results.every((result) => result.status === 'pass'))
-  const approvalReady = complianceReady && Boolean(erpValidation?.valid)
+  const otherReviewReady = supplier?.category !== 'OTHER' || Boolean(supplier.other_review_completed_at)
+  const approvalReady = complianceReady && otherReviewReady && Boolean(erpValidation?.valid)
 
   useEffect(() => {
     if (!processingActive) return
@@ -234,6 +242,34 @@ export function SupplierReviewPage() {
     const filename = evidenceDownloadFilename({ supplierId, documentType: document.document_type, revision: document.revision, originalFilename: document.filename, requirementId: requirement?.requirement_id, label: requirement?.label ?? document.document_type })
     try { await downloadOriginal(() => api.reviewerOriginal(supplierId, document.id), filename) }
     catch (requestError) { setError(requestError instanceof Error ? requestError.message : 'Could not download the original document.') }
+  }
+
+  async function viewAdditionalDocument(id: string) {
+    try { await openOriginal(() => api.reviewerAdditionalOriginal(supplierId, id)) }
+    catch (requestError) { setError(requestError instanceof Error ? requestError.message : 'Could not open the additional evidence.') }
+  }
+
+  async function uploadAdditionalDocument(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file || additionalVerificationNote.trim().length < 10) return
+    setBusy(true); setError(''); setNotice('')
+    try {
+      await api.uploadAdditionalDocument(supplierId, file, additionalVerificationNote.trim())
+      setAdditionalVerificationNote('')
+      await loadSupplier({ validateErp: false })
+      setNotice('Verified email evidence attached to this supplier profile.')
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Could not attach the additional evidence.')
+    } finally { setBusy(false) }
+  }
+
+  async function completeOtherReview() {
+    if (otherReviewNote.trim().length < 10) return
+    if (await runAction(
+      () => api.completeOtherReview(supplierId, otherReviewNote.trim()),
+      'Policy and Legal review outcome recorded. ERP hand-off can proceed after the remaining checks pass.',
+    )) setOtherReviewNote(otherReviewNote.trim())
   }
 
   async function runAction(action: () => Promise<unknown>, success: string): Promise<boolean> {
@@ -332,7 +368,7 @@ export function SupplierReviewPage() {
   async function saveDecision() {
     if (!decisionAction) return
     const action = decisionAction
-    if (await runAction(() => action === 'approve' ? api.approveSupplier(supplierId) : api.rejectSupplier(supplierId, rejectionReason.trim()), action === 'approve' ? 'Supplier approved and sent to the mock ERP.' : 'Supplier rejected.')) {
+    if (await runAction(() => action === 'approve' ? api.approveSupplier(supplierId) : api.rejectSupplier(supplierId, rejectionReason.trim()), action === 'approve' ? 'Supplier approved and sent to the mock ERP approval workflow.' : 'Supplier rejected.')) {
       setDecisionAction(null); setRejectionReason('')
     }
   }
@@ -498,7 +534,24 @@ export function SupplierReviewPage() {
       </Stack>
       {error && <Alert severity="error" onClose={() => setError('')}>{error}</Alert>}
       {notice && <Alert severity="success" onClose={() => setNotice('')}>{notice}</Alert>}
-      {finalized && <Alert severity={supplier.status === 'approved' ? 'success' : 'error'} action={supplier.status === 'approved' ? <Button color="inherit" size="small" onClick={() => void openErpRecord()}>View ERP record</Button> : undefined}>{supplier.status === 'approved' ? `Approved and sent for ERP creation. Vendor ID: ${supplier.vendor_id || supplier.erp_supplier_id}; ERP record ID: ${supplier.erp_record_id}; portal reference: ${supplierReference(supplier.id)}.` : `Rejected: ${supplier.decision_reason}`}{supplier.decided_at && ` Decision recorded ${new Date(supplier.decided_at).toLocaleString()}.`}</Alert>}
+      {finalized && <Alert severity={supplier.status === 'approved' ? 'success' : 'error'} action={supplier.status === 'approved' ? <Button color="inherit" size="small" onClick={() => void openErpRecord()}>View ERP record</Button> : undefined}>{supplier.status === 'approved' ? `Approved and sent to ERP for approval. Vendor ID: ${supplier.vendor_id || supplier.erp_supplier_id}; ERP record ID: ${supplier.erp_record_id}; portal reference: ${supplierReference(supplier.id)}.` : `Rejected: ${supplier.decision_reason}`}{supplier.decided_at && ` Decision recorded ${new Date(supplier.decided_at).toLocaleString()}.`}</Alert>}
+
+      {supplier.category === 'OTHER' && <Card sx={{ border: 1, borderColor: supplier.other_review_completed_at ? 'success.main' : 'warning.main' }}>
+        <CardContent sx={{ p: { xs: 2.5, md: 3 } }}>
+          <Stack spacing={2.25}>
+            <Box><Stack direction="row" spacing={1} alignItems="center"><FactCheckRoundedIcon color="warning" /><Typography variant="h6">Tailored category review</Typography><Chip size="small" color={supplier.other_review_completed_at ? 'success' : 'warning'} label={supplier.other_review_completed_at ? 'Policy / Legal review recorded' : 'Policy / Legal review required'} /></Stack>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: .75 }}>The supplier uploaded the three BASE documents because no listed category fit. Use this note to consult Policy and Legal; the case assistant also has this context.</Typography></Box>
+            <Box sx={{ p: 2, bgcolor: 'action.hover', borderRadius: 2 }}><Typography variant="caption" color="text.secondary" fontWeight={700}>SUPPLIER SERVICE NOTE</Typography><Typography sx={{ mt: .5, whiteSpace: 'pre-wrap' }}>{supplier.service_description || 'No description was provided.'}</Typography></Box>
+            <Divider />
+            <Box><Typography fontWeight={750}>Verified evidence received by email</Typography><Typography variant="body2" color="text.secondary">Attach documents only after manually checking them. These files are retained separately from AI-processed policy requirements.</Typography></Box>
+            {supplier.additional_documents.length > 0 && <Stack spacing={1}>{supplier.additional_documents.map((document) => <Stack key={document.id} direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ sm: 'center' }} spacing={1} sx={{ p: 1.5, border: 1, borderColor: 'divider', borderRadius: 1.5 }}><Box><Typography fontWeight={650}>{document.filename}</Typography><Typography variant="caption" color="text.secondary">Verified by {document.uploaded_by} · {new Date(document.verified_at).toLocaleString()} · {document.verification_note}</Typography></Box><Button size="small" onClick={() => void viewAdditionalDocument(document.id)}>View</Button></Stack>)}</Stack>}
+            {!finalized && <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} alignItems={{ md: 'flex-start' }}><TextField fullWidth size="small" label="What did you verify?" value={additionalVerificationNote} onChange={(event) => setAdditionalVerificationNote(event.target.value)} helperText="At least 10 characters; saved in the audit trail." /><Button component="label" variant="outlined" startIcon={busy ? <CircularProgress size={16} /> : <AttachFileRoundedIcon />} disabled={busy || additionalVerificationNote.trim().length < 10} sx={{ minWidth: 220 }}>{busy ? 'Attaching…' : 'Attach verified evidence'}<input hidden type="file" accept="application/pdf,image/png,image/jpeg,text/plain,.pdf,.png,.jpg,.jpeg,.txt" onChange={(event) => void uploadAdditionalDocument(event)} /></Button></Stack>}
+            <Divider />
+            <TextField label="Policy / Legal review outcome" value={otherReviewNote} onChange={(event) => setOtherReviewNote(event.target.value)} multiline minRows={3} disabled={finalized} helperText="Record the category decision, additional requirements, or why the BASE documents are sufficient." />
+            {!finalized && <Button variant="contained" color="warning" sx={{ alignSelf: 'flex-start' }} disabled={busy || otherReviewNote.trim().length < 10} onClick={() => void completeOtherReview()}>{supplier.other_review_completed_at ? 'Update review outcome' : 'Record Policy / Legal review complete'}</Button>}
+          </Stack>
+        </CardContent>
+      </Card>}
 
       <Card>
         <CardContent sx={{ p: { xs: 2.5, md: 3 } }}>
@@ -585,14 +638,14 @@ export function SupplierReviewPage() {
         </CardContent>
       </Card>
 
-      <Card><CardContent sx={{ p: { xs: 3, md: 4 } }}><Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={2}><Box><Typography variant="h6">Proposed ERP supplier record</Typography><Typography color="text.secondary" variant="body2">This is the exact payload approval will send. Only reviewed or corrected evidence overrides supplier-entered data.</Typography></Box><Button variant="outlined" size="small" disabled={erpValidating || finalized} onClick={() => void refreshErpValidation()}>{erpValidating ? 'Validating...' : 'Validate with ERP'}</Button></Stack>{erpValidationError && <Alert severity="error" sx={{ my: 2 }}>{erpValidationError} No supplier record was created; retry is safe.</Alert>}{erpValidation?.valid && <Alert severity="success" sx={{ my: 2 }}>ERP validation passed.{erpValidation.warnings.length ? ` ${erpValidation.warnings.length} optional field warning${erpValidation.warnings.length === 1 ? '' : 's'} will not block creation.` : ''}</Alert>}{erpValidation && !erpValidation.valid && <Alert severity="error" sx={{ my: 2 }}><Typography fontWeight={700}>ERP validation must be resolved before approval.</Typography>{erpValidation.errors.map((item) => <Typography key={`${item.field}-${item.code}`} variant="body2">• {item.message}</Typography>)}</Alert>}<Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'repeat(2, minmax(0, 1fr))' }, gap: 2 }}>{renderErpGroup('Identity and classification', identityErp)}{renderErpGroup('Payment, banking and risk', paymentErp)}</Box>{erpValidation?.warnings.length ? <Box sx={{ mt: 1.5 }}>{erpValidation.warnings.map((item) => <Typography key={`${item.field}-${item.code}`} variant="caption" color="text.secondary" display="block">Optional: {item.message}</Typography>)}</Box> : null}{supplier.erp_payload && <Alert severity="success" sx={{ mt: 2 }} action={<Button color="inherit" size="small" onClick={() => void openErpRecord()}>Retrieve from ERP</Button>}>The exact ERP payload was retained with this approval for audit.</Alert>}</CardContent></Card>
+      <Card><CardContent sx={{ p: { xs: 3, md: 4 } }}><Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={2}><Box><Typography variant="h6">Proposed ERP submission</Typography><Typography color="text.secondary" variant="body2">This is the exact payload that will be sent to the downstream ERP approval workflow. Only reviewed or corrected evidence overrides supplier-entered data.</Typography></Box><Button variant="outlined" size="small" disabled={erpValidating || finalized} onClick={() => void refreshErpValidation()}>{erpValidating ? 'Validating...' : 'Validate with ERP'}</Button></Stack>{erpValidationError && <Alert severity="error" sx={{ my: 2 }}>{erpValidationError} Nothing was sent to ERP; retry is safe.</Alert>}{erpValidation?.valid && <Alert severity="success" sx={{ my: 2 }}>ERP validation passed.{erpValidation.warnings.length ? ` ${erpValidation.warnings.length} optional field warning${erpValidation.warnings.length === 1 ? '' : 's'} will not block the hand-off.` : ''}</Alert>}{erpValidation && !erpValidation.valid && <Alert severity="error" sx={{ my: 2 }}><Typography fontWeight={700}>ERP validation must be resolved before approval.</Typography>{erpValidation.errors.map((item) => <Typography key={`${item.field}-${item.code}`} variant="body2">• {item.message}</Typography>)}</Alert>}<Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'repeat(2, minmax(0, 1fr))' }, gap: 2 }}>{renderErpGroup('Identity and classification', identityErp)}{renderErpGroup('Payment, banking and risk', paymentErp)}</Box>{erpValidation?.warnings.length ? <Box sx={{ mt: 1.5 }}>{erpValidation.warnings.map((item) => <Typography key={`${item.field}-${item.code}`} variant="caption" color="text.secondary" display="block">Optional: {item.message}</Typography>)}</Box> : null}{supplier.erp_payload && <Alert severity="success" sx={{ mt: 2 }} action={<Button color="inherit" size="small" onClick={() => void openErpRecord()}>Retrieve from ERP</Button>}>The exact ERP payload was retained with this approval for audit.</Alert>}</CardContent></Card>
 
-      <Card><CardContent sx={{ p: { xs: 3, md: 4 } }}><Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" alignItems={{ md: 'center' }} spacing={2}><Alert severity={approvalReady ? 'success' : 'warning'} sx={{ flex: 1 }}>{approvalReady ? 'Every requirement is confirmed, policy checks pass, and ERP validation is complete.' : !complianceReady ? 'Approval stays blocked until every requirement is confirmed and all policy checks pass.' : erpValidationError ? 'Policy review is complete, but the ERP is unavailable. Retry validation safely.' : 'Policy review is complete. Resolve the ERP validation results before approval.'}</Alert><Stack direction="row" spacing={1}><Button color="error" variant="outlined" startIcon={<BlockRoundedIcon />} disabled={finalized || busy} onClick={() => setDecisionAction('reject')}>Reject</Button><Button color="success" variant="contained" startIcon={<HowToRegRoundedIcon />} disabled={!approvalReady || finalized || busy} onClick={() => setDecisionAction('approve')}>Approve and send for ERP creation</Button></Stack></Stack></CardContent></Card>
+      <Card><CardContent sx={{ p: { xs: 3, md: 4 } }}><Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" alignItems={{ md: 'center' }} spacing={2}><Alert severity={approvalReady ? 'success' : 'warning'} sx={{ flex: 1 }}>{approvalReady ? 'Every requirement is confirmed, policy checks pass, the tailored review is complete when applicable, and ERP validation is complete.' : !complianceReady ? 'Approval stays blocked until every requirement is confirmed and all policy checks pass.' : !otherReviewReady ? 'Record the Policy and Legal review outcome before sending this Other-category supplier to ERP.' : erpValidationError ? 'Policy review is complete, but the ERP is unavailable. Retry validation safely.' : 'Policy review is complete. Resolve the ERP validation results before approval.'}</Alert><Stack direction="row" spacing={1}><Button color="error" variant="outlined" startIcon={<BlockRoundedIcon />} disabled={finalized || busy} onClick={() => setDecisionAction('reject')}>Reject</Button><Button color="success" variant="contained" startIcon={<HowToRegRoundedIcon />} disabled={!approvalReady || finalized || busy} onClick={() => setDecisionAction('approve')}>Approve and send to ERP for approval</Button></Stack></Stack></CardContent></Card>
 
       <Dialog open={fieldToEdit !== null} onClose={() => !busy && setFieldToEdit(null)} fullWidth maxWidth="sm"><DialogTitle>Correct OCR or extracted value</DialogTitle><DialogContent><Stack spacing={2} sx={{ pt: 1 }}><Alert severity="warning">Open the original evidence and copy exactly what is visible. This correction is attributed to the reviewer and retained in the audit trail.</Alert><TextField label={fieldToEdit ? fieldLabel(fieldToEdit.field_name) : 'Value'} value={editedValue} onChange={(event) => setEditedValue(event.target.value)} multiline minRows={2} autoFocus /><TextField label="Source page" type="number" value={editedPage} onChange={(event) => setEditedPage(Math.max(1, Number(event.target.value)))} slotProps={{ htmlInput: { min: 1 } }} /><Alert severity="info">Saving records the field, source page and reviewer as a human-reviewed correction, then recalculates the policy checks.</Alert></Stack></DialogContent><DialogActions><Button onClick={() => setFieldToEdit(null)} disabled={busy}>Cancel</Button><Button variant="contained" onClick={() => void saveCorrection()} disabled={busy || !editedValue.trim()}>{busy ? 'Saving...' : 'Save correction'}</Button></DialogActions></Dialog>
       <Dialog open={flagDocumentId !== null} onClose={() => !busy && !flagDraftLoading && setFlagDocumentId(null)} fullWidth maxWidth="sm"><DialogTitle>Flag requirement for follow-up</DialogTitle><DialogContent><Stack spacing={2} sx={{ pt: 1 }}><DialogContentText>The portal drafts a grounded reason from the current policy findings. Review or edit it before saving; the human reviewer remains responsible for the flag.</DialogContentText>{flagDraftLoading ? <Alert severity="info" icon={<CircularProgress size={18} />}>Drafting a reason from this document’s findings and the applicable policy…</Alert> : flagDraftSource && <Alert severity={flagDraftSource === 'ai_rag' ? 'success' : 'info'}>{flagDraftSource === 'ai_rag' ? 'AI draft generated from the calculated findings and retrieved policy.' : 'A safe draft was generated from the calculated findings.'}</Alert>}<TextField label="Reason" value={flagReason} onChange={(event) => setFlagReason(event.target.value)} multiline minRows={3} autoFocus disabled={flagDraftLoading} /></Stack></DialogContent><DialogActions><Button onClick={() => { setFlagDocumentId(null); setFlagDraftSource(null) }} disabled={busy || flagDraftLoading}>Cancel</Button><Button color="error" variant="contained" onClick={() => void submitFlag()} disabled={busy || flagDraftLoading || flagReason.trim().length < 5}>{busy ? 'Saving...' : 'Flag requirement'}</Button></DialogActions></Dialog>
       <Dialog open={confirmAllOpen} onClose={() => !busy && setConfirmAllOpen(false)} fullWidth maxWidth="sm"><DialogTitle>Confirm all ready requirements?</DialogTitle><DialogContent><Stack spacing={2} sx={{ pt: 1 }}><DialogContentText>This will confirm {readyRequirements.length} requirement{readyRequirements.length === 1 ? '' : 's'} whose policy checks are matched and whose processing is complete.</DialogContentText><Alert severity="warning">Confirm only after comparing these documents with their extracted values. Items requiring OCR or human attention are excluded automatically.</Alert></Stack></DialogContent><DialogActions><Button onClick={() => setConfirmAllOpen(false)} disabled={busy}>Cancel</Button><Button color="success" variant="contained" startIcon={busy ? <CircularProgress size={17} /> : <DoneAllRoundedIcon />} onClick={() => void confirmAllReady()} disabled={busy || readyRequirements.length === 0}>{busy ? 'Confirming…' : `Confirm ${readyRequirements.length}`}</Button></DialogActions></Dialog>
-      <Dialog open={decisionAction !== null} onClose={() => !busy && setDecisionAction(null)} fullWidth maxWidth="sm"><DialogTitle>{decisionAction === 'approve' ? 'Approve and send for ERP creation?' : 'Reject supplier?'}</DialogTitle><DialogContent>{decisionAction === 'approve' ? <DialogContentText>This records the human decision, sends the proposed supplier record to the mock ERP, and locks the review. The portal reference remains the onboarding identifier; the ERP returns a separate record ID and a final Vendor ID, which becomes the primary key in the Vendor Master.</DialogContentText> : <Stack spacing={2} sx={{ pt: 1 }}><DialogContentText>Provide an auditable rejection reason. No ERP record will be created.</DialogContentText><TextField label="Rejection reason" value={rejectionReason} onChange={(event) => setRejectionReason(event.target.value)} multiline minRows={3} autoFocus /></Stack>}</DialogContent><DialogActions><Button onClick={() => setDecisionAction(null)} disabled={busy}>Cancel</Button><Button color={decisionAction === 'approve' ? 'success' : 'error'} variant="contained" onClick={() => void saveDecision()} disabled={busy || (decisionAction === 'reject' && rejectionReason.trim().length < 10)}>{busy ? 'Saving decision...' : decisionAction === 'approve' ? 'Approve and send' : 'Confirm rejection'}</Button></DialogActions></Dialog>
+      <Dialog open={decisionAction !== null} onClose={() => !busy && setDecisionAction(null)} fullWidth maxWidth="sm"><DialogTitle>{decisionAction === 'approve' ? 'Approve and send to ERP for approval?' : 'Reject supplier?'}</DialogTitle><DialogContent>{decisionAction === 'approve' ? <DialogContentText>This records the human decision, submits the proposed supplier record to the mock ERP approval workflow, and locks the review. The portal reference remains the onboarding identifier; the downstream ERP workflow returns a separate record ID and final Vendor ID for the Vendor Master.</DialogContentText> : <Stack spacing={2} sx={{ pt: 1 }}><DialogContentText>Provide an auditable rejection reason. Nothing will be sent to ERP.</DialogContentText><TextField label="Rejection reason" value={rejectionReason} onChange={(event) => setRejectionReason(event.target.value)} multiline minRows={3} autoFocus /></Stack>}</DialogContent><DialogActions><Button onClick={() => setDecisionAction(null)} disabled={busy}>Cancel</Button><Button color={decisionAction === 'approve' ? 'success' : 'error'} variant="contained" onClick={() => void saveDecision()} disabled={busy || (decisionAction === 'reject' && rejectionReason.trim().length < 10)}>{busy ? 'Saving decision...' : decisionAction === 'approve' ? 'Approve and send' : 'Confirm rejection'}</Button></DialogActions></Dialog>
       <ErpRecordDialog open={showErpRecord} record={erpRecord} onClose={() => setShowErpRecord(false)} />
     </Stack>
   )

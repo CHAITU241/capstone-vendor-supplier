@@ -34,6 +34,8 @@ from app.schemas import (
     ExtractedFieldRead,
     ExtractedFieldUpdate,
     FlagReasonDraftRead,
+    OtherReviewRequest,
+    OtherReviewResponse,
     ReviewSelectionRequest,
     RejectionRequest,
 )
@@ -60,6 +62,7 @@ def _get_review_supplier(db: Session, supplier_id: uuid.UUID) -> Supplier:
         .where(Supplier.id == supplier_id)
         .options(
             selectinload(Supplier.documents),
+            selectinload(Supplier.additional_documents),
             selectinload(Supplier.extracted_fields),
             selectinload(Supplier.ai_runs),
             selectinload(Supplier.compliance_results),
@@ -526,6 +529,39 @@ def confirm_ready_requirements(
     )
 
 
+@router.post("/{supplier_id}/other-review", response_model=OtherReviewResponse)
+def complete_other_review(
+    supplier_id: uuid.UUID,
+    payload: OtherReviewRequest,
+    db: Session = Depends(get_db),
+) -> OtherReviewResponse:
+    supplier = _get_review_supplier(db, supplier_id)
+    _ensure_reviewable(supplier)
+    if supplier.category != "OTHER":
+        raise HTTPException(status_code=409, detail="This checkpoint applies only to Other-category suppliers.")
+    completed_at = datetime.now(UTC)
+    supplier.other_review_note = payload.note.strip()
+    supplier.other_reviewed_by = payload.reviewer_name.strip()
+    supplier.other_review_completed_at = completed_at
+    db.add(AuditEvent(
+        supplier_id=supplier.id,
+        action="supplier.other_policy_legal_review_completed",
+        entity_type="supplier",
+        entity_id=str(supplier.id),
+        details={
+            "reviewer_name": supplier.other_reviewed_by,
+            "note": supplier.other_review_note,
+            "additional_document_count": len(supplier.additional_documents),
+        },
+    ))
+    db.commit()
+    return OtherReviewResponse(
+        completed_at=completed_at,
+        reviewer_name=supplier.other_reviewed_by,
+        note=supplier.other_review_note,
+    )
+
+
 @router.post("/{supplier_id}/erp/validate", response_model=ErpValidationResponse)
 def validate_erp_record(
     supplier_id: uuid.UUID,
@@ -589,6 +625,12 @@ def approve_supplier(
         raise HTTPException(
             status_code=409,
             detail="All compliance checks must pass before approval.",
+        )
+    if supplier.category == "OTHER" and supplier.other_review_completed_at is None:
+        db.commit()
+        raise HTTPException(
+            status_code=409,
+            detail="Record the Policy and Legal review outcome before approving an Other-category supplier.",
         )
 
     preview = build_erp_preview(supplier)
@@ -657,7 +699,7 @@ def approve_supplier(
     return DecisionResponse(
         supplier_id=supplier.id,
         status=supplier.status,
-        message="Supplier approved and sent to the mock ERP for creation.",
+        message="Supplier approved and sent to the mock ERP approval workflow.",
         erp_supplier_id=supplier.erp_supplier_id,
         erp_record_id=supplier.erp_record_id,
         vendor_id=supplier.vendor_id,

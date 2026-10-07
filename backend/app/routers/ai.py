@@ -47,6 +47,7 @@ def _get_supplier_with_documents(db: Session, supplier_id: uuid.UUID) -> Supplie
         .where(Supplier.id == supplier_id)
         .options(
             selectinload(Supplier.documents),
+            selectinload(Supplier.additional_documents),
             selectinload(Supplier.extracted_fields),
             selectinload(Supplier.compliance_results),
             selectinload(Supplier.ai_runs),

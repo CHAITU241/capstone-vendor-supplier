@@ -53,7 +53,7 @@ const tableColumns: Array<{
   { key: 'insuranceExpiry', label: 'Insurance expiry', width: 145 },
   { key: 'paymentTerms', label: 'Payment terms', width: 150 },
   { key: 'comments', label: 'Comments / notes', width: 230, kind: 'multiline' },
-  { key: 'createdAt', label: 'ERP created at', width: 180, sortKey: 'createdAt', kind: 'date' },
+  { key: 'createdAt', label: 'ERP recorded at', width: 180, sortKey: 'createdAt', kind: 'date' },
   { key: 'updatedAt', label: 'ERP updated at', width: 180, kind: 'date' },
 ]
 
@@ -155,7 +155,7 @@ export function ErpRecordsPage() {
     <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" alignItems={{ md: 'flex-start' }} spacing={2}>
       <Stack direction="row" spacing={1.25} alignItems="center">
         <Box sx={{ display: 'grid', placeItems: 'center', width: 42, height: 42, borderRadius: 1.5, bgcolor: '#EAF2F8', color: '#0F4C81' }}><TableRowsRoundedIcon /></Box>
-        <Box><Typography variant="h4">Vendor Master</Typography><Typography color="text.secondary">Reviewed and accepted suppliers created in the downstream ERP.</Typography></Box>
+        <Box><Typography variant="h4">Vendor Master</Typography><Typography color="text.secondary">Reviewed suppliers accepted through the downstream ERP approval workflow.</Typography></Box>
       </Stack>
       <Stack direction="row" spacing={1}>
         <Button variant="outlined" startIcon={<RefreshRoundedIcon />} disabled={loading} onClick={() => void loadRecords()}>Refresh</Button>

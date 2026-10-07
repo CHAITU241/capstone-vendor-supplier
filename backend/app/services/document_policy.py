@@ -72,10 +72,10 @@ class Checklist(BaseModel):
 def load_policy() -> Policy:
     policy = Policy.model_validate_json(POLICY_FILE.read_text(encoding="utf-8"))
     codes = [item.code for category in policy.categories for item in category.subcategories]
-    if len(policy.requirements) != 22 or len(codes) != 24 or len(codes) != len(set(codes)):
-        raise ValueError("The synthetic policy must contain 22 IDs and 24 unique subcategories.")
-    if len({category.code for category in policy.categories}) != 8:
-        raise ValueError("The synthetic policy must contain eight unique categories.")
+    if len(policy.requirements) != 22 or len(codes) != 25 or len(codes) != len(set(codes)):
+        raise ValueError("The synthetic policy must contain 22 IDs and 25 unique subcategories, including Other.")
+    if len({category.code for category in policy.categories}) != 9:
+        raise ValueError("The synthetic policy must contain eight policy categories plus the controlled Other path.")
     if policy.baseline != ["BASE-001", "BASE-002", "BASE-003"]:
         raise ValueError("The baseline requirements do not match policy v1.1.")
     for category in policy.categories:
@@ -123,9 +123,14 @@ def checklist_for(supplier: Supplier) -> Checklist:
             document_type=BASE_TYPES[code] if code in BASE_TYPES else DocumentType(code),
             requirement_id=code, **definition.model_dump(),
         ))
+    reason = (
+        "Other supplier path: the three baseline items are collected now. Policy and Legal must determine any additional evidence before approval."
+        if supplier.category == "OTHER"
+        else f"One primary subcategory: {subcategory.code}. Three baseline items plus the additional IDs in {subcategory.source}."
+    )
     return Checklist(
         version=policy.version, status=policy.status,
-        reason=f"One primary subcategory: {subcategory.code}. Three baseline items plus the additional IDs in {subcategory.source}.",
+        reason=reason,
         documents=documents,
     )
 

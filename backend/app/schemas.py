@@ -30,6 +30,7 @@ class SupplierSummary(BaseModel):
     contact_email: EmailStr | None
     category: str | None
     subcategory: str | None
+    service_description: str | None = None
     submitted_at: datetime | None
     status: SupplierStatus
     created_at: datetime
@@ -41,6 +42,9 @@ class SupplierSummary(BaseModel):
     vendor_id: str | None = None
     erp_payload: dict | None = None
     document_count: int = 0
+    other_review_note: str | None = None
+    other_reviewed_by: str | None = None
+    other_review_completed_at: datetime | None = None
 
 
 class DocumentRead(BaseModel):
@@ -90,6 +94,20 @@ class DocumentRevisionRead(BaseModel):
     sha256: str
     uploaded_at: datetime
     archived_at: datetime
+
+
+class AdditionalDocumentRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    supplier_id: uuid.UUID
+    filename: str
+    content_type: str
+    file_size: int
+    uploaded_by: str
+    verification_note: str
+    verified_at: datetime
+    created_at: datetime
 
 
 class AuditEventRead(BaseModel):
@@ -154,6 +172,7 @@ class SupplierDetail(SupplierSummary):
     bank_ifsc: str | None
     requirements: Checklist
     documents: list[DocumentRead]
+    additional_documents: list[AdditionalDocumentRead] = Field(default_factory=list)
     audit_events: list[AuditEventRead]
     extracted_fields: list[ExtractedFieldRead]
     ai_runs: list[AiRunRead]
@@ -187,6 +206,17 @@ class ConfirmReadyRequirementsRequest(BaseModel):
 class ConfirmReadyRequirementsResponse(BaseModel):
     confirmed_count: int = Field(ge=1)
     document_ids: list[uuid.UUID]
+
+
+class OtherReviewRequest(BaseModel):
+    note: str = Field(min_length=10, max_length=2000)
+    reviewer_name: str = Field(default="Demo reviewer", min_length=2, max_length=100)
+
+
+class OtherReviewResponse(BaseModel):
+    completed_at: datetime
+    reviewer_name: str
+    note: str
 
 
 class FlagReasonDraftRead(BaseModel):

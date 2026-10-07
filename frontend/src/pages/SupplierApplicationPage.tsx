@@ -40,6 +40,7 @@ export function SupplierApplicationPage() {
   const [taxReference, setTaxReference] = useState('')
   const [bankAccountNumber, setBankAccountNumber] = useState('')
   const [bankIfsc, setBankIfsc] = useState('')
+  const [serviceDescription, setServiceDescription] = useState('')
   const [uploadingFile, setUploadingFile] = useState<{ type: DocumentType; name: string } | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -56,6 +57,7 @@ export function SupplierApplicationPage() {
     setTaxReference(result.tax_reference || '')
     setBankAccountNumber(result.bank_account_number || '')
     setBankIfsc(result.bank_ifsc || '')
+    setServiceDescription(result.service_description || '')
     setStep(!result.category ? 0 : result.country !== 'India' || result.name === 'New application' ||
       !result.tax_reference || !result.bank_account_number || !result.bank_ifsc ? 1 : 2)
   }, [session?.email])
@@ -93,7 +95,8 @@ export function SupplierApplicationPage() {
     setBusy(true); setError(''); setNotice('')
     try {
       const result = await api.saveApplication({ category, subcategory, name: name.trim(), contact_email: email.trim(),
-        tax_reference: taxReference.trim(), bank_account_number: bankAccountNumber.trim(), bank_ifsc: bankIfsc.trim() })
+        tax_reference: taxReference.trim(), bank_account_number: bankAccountNumber.trim(), bank_ifsc: bankIfsc.trim(),
+        service_description: category === 'OTHER' ? serviceDescription.trim() : undefined })
       setApplication(result); setStep(2); setNotice(application?.submitted_at ? 'Corrected business details saved. Review the evidence below, then resubmit.' : 'Details saved. Next, upload the documents.')
     } catch (err) { setError(err instanceof Error ? err.message : 'Could not save details.') }
     finally { setBusy(false) }
@@ -192,6 +195,9 @@ export function SupplierApplicationPage() {
   const flaggedDocuments = application.documents.filter((document) => document.review_status === 'disputed')
   const correctionMode = submitted && (flaggedDocuments.length > 0 || application.status === 'new')
   const interactionBusy = busy || uploadingFile !== null
+  const isOther = (application.category || category) === 'OTHER'
+  const detailsComplete = name.trim().length >= 2 && Boolean(email.trim()) && Boolean(taxReference.trim()) &&
+    Boolean(bankAccountNumber.trim()) && Boolean(bankIfsc.trim()) && (!isOther || serviceDescription.trim().length >= 20)
 
   return <Stack spacing={3} maxWidth={860} mx="auto">
     <Box><Typography variant="h4">Your supplier application</Typography>
@@ -206,13 +212,15 @@ export function SupplierApplicationPage() {
     {notice && <Alert severity="success" onClose={() => setNotice('')}>{notice}</Alert>}
     {submitted ? correctionMode
       ? <Alert severity="warning"><strong>{flaggedDocuments.length > 0 ? 'Reviewer changes requested.' : 'Corrections in progress.'}</strong> You can correct the submitted business details below and replace evidence specifically flagged by the reviewer. Resubmit when the application is ready.</Alert>
-      : <Alert severity="success">Application submitted. A reviewer can now see your details and documents. Your current status is <strong>{application.status.replace('_', ' ')}</strong>.</Alert>
+      : <Alert severity="success">{isOther
+        ? <>Application submitted for a tailored review. The review team will consult Policy and Legal and contact you by email if additional documents are required. Your current status is <strong>{application.status.replace('_', ' ')}</strong>.</>
+        : <>Application submitted. A reviewer can now see your details and documents. Your current status is <strong>{application.status.replace('_', ' ')}</strong>.</>}</Alert>
       : null}
 
     <Card><CardContent sx={{ p: { xs: 3, md: 4 }, '&:last-child': { pb: 4 } }}>
       {!submitted && step === 0 && <Stack spacing={3}>
         <Box><Typography variant="h5">1. What does your business provide?</Typography><Typography color="text.secondary" sx={{ mt: 0.75 }}>Choose the service that best describes what you provide. If your work spans several areas, choose the main service and your reviewer can confirm the fit.</Typography></Box>
-        <TextField select label="Category" value={category} onChange={(event) => { setCategory(event.target.value); setSubcategory('') }} required>
+        <TextField select label="Category" value={category} onChange={(event) => { const next = event.target.value; setCategory(next); setSubcategory(next === 'OTHER' ? 'OTHER-GEN' : '') }} required>
           {categoryOptions.map((item) => <MenuItem key={item.code} value={item.code}>{item.label}</MenuItem>)}
         </TextField>
         <TextField select label="Subcategory" value={subcategory} onChange={(event) => setSubcategory(event.target.value)} disabled={!category} required>
@@ -229,8 +237,9 @@ export function SupplierApplicationPage() {
         <TextField label="PAN / tax reference" required value={taxReference} onChange={(event) => setTaxReference(event.target.value)} helperText="Enter the reference shown on your tax document." />
         <TextField label="Bank account number" required value={bankAccountNumber} onChange={(event) => setBankAccountNumber(event.target.value)} helperText="Enter the account number shown on your bank document." />
         <TextField label="Bank IFSC" required value={bankIfsc} onChange={(event) => setBankIfsc(event.target.value)} helperText="Enter the IFSC shown on your bank document." />
+        {category === 'OTHER' && <TextField label="What product or service do you provide?" required multiline minRows={4} value={serviceDescription} onChange={(event) => setServiceDescription(event.target.value)} inputProps={{ maxLength: 2000 }} helperText={`${serviceDescription.trim().length}/20 minimum characters. This note helps the reviewer consult Policy and Legal about any additional evidence.`} />}
         <Stack direction="row" spacing={1}><Button startIcon={<ArrowBackRoundedIcon />} onClick={() => setStep(0)}>Category</Button>
-          <Button onClick={() => void saveDetails()} disabled={interactionBusy || name.trim().length < 2 || !email.trim() || !taxReference.trim() || !bankAccountNumber.trim() || !bankIfsc.trim()} variant="contained" size="large">Save and continue to documents</Button></Stack>
+          <Button onClick={() => void saveDetails()} disabled={interactionBusy || !detailsComplete} variant="contained" size="large">Save and continue to documents</Button></Stack>
       </Stack>}
 
       {(step === 2 || submitted) && <Stack spacing={3}>
@@ -246,9 +255,11 @@ export function SupplierApplicationPage() {
             <TextField label="PAN / tax reference" required value={taxReference} onChange={(event) => setTaxReference(event.target.value)} />
             <TextField label="Bank account number" required value={bankAccountNumber} onChange={(event) => setBankAccountNumber(event.target.value)} />
             <TextField label="Bank IFSC" required value={bankIfsc} onChange={(event) => setBankIfsc(event.target.value)} />
-            <Button variant="outlined" disabled={interactionBusy || name.trim().length < 2 || !email.trim() || !taxReference.trim() || !bankAccountNumber.trim() || !bankIfsc.trim()} onClick={() => void saveDetails()}>Save corrected details</Button>
+            {isOther && <TextField label="What product or service do you provide?" required multiline minRows={4} value={serviceDescription} onChange={(event) => setServiceDescription(event.target.value)} inputProps={{ maxLength: 2000 }} />}
+            <Button variant="outlined" disabled={interactionBusy || !detailsComplete} onClick={() => void saveDetails()}>Save corrected details</Button>
           </Stack>
         </Box>}
+        {isOther && <Alert severity="info"><strong>Tailored category review:</strong> only the three BASE documents are requested now. Your note—“{application.service_description}”—will be shown to the reviewer. Policy and Legal may request additional evidence by email.</Alert>}
         <Alert severity="info">Each file is checked for readability, document type, expected fields, and obvious supplier-detail mismatches before it is accepted. A reviewer still makes the final assessment after submission.</Alert>
         <Typography variant="body2" color="text.secondary">Upload one PDF, PNG, JPEG or UTF-8 text file (up to 10 MB) for each item. Scanned pages are read with OCR. If an item asks for two pieces of evidence, combine them into one PDF.</Typography>
         {application.requirements.documents.map(({ document_type: type, requirement_id: requirementId, label, why, accepted_evidence, required_fields, checks }) => {

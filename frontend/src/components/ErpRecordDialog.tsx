@@ -16,7 +16,7 @@ export function ErpRecordDialog({ open, record, onClose }: ErpRecordDialogProps)
       {record && <><Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ mb: 2 }}>
         {[
           ['Vendor ID', record.vendor_id, 'Primary Vendor Master identifier'],
-          ['ERP record ID', record.erp_record_id, 'Downstream creation record'],
+          ['ERP record ID', record.erp_record_id, 'Downstream approval workflow record'],
           ['Portal reference', record.supplier_reference, 'Onboarding application'],
         ].map(([label, value, helper]) => <Box key={label} sx={{ p: 1.5, bgcolor: '#F3F8FD', border: 1, borderColor: 'primary.light', borderRadius: 1.5, flex: 1 }}><Typography variant="caption" color="text.secondary">{label}</Typography><Typography fontWeight={750} sx={{ overflowWrap: 'anywhere' }}>{value || 'Not available'}</Typography><Typography variant="caption" color="text.secondary">{helper}</Typography></Box>)}
       </Stack><Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 1.5 }}>

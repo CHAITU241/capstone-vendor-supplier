@@ -60,6 +60,7 @@ class ApplicationUpdate(BaseModel):
     tax_reference: str | None = Field(default=None, max_length=100)
     bank_account_number: str | None = Field(default=None, max_length=100)
     bank_ifsc: str | None = Field(default=None, max_length=20)
+    service_description: str | None = Field(default=None, max_length=2000)
 
 
 class ApplicationRead(BaseModel):
@@ -72,6 +73,7 @@ class ApplicationRead(BaseModel):
     tax_reference: str | None
     bank_account_number: str | None
     bank_ifsc: str | None
+    service_description: str | None
     submitted_at: datetime | None
     status: SupplierStatus
     documents: list[DocumentRead]
@@ -96,6 +98,7 @@ def application_response(db: Session, supplier: Supplier) -> ApplicationRead:
         name=supplier.name, country=supplier.country, contact_email=supplier.contact_email,
         tax_reference=supplier.tax_reference, bank_account_number=supplier.bank_account_number,
         bank_ifsc=supplier.bank_ifsc,
+        service_description=supplier.service_description,
         submitted_at=supplier.submitted_at, status=supplier.status,
         documents=[DocumentRead.model_validate(item) for item in documents],
         extracted_fields=[ExtractedFieldRead.model_validate(item) for item in extracted_fields],
@@ -329,7 +332,20 @@ def save_application(payload: ApplicationUpdate, session: PortalSession = Depend
         value = getattr(payload, field)
         if value is not None:
             setattr(supplier, field, value.strip())
+    if payload.service_description is not None:
+        supplier.service_description = payload.service_description.strip() or None
+    if supplier.category == "OTHER" and payload.name is not None and not supplier.service_description:
+        raise HTTPException(
+            status_code=422,
+            detail="Describe the product or service you provide before continuing.",
+        )
+    if supplier.category != "OTHER":
+        supplier.service_description = None
     if correcting:
+        if supplier.category == "OTHER":
+            supplier.other_review_note = None
+            supplier.other_reviewed_by = None
+            supplier.other_review_completed_at = None
         supplier.status = SupplierStatus.NEW
         supplier.decision_reason = "Supplier is preparing reviewer-requested corrections."
         db.add(AuditEvent(
@@ -401,6 +417,8 @@ def submit_application(
         raise HTTPException(status_code=422, detail="Choose a service category and complete your business details first.")
     if not all((supplier.contact_email, supplier.tax_reference, supplier.bank_account_number, supplier.bank_ifsc)):
         raise HTTPException(status_code=422, detail="Contact email, tax reference, bank account number and IFSC are required portal fields.")
+    if supplier.category == "OTHER" and not (supplier.service_description or "").strip():
+        raise HTTPException(status_code=422, detail="Describe the product or service you provide before submitting.")
     checklist = checklist_for(supplier)
     required = required_types_for(supplier)
     uploaded = set(db.scalars(select(Document.document_type).where(

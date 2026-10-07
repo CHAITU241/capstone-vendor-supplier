@@ -103,7 +103,7 @@ export const api = {
   logout: (role: PortalRole) => request<void>('/portal/auth/logout', { method: 'POST' }, role),
   getApplication: () => request<SupplierApplication>('/portal/application'),
   getPolicy: () => request<PolicyCatalog>('/portal/policy'),
-  saveApplication: (payload: { category: string; subcategory: string; name?: string; country?: string; contact_email?: string; tax_reference?: string; bank_account_number?: string; bank_ifsc?: string }) =>
+  saveApplication: (payload: { category: string; subcategory: string; name?: string; country?: string; contact_email?: string; tax_reference?: string; bank_account_number?: string; bank_ifsc?: string; service_description?: string }) =>
     request<SupplierApplication>('/portal/application', {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
     }),
@@ -145,6 +145,16 @@ export const api = {
     request<SupplierDocument>(`/suppliers/${supplierId}/documents/${documentId}/text-extraction/retry`, { method: 'POST' }),
   reviewerDocumentHistory: (supplierId: string) => request<DocumentRevision[]>(`/suppliers/${supplierId}/documents/history`),
   reviewerOriginal: (supplierId: string, id: string) => originalFile(`/suppliers/${supplierId}/documents/${id}/content`),
+  uploadAdditionalDocument: (supplierId: string, file: File, verificationNote: string, reviewerName = 'Demo reviewer') => {
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('verification_note', verificationNote)
+    formData.append('reviewer_name', reviewerName)
+    return request<SupplierDetail['additional_documents'][number]>(`/suppliers/${supplierId}/additional-documents`, {
+      method: 'POST', body: formData,
+    })
+  },
+  reviewerAdditionalOriginal: (supplierId: string, id: string) => originalFile(`/suppliers/${supplierId}/additional-documents/${id}/content`),
   processSupplier: (supplierId: string, refresh = false) =>
     request<ProcessSupplierResponse>(`/suppliers/${supplierId}/process${refresh ? '?refresh=true' : ''}`, {
       method: 'POST',
@@ -211,6 +221,11 @@ export const api = {
     request<ConfirmReadyRequirementsResponse>(`/suppliers/${supplierId}/requirements/confirm-ready`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ reviewer_name: reviewerName }),
+    }),
+  completeOtherReview: (supplierId: string, note: string, reviewerName = 'Demo reviewer') =>
+    request<{ completed_at: string; reviewer_name: string; note: string }>(`/suppliers/${supplierId}/other-review`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ note, reviewer_name: reviewerName }),
     }),
   draftFlagReason: (supplierId: string, documentId: string) =>
     request<FlagReasonDraft>(`/suppliers/${supplierId}/documents/${documentId}/flag-reason-draft`, {

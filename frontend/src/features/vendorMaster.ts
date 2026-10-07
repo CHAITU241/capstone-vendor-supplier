@@ -57,7 +57,7 @@ export const vendorMasterColumns: VendorMasterColumn[] = [
   { key: 'insuranceExpiry', label: 'Insurance expiry' },
   { key: 'paymentTerms', label: 'Payment terms' },
   { key: 'comments', label: 'Comments / notes' },
-  { key: 'createdAt', label: 'ERP created at' },
+  { key: 'createdAt', label: 'ERP recorded at' },
   { key: 'updatedAt', label: 'ERP updated at' },
 ]
 

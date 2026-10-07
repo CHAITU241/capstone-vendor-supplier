@@ -1,5 +1,6 @@
 import uuid
 import hashlib
+from datetime import UTC, datetime
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile, status
@@ -12,6 +13,7 @@ from app.config import Settings, get_settings
 from app.database import get_db
 from app.models import (
     AuditEvent,
+    AdditionalDocument,
     ComplianceResult,
     Document,
     DocumentRevision,
@@ -21,7 +23,7 @@ from app.models import (
     Supplier,
     SupplierStatus,
 )
-from app.schemas import DocumentRead, DocumentRevisionRead
+from app.schemas import AdditionalDocumentRead, DocumentRead, DocumentRevisionRead
 from app.services.portal_auth import require_reviewer
 from app.services.document_policy import required_types_for
 from app.services.documents import DocumentExtractionError, extract_document_text
@@ -401,6 +403,79 @@ async def upload_document(
     )
 
 
+@router.post(
+    "/{supplier_id}/additional-documents",
+    response_model=AdditionalDocumentRead,
+    status_code=status.HTTP_201_CREATED,
+)
+async def upload_additional_document(
+    supplier_id: uuid.UUID,
+    file: UploadFile = File(...),
+    verification_note: str = Form(...),
+    reviewer_name: str = Form("Demo reviewer"),
+    db: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> AdditionalDocument:
+    supplier = db.get(Supplier, supplier_id)
+    if supplier is None or supplier.submitted_at is None:
+        raise HTTPException(status_code=404, detail="Supplier was not found.")
+    if supplier.category != "OTHER":
+        raise HTTPException(status_code=409, detail="Additional email evidence is available only for Other-category suppliers.")
+    if supplier.status in {SupplierStatus.APPROVED, SupplierStatus.REJECTED}:
+        raise HTTPException(status_code=409, detail="A finalized supplier cannot be changed.")
+    note = verification_note.strip()
+    reviewer = reviewer_name.strip()
+    if len(note) < 10:
+        raise HTTPException(status_code=422, detail="Describe what was manually verified in at least 10 characters.")
+    if len(reviewer) < 2:
+        raise HTTPException(status_code=422, detail="Reviewer name is required.")
+    content_type = file.content_type or ""
+    if content_type not in ALLOWED_CONTENT_TYPES:
+        await file.close()
+        raise HTTPException(status_code=415, detail="Unsupported file type: choose a PDF, PNG, JPEG or UTF-8 plain-text file.")
+    contents = await file.read(settings.max_upload_size_bytes + 1)
+    await file.close()
+    if not contents:
+        raise HTTPException(status_code=400, detail="Empty file: choose a file that contains evidence.")
+    if len(contents) > settings.max_upload_size_bytes:
+        raise HTTPException(status_code=413, detail=f"Oversized file: the maximum allowed size is {settings.max_upload_size_mb} MB.")
+
+    document_id = uuid.uuid4()
+    filename = Path(file.filename or "additional-evidence").name[:255]
+    directory = settings.upload_dir.resolve() / str(supplier.id) / "additional"
+    directory.mkdir(parents=True, exist_ok=True)
+    path = directory / f"{document_id}{ALLOWED_CONTENT_TYPES[content_type]}"
+    path.write_bytes(contents)
+    record = AdditionalDocument(
+        id=document_id,
+        supplier_id=supplier.id,
+        filename=filename,
+        storage_path=str(path),
+        content_type=content_type,
+        file_size=len(contents),
+        sha256=hashlib.sha256(contents).hexdigest(),
+        uploaded_by=reviewer,
+        verification_note=note,
+        verified_at=datetime.now(UTC),
+    )
+    db.add(record)
+    db.add(AuditEvent(
+        supplier_id=supplier.id,
+        action="supplier.additional_evidence_attached",
+        entity_type="additional_document",
+        entity_id=str(record.id),
+        details={"filename": filename, "reviewer_name": reviewer, "manually_verified": True},
+    ))
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        path.unlink(missing_ok=True)
+        raise
+    db.refresh(record)
+    return record
+
+
 def retry_text_extraction(
     document: Document, db: Session, settings: Settings, *, actor: str,
 ) -> Document:
@@ -568,3 +643,38 @@ def reviewer_document_content(
     if supplier is None or (supplier.account_id is not None and supplier.submitted_at is None):
         raise HTTPException(status_code=404, detail="Supplier was not found.")
     return original_file_response(db, supplier_id, document_id, settings, actor="reviewer")
+
+
+@router.get("/{supplier_id}/additional-documents/{document_id}/content")
+def reviewer_additional_document_content(
+    supplier_id: uuid.UUID,
+    document_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> FileResponse:
+    record = db.scalar(select(AdditionalDocument).where(
+        AdditionalDocument.id == document_id,
+        AdditionalDocument.supplier_id == supplier_id,
+    ))
+    if record is None:
+        raise HTTPException(status_code=404, detail="Additional evidence was not found.")
+    path = _private_file_path(record.storage_path, settings)
+    if not path.is_file():
+        raise HTTPException(status_code=503, detail="The additional evidence is unavailable in file storage.")
+    if hashlib.sha256(path.read_bytes()).hexdigest() != record.sha256:
+        raise HTTPException(status_code=409, detail="The stored additional evidence failed its integrity check.")
+    db.add(AuditEvent(
+        supplier_id=supplier_id,
+        action="supplier.additional_evidence_viewed",
+        entity_type="additional_document",
+        entity_id=str(document_id),
+        details={"actor": "reviewer"},
+    ))
+    db.commit()
+    return FileResponse(
+        path,
+        media_type=record.content_type,
+        filename=record.filename,
+        content_disposition_type="inline",
+        headers={"Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff"},
+    )
