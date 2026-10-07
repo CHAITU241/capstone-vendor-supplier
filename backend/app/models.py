@@ -32,6 +32,7 @@ class SupplierStatus(str, enum.Enum):
 class DocumentType(str, enum.Enum):
     REGISTRATION = "registration"
     TAX = "tax"
+    BASE_002_DECLARATION = "BASE-002-DECL"
     INSURANCE = "insurance"
     BANK = "bank"
     CONF_001 = "CONF-001"
@@ -45,15 +46,20 @@ class DocumentType(str, enum.Enum):
     PEOP_002 = "PEOP-002"
     SITE_001 = "SITE-001"
     SITE_002 = "SITE-002"
+    SITE_002_TRAINING = "SITE-002-TRAIN"
     FOOD_001 = "FOOD-001"
     FOOD_002 = "FOOD-002"
+    FOOD_002_PLAN = "FOOD-002-PLAN"
     EVENT_001 = "EVENT-001"
     TRANS_001 = "TRANS-001"
     TRANS_001_DECLARATION = "TRANS-001-DECL"
     STORE_001 = "STORE-001"
     PROD_001 = "PROD-001"
+    PROD_001_WARRANTY = "PROD-001-WARR"
     PAY_001 = "PAY-001"
     TRAIN_001 = "TRAIN-001"
+    TRAIN_001_OUTLINE = "TRAIN-001-OUTLINE"
+    TRAIN_001_CREDENTIAL = "TRAIN-001-CRED"
 
 
 class ProcessingStatus(str, enum.Enum):

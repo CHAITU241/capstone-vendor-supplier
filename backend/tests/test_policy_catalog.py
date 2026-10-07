@@ -1,6 +1,11 @@
 """The portal catalog and checklist must remain aligned with the 12 PDF sources."""
 
-from app.models import Document, DocumentType, ProcessingStatus, Supplier
+import json
+import uuid
+from collections import Counter
+from pathlib import Path
+
+from app.models import Document, DocumentType, ExtractedField, ProcessingStatus, Supplier
 from app.services.document_policy import checklist_for, extraction_field_names, load_policy
 from app.services.policy_retrieval import (
     application_answer_for, application_context_for, policy_context_for,
@@ -26,6 +31,10 @@ def test_representative_subcategory_edges():
     cyber = checklist_for(Supplier(category="TECH", subcategory="TECH-CYB"))
     payments = checklist_for(Supplier(category="SENS", subcategory="SENS-PAY"))
     courier = checklist_for(Supplier(category="LOG", subcategory="LOG-COU"))
+    security = checklist_for(Supplier(category="FAC", subcategory="FAC-SEC"))
+    catering = checklist_for(Supplier(category="FOOD", subcategory="FOOD-CAT"))
+    training = checklist_for(Supplier(category="WORK", subcategory="WORK-LND"))
+    equipment = checklist_for(Supplier(category="GOODS", subcategory="GOODS-ITE"))
     other = checklist_for(Supplier(category="OTHER", subcategory="OTHER-GEN"))
     assert [item.document_type for item in goods.documents] == [DocumentType.REGISTRATION, DocumentType.TAX, DocumentType.BANK]
     assert cyber.documents[-1].requirement_id == "INS-CYB-001"
@@ -38,6 +47,10 @@ def test_representative_subcategory_edges():
         DocumentType.TRANS_001_DECLARATION,
     ]
     assert [item.requirement_id for item in courier.documents].count("TRANS-001") == 2
+    assert [item.requirement_id for item in security.documents].count("SITE-002") == 2
+    assert [item.requirement_id for item in catering.documents].count("FOOD-002") == 2
+    assert [item.requirement_id for item in training.documents].count("TRAIN-001") == 3
+    assert [item.requirement_id for item in equipment.documents].count("PROD-001") == 2
     assert [item.document_type for item in other.documents] == [DocumentType.REGISTRATION, DocumentType.TAX, DocumentType.BANK]
     assert "Policy and Legal" in other.reason
     assert checklist_for(Supplier(category="TECH", subcategory="LOG-WH")).documents == []
@@ -58,6 +71,122 @@ def test_transport_physical_files_have_distinct_extraction_fields():
         "loss_notice_interval",
         "declaration_date",
     ]
+
+
+def test_not_registered_tax_status_adds_the_conditional_declaration_slot():
+    supplier = Supplier(id=uuid.uuid4(), category="WORK", subcategory="WORK-REC")
+    tax_document = Document(
+        id=uuid.uuid4(),
+        supplier_id=supplier.id,
+        document_type=DocumentType.TAX,
+        filename="tax.pdf",
+        storage_path="uploads/tax.pdf",
+        content_type="application/pdf",
+        file_size=10,
+        page_count=1,
+        processing_status=ProcessingStatus.READY,
+    )
+    supplier.documents = [tax_document]
+    status_field = ExtractedField(
+        id=uuid.uuid4(),
+        supplier_id=supplier.id,
+        document_id=tax_document.id,
+        field_name="gst_status_registered_or_not_registered",
+        value="registered",
+        page_number=1,
+        confidence=.99,
+        needs_review=False,
+        review_status="pending",
+    )
+    supplier.extracted_fields = [status_field]
+
+    assert [
+        item.document_type for item in checklist_for(supplier).documents
+    ].count(DocumentType.BASE_002_DECLARATION) == 0
+
+    status_field.value = "not registered"
+
+    checklist = checklist_for(supplier)
+
+    assert [item.requirement_id for item in checklist.documents].count("BASE-002") == 2
+    assert any(
+        item.document_type == DocumentType.BASE_002_DECLARATION
+        for item in checklist.documents
+    )
+
+
+def test_each_composite_upload_extracts_only_its_own_fields():
+    expected = {
+        DocumentType.BASE_002_DECLARATION: {
+            "supplier_name", "gst_status_registered_or_not_registered",
+            "declaration_date_and_signatory_when_not_registered",
+        },
+        DocumentType.SITE_002_TRAINING: {
+            "supplier_name", "trained_guard_attestation", "declaration_date",
+        },
+        DocumentType.FOOD_002_PLAN: {
+            "supplier_name", "site", "allergen_controls", "temperature_controls",
+            "food_handler_training_date", "plan_review_date",
+        },
+        DocumentType.PROD_001_WARRANTY: {
+            "supplier_name", "warranty_duration", "warranty_start_event", "support_contact",
+        },
+        DocumentType.TRAIN_001_OUTLINE: {"supplier_name", "course_topics"},
+        DocumentType.TRAIN_001_CREDENTIAL: {
+            "supplier_name", "trainer_names",
+            "credential_number_issuer_expiry_or_dated_experience_history",
+        },
+    }
+    assert {
+        document_type: set(extraction_field_names(document_type))
+        for document_type in expected
+    } == expected
+
+
+def test_packet_manifests_have_one_upload_slot_per_physical_file():
+    packet_root = Path(__file__).resolve().parents[2] / "Dummy_Supplier_Packets"
+    checked = 0
+    mismatches = []
+    for packet in sorted(packet_root.glob("SUP-*")):
+        record_path = packet / "v01" / "portal_record.json"
+        manifest_path = packet / "v01" / "submission_manifest.json"
+        if not record_path.exists() or not manifest_path.exists():
+            continue
+        checked += 1
+        record = json.loads(record_path.read_text(encoding="utf-8"))
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        code = record["primary_code"]
+        supplier = Supplier(
+            id=uuid.uuid4(), category=code.split("-", 1)[0], subcategory=code,
+        )
+        if record.get("portal_gst_status", "").casefold() in {
+            "not registered", "unregistered",
+        }:
+            tax_document = Document(
+                id=uuid.uuid4(), supplier_id=supplier.id,
+                document_type=DocumentType.TAX, filename="tax.pdf",
+                storage_path="uploads/tax.pdf", content_type="application/pdf",
+                file_size=1, page_count=1, processing_status=ProcessingStatus.READY,
+            )
+            supplier.documents = [tax_document]
+            supplier.extracted_fields = [ExtractedField(
+                id=uuid.uuid4(), supplier_id=supplier.id,
+                document_id=tax_document.id,
+                field_name="gst_status_registered_or_not_registered",
+                value=record["portal_gst_status"], page_number=1,
+                confidence=.99, needs_review=False, review_status="pending",
+            )]
+        portal_slots = Counter(
+            item.requirement_id for item in checklist_for(supplier).documents
+        )
+        packet_files = Counter(
+            item["requirement_id"] for item in manifest["uploaded_documents"]
+        )
+        if portal_slots != packet_files:
+            mismatches.append((packet.name, packet_files, portal_slots))
+
+    assert checked == 20
+    assert mismatches == []
 
 
 def test_policy_assistant_retrieves_actual_source_for_requirement():

@@ -9,7 +9,12 @@ from pydantic import BaseModel, Field
 from app.config import Settings, get_settings
 from app.metrics import observe_ai_call
 from app.models import DocumentType
-from app.services.document_policy import BASE_TYPES, extraction_field_names, load_policy
+from app.services.document_policy import (
+    evidence_slot_for_document_type,
+    extraction_field_names,
+    load_policy,
+    requirement_id_for_document_type,
+)
 from app.services.tracing import get_langfuse_tracer
 
 
@@ -105,19 +110,29 @@ class OpenAIService:
         redacted_text: str,
     ) -> ModelResult[DocumentExtraction]:
         prompt = _read_prompt("extraction_v4.txt")
-        requirement_id = next((code for code, kind in BASE_TYPES.items() if kind == expected_type), expected_type.value)
+        requirement_id = requirement_id_for_document_type(expected_type)
+        slot = evidence_slot_for_document_type(expected_type)
         definition = load_policy().requirements.get(requirement_id)
         allowed_fields = extraction_field_names(expected_type)
         if definition:
+            slot_label, slot_evidence, slot_fields = slot or (
+                definition.label,
+                definition.accepted_evidence,
+                definition.required_fields,
+            )
             prompt += (f"\nExpected upload slot: {expected_type.value}."
+                       f" Slot label: {slot_label}."
                        f" Expected policy item: {requirement_id} ({definition.label})."
-                       f" Accepted evidence: {definition.accepted_evidence}"
-                       f" Required fields: {definition.required_fields}"
+                       f" Accepted evidence for this upload slot: {slot_evidence}"
+                       f" Required fields for this upload slot: {slot_fields}"
                        f" Policy check 1: {definition.checks[0]}"
                        f" Policy check 2: {definition.checks[1]}"
                        f" Return only these exact field_name keys: {', '.join(allowed_fields)}."
                        " Return every listed key exactly once and do not add other keys."
                        " Return exactly two policy_checks, numbered 1 and 2."
+                       " For a policy item split into multiple physical files, classify a file as the"
+                       " exact expected upload slot when its content matches this slot's evidence; a"
+                       " parent policy ID printed on the document is not a type mismatch."
                        " Classify a check as matched only when the document contains clear evidence"
                        " satisfying it, not_matched only for a clear contradiction or threshold"
                        " failure, and human_review when evidence is missing, ambiguous, subjective,"
