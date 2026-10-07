@@ -18,8 +18,8 @@ RUN python -m pip install --no-cache-dir -r requirements.txt \
     && mkdir -p "$TIKTOKEN_CACHE_DIR" \
     && python -c "import tiktoken; tiktoken.get_encoding('cl100k_base')"
 
-RUN groupadd --system vendorlens \
-    && useradd --system --gid vendorlens --home-dir /app vendorlens
+RUN groupadd --system sourcesure \
+    && useradd --system --gid sourcesure --home-dir /app sourcesure
 
 COPY backend/alembic.ini ./alembic.ini
 COPY backend/alembic ./alembic
@@ -30,9 +30,9 @@ COPY backend/docker-entrypoint.sh ./docker-entrypoint.sh
 RUN mkdir -p /app/uploads /app/data/chroma \
     && sed -i 's/\r$//' /app/docker-entrypoint.sh \
     && chmod +x /app/docker-entrypoint.sh \
-    && chown -R vendorlens:vendorlens /app /opt/tiktoken-cache
+    && chown -R sourcesure:sourcesure /app /opt/tiktoken-cache
 
-USER vendorlens
+USER sourcesure
 
 EXPOSE 8000
 

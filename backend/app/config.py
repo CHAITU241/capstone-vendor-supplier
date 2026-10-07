@@ -6,7 +6,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    app_name: str = "VendorLens AI API"
+    app_name: str = "SourceSure AI API"
     app_env: str = "development"
     database_url: str = (
         "postgresql+psycopg://vendorlens:vendorlens@localhost:5432/vendorlens"
@@ -37,7 +37,7 @@ class Settings(BaseSettings):
     openrouter_answer_model: str = "openai/gpt-4o-mini"
     openrouter_embedding_model: str = "openai/text-embedding-3-small"
     openrouter_site_url: str | None = None
-    openrouter_app_name: str = "VendorLens AI"
+    openrouter_app_name: str = "SourceSure AI"
     openai_api_key: SecretStr | None = None
     azure_openai_endpoint: str | None = None
     azure_openai_api_version: str = "2024-10-21"

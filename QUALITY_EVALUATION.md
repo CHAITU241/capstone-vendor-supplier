@@ -1,4 +1,4 @@
-# VendorLens Phase 2 Quality Evaluation
+# SourceSure AI Phase 2 Quality Evaluation
 
 ## Scope
 

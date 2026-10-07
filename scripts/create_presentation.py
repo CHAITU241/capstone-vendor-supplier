@@ -6,7 +6,7 @@ from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
 from pptx.util import Inches, Pt
 
 ROOT = Path(__file__).resolve().parents[1]
-OUT = ROOT / "VendorLens_AI_20_Minute_Presentation.pptx"
+OUT = ROOT / "SourceSure_AI_20_Minute_Presentation.pptx"
 
 NAVY = RGBColor(11, 31, 58)
 BLUE = RGBColor(37, 99, 235)
@@ -66,7 +66,7 @@ def bullets(slide, items, x, y, w, h, size=15, color=INK):
 
 def footer(slide, number, timing):
     shape(slide, 0, 7.1, 13.333, 0.4, NAVY)
-    add_text(slide, "VendorLens AI", 0.65, 7.18, 2.2, 0.16, 8.5, RGBColor(195, 214, 234), True)
+    add_text(slide, "SourceSure AI", 0.65, 7.18, 2.2, 0.16, 8.5, RGBColor(195, 214, 234), True)
     add_text(slide, timing, 4.6, 7.18, 4.1, 0.16, 8.5, RGBColor(195, 214, 234), False, PP_ALIGN.CENTER)
     add_text(slide, f"{number:02d}", 12.1, 7.18, 0.55, 0.16, 9, RGBColor(136, 190, 255), True, PP_ALIGN.RIGHT)
 
@@ -91,7 +91,7 @@ slide = prs.slides.add_slide(BLANK)
 shape(slide, 0, 0, 13.333, 7.5, NAVY)
 shape(slide, 0, 0, 13.333, 0.16, ORANGE)
 shape(slide, 9.0, 0.16, 4.333, 7.34, RGBColor(15, 43, 76))
-add_text(slide, "VendorLens AI", 0.82, 1.2, 7.2, 0.65, 40, WHITE, True, font="Aptos Display")
+add_text(slide, "SourceSure AI", 0.82, 1.2, 7.2, 0.65, 40, WHITE, True, font="Aptos Display")
 add_text(slide, "From supplier documents to an\nauditable onboarding decision", 0.86, 2.12, 7.6, 1.05, 27, RGBColor(215, 229, 244), True, font="Aptos Display")
 add_text(slide, "AI-assisted supplier onboarding and compliance review", 0.88, 3.55, 7.3, 0.28, 16, ORANGE, True)
 add_text(slide, "React • FastAPI • PostgreSQL • ChromaDB • Azure OpenAI", 0.88, 5.78, 7.6, 0.22, 11, RGBColor(174, 201, 228))
@@ -325,8 +325,8 @@ shape(slide, 0, 0, 13.333, 0.16, VIOLET)
 add_text(slide, "Q&A", 0.82, 2.35, 11.7, 1.0, 62, NAVY, True, PP_ALIGN.CENTER, font="Aptos Display", valign=MSO_ANCHOR.MIDDLE)
 footer(slide, 7, "Questions & discussion")
 
-prs.core_properties.title = "VendorLens AI - 20 Minute Presentation"
+prs.core_properties.title = "SourceSure AI - 20 Minute Presentation"
 prs.core_properties.subject = "Supplier onboarding, RAG, compliance review, and observability"
-prs.core_properties.author = "VendorLens AI"
+prs.core_properties.author = "SourceSure AI"
 prs.save(OUT)
 print(OUT)

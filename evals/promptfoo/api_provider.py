@@ -1,4 +1,4 @@
-"""Promptfoo provider for the VendorLens FastAPI endpoints.
+"""Promptfoo provider for the SourceSure AI FastAPI endpoints.
 
 The provider deliberately calls the application API instead of Azure OpenAI
 directly. This keeps the evaluation representative of the actual product
@@ -61,9 +61,9 @@ def _request_json(
         except json.JSONDecodeError:
             details = {"detail": raw or exc.reason}
         message = details.get("message") or details.get("detail") or str(exc.reason)
-        raise RuntimeError(f"VendorLens API returned HTTP {exc.code}: {message}") from exc
+        raise RuntimeError(f"SourceSure AI API returned HTTP {exc.code}: {message}") from exc
     except URLError as exc:
-        raise RuntimeError(f"VendorLens API is unreachable at {url}: {exc.reason}") from exc
+        raise RuntimeError(f"SourceSure AI API is unreachable at {url}: {exc.reason}") from exc
 
 
 def _supplier_id(vars: dict[str, Any], config: dict[str, Any], timeout: float) -> str:
@@ -84,7 +84,7 @@ def _supplier_id(vars: dict[str, Any], config: dict[str, Any], timeout: float) -
     _, suppliers = _request_json("GET", f"{_base_url(config)}/api/suppliers", None, timeout)
     candidates = suppliers.get("suppliers", suppliers.get("items", suppliers.get("data", suppliers)))
     if not isinstance(candidates, list):
-        raise RuntimeError("VendorLens supplier list response was not a list.")
+        raise RuntimeError("SourceSure AI supplier list response was not a list.")
 
     wanted = str(supplier_name).casefold().strip()
     for supplier in candidates:
@@ -150,7 +150,7 @@ def call_api(prompt: str, options: dict[str, Any], context: dict[str, Any]) -> d
                 timeout,
             )
         else:
-            raise RuntimeError(f"Unsupported VendorLens Promptfoo mode: {mode}")
+            raise RuntimeError(f"Unsupported SourceSure AI Promptfoo mode: {mode}")
         return _provider_result(response, endpoint, started)
     except Exception as exc:  # Promptfoo displays provider errors per test case.
         return {

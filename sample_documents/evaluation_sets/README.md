@@ -1,6 +1,6 @@
 # Supplier Quality Evaluation Packs
 
-This folder contains four coherent supplier packs for repeatable VendorLens extraction and grounded-Q&A evaluation.
+This folder contains four coherent supplier packs for repeatable SourceSure AI extraction and grounded-Q&A evaluation.
 The PDF content intentionally looks like ordinary onboarding documentation; synthetic-data disclosure and expected answers are kept outside the PDFs.
 
 Each supplier directory contains:

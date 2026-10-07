@@ -1,6 +1,6 @@
-# VendorLens AI
+# SourceSure AI
 
-VendorLens is an AI-assisted supplier onboarding application. It turns registration, tax, and insurance documents into an auditable review workflow while keeping the final approval decision with a human reviewer.
+SourceSure AI is an AI-assisted supplier onboarding application. It turns registration, tax, and insurance documents into an auditable review workflow while keeping the final approval decision with a human reviewer.
 
 ## What it does
 

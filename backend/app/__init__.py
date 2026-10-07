@@ -1,2 +1,2 @@
-"""VendorLens AI backend package."""
+"""SourceSure AI backend package."""
 

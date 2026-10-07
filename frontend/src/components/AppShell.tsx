@@ -20,7 +20,7 @@ export function AppShell() {
             <Box sx={{ display: 'grid', placeItems: 'center', width: 38, height: 38, borderRadius: 2, bgcolor: 'tertiary.main', color: 'white' }}>
               <AutoAwesomeRoundedIcon fontSize="small" />
             </Box>
-            <Typography variant="h6">VendorLens</Typography>
+            <Typography variant="h6">SourceSure AI</Typography>
             </Box>
             {session && <Stack direction="row" spacing={1} alignItems="center">
               {location.pathname !== workspace && <Button component={Link} to={workspace} variant="text">{session.role === 'reviewer' ? 'Review workspace' : session.role === 'admin' ? 'Admin' : 'My application'}</Button>}

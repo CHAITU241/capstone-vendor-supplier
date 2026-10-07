@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse
 from app.database import SessionLocal
 from app.services.erp_tools import ErpToolFailure, TOOL_NAMES, execute_erp_tool
 
-app = FastAPI(title="VendorLens Mock ERP MCP")
+app = FastAPI(title="SourceSure AI Mock ERP MCP")
 
 TOOL_DESCRIPTIONS = {
     "validate_supplier_record": "Validate required fields, ERP mappings, and duplicate master data before approval.",
@@ -42,7 +42,7 @@ async def mcp_endpoint(request: Request) -> JSONResponse:
     request_id = message.get("id")
     method = message.get("method")
     if method == "initialize":
-        result = {"protocolVersion": "2025-06-18", "capabilities": {"tools": {"listChanged": False}}, "serverInfo": {"name": "vendorlens-mock-erp", "version": "1.0.0"}}
+        result = {"protocolVersion": "2025-06-18", "capabilities": {"tools": {"listChanged": False}}, "serverInfo": {"name": "sourcesure-mock-erp", "version": "1.0.0"}}
     elif method == "tools/list":
         result = {"tools": [_tool_schema(name) for name in TOOL_NAMES]}
     elif method == "tools/call":

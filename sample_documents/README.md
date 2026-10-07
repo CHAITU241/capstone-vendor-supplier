@@ -6,7 +6,7 @@ Do not use the documents for identity verification, tax filings, insurance evide
 
 ## Upload Mapping
 
-| File | VendorLens document type | Purpose |
+| File | SourceSure AI document type | Purpose |
 |---|---|---|
 | `01_supplier_registration_form.pdf` | `registration` | Supplier-entered master data and declaration |
 | `02_gst_registration_certificate.pdf` | `tax` | Tax identity and principal business address |

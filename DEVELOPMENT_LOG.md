@@ -1,4 +1,4 @@
-# VendorLens AI — Development Handoff Log
+# SourceSure AI — Development Handoff Log
 
 This file is the short resumption context for future AI or developer sessions.
 Read this file first, then open only the files relevant to the next task.
@@ -104,7 +104,7 @@ frontend/src/theme/theme.ts         Single source for all brand colors
 
 - Verification date: 2026-08-04.
 - ChromaDB 1.5.9 installed successfully in the project virtual environment.
-- Local PostgreSQL connection passed against PostgreSQL 18.1 and database `vendorlens`.
+- Local PostgreSQL connection passed against PostgreSQL 18.1 and database `sourcesure`.
 - `alembic upgrade head` passed; revision is `0003_restore_three_types (head)`.
 - PostgreSQL tables confirmed: `alembic_version`, `suppliers`, `documents`, and `audit_events`.
 - `/api/health` returned HTTP 200 with `status: healthy`, `database: connected`, and `chroma: connected`.
@@ -350,7 +350,7 @@ frontend/src/theme/theme.ts         Single source for all brand colors
 ### Frontend
 
 - Added a globally mounted bottom-right floating help icon in `AppShell` that opens a responsive “Supplier onboarding assistant” popover with message bubbles, reset-chat control, and response metrics on every route.
-- Tuned the assistant prompt with explicit VendorLens context so document-requirement questions lead with the three required uploads: registration, tax, and insurance.
+- Tuned the assistant prompt with explicit SourceSure AI context so document-requirement questions lead with the three required uploads: registration, tax, and insurance.
 - The existing “Ask about this supplier” panel remains document-grounded and cited; the new assistant is explicitly labeled as general guidance.
 
 ### Verification
@@ -455,7 +455,7 @@ frontend/src/theme/theme.ts         Single source for all brand colors
 - Added hashed telemetry subjects, assistant/workflow sessions, provider/model/prompt/release metadata, and quality scores for processing, grounding, citations, OCR, and ERP tool success.
 - Removed original filenames from extraction telemetry and the LLM extraction prompt; only the file extension and document type are retained.
 - Normalized OpenRouter model slugs for Langfuse pricing lookup while preserving the complete provider model in metadata.
-- Added `LANGFUSE_DASHBOARD_URL` for the admin-only deep link and documented the recommended VendorLens dashboard widgets.
+- Added `LANGFUSE_DASHBOARD_URL` for the admin-only deep link and documented the recommended SourceSure AI dashboard widgets.
 - Verification: 77 backend tests passed; frontend production build passed; frontend lint completed with zero errors and two pre-existing warnings.
 
 ## Demo Authentication Flow (2026-09-24)

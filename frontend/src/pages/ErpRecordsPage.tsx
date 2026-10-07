@@ -221,7 +221,7 @@ export function ErpRecordsPage() {
       </>}
     </Paper>
 
-    <Alert severity="info">The Vendor Master is read-only in VendorLens. Changes to master data belong in the ERP; the onboarding record remains available as the review and evidence audit trail.</Alert>
+    <Alert severity="info">The Vendor Master is read-only in SourceSure AI. Changes to master data belong in the ERP; the onboarding record remains available as the review and evidence audit trail.</Alert>
     <ErpRecordDialog open={selectedRecord !== null} record={selectedRecord} onClose={() => setSelectedRecord(null)} />
   </Stack>
 }

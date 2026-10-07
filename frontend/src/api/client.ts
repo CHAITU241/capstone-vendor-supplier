@@ -28,7 +28,7 @@ import type {
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api'
 
 type PortalRole = PortalSession['role']
-const storageKey = (role: PortalRole) => `vendorlens.session.${role}`
+const storageKey = (role: PortalRole) => `sourcesure.session.${role}`
 
 function roleForApiPath(path: string): PortalRole | undefined {
   if (path.startsWith('/admin')) return 'admin'

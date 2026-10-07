@@ -22,7 +22,7 @@ def test_openrouter_takes_priority_and_uses_openrouter_models(monkeypatch) -> No
     settings = Settings(
         _env_file=None,
         openrouter_api_key="openrouter-key",
-        openrouter_site_url="https://vendorlens.example",
+        openrouter_site_url="https://sourcesure.example",
         openai_api_key="azure-key",
         azure_openai_endpoint="https://azure.example",
     )
@@ -38,8 +38,8 @@ def test_openrouter_takes_priority_and_uses_openrouter_models(monkeypatch) -> No
     assert captured["api_key"] == "openrouter-key"
     assert captured["base_url"] == "https://openrouter.ai/api/v1"
     assert captured["default_headers"] == {
-        "X-Title": "VendorLens AI",
-        "HTTP-Referer": "https://vendorlens.example",
+        "X-Title": "SourceSure AI",
+        "HTTP-Referer": "https://sourcesure.example",
     }
     assert service._structured_output_options() == {
         "extra_body": {"provider": {"require_parameters": True}}

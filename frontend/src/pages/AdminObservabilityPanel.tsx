@@ -80,7 +80,7 @@ function scoreValue(row: AdminLangfuseScoreGroup) {
 
 function QualityScores({ rows }: { rows: AdminLangfuseScoreGroup[] }) {
   return <Card><CardContent sx={{ p: 3 }}>
-    <CardHeading label="Quality scores" description="Named numeric scores emitted by VendorLens traces, such as technical success or grounding signals. They are automated indicators, not a measured model-accuracy percentage." />
+    <CardHeading label="Quality scores" description="Named numeric scores emitted by SourceSure AI traces, such as technical success or grounding signals. They are automated indicators, not a measured model-accuracy percentage." />
     <Typography variant="body2" color="text.secondary">Averages from the scores already emitted to Langfuse.</Typography>
     <Stack divider={<Divider flexItem />} sx={{ mt: 1.5 }}>
       {rows.length === 0 && <Typography color="text.secondary" sx={{ py: 1 }}>No numeric scores in this window.</Typography>}
@@ -136,7 +136,7 @@ export function AdminObservabilityPanel() {
     <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" gap={2} alignItems={{ md: 'center' }}>
       <Box>
         <Typography variant="h5">AI observability</Typography>
-        <Typography color="text.secondary">Privacy-safe operational metrics from persisted VendorLens runs. Langfuse provides generation-level traces and cost analysis.</Typography>
+        <Typography color="text.secondary">Privacy-safe operational metrics from persisted SourceSure AI runs. Langfuse provides generation-level traces and cost analysis.</Typography>
       </Box>
       <Stack direction="row" spacing={1} alignItems="center">
         <FormControl size="small" sx={{ minWidth: 125 }}><InputLabel id="metrics-window">Window</InputLabel><Select labelId="metrics-window" label="Window" value={days} onChange={(event) => setDays(Number(event.target.value))}>
@@ -148,7 +148,7 @@ export function AdminObservabilityPanel() {
 
     {error && <Alert severity="warning" onClose={() => setError('')}>{error}</Alert>}
     <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(4, 1fr)' }, gap: 2 }}>
-      <MetricCard label="Persisted AI runs" value={number.format(data.total_runs)} helper={`${data.successful_runs} succeeded · ${data.failed_runs} failed`} description="AI extraction and question-answering runs stored by VendorLens during the selected time window. This is an operation count, not a count of suppliers." />
+      <MetricCard label="Persisted AI runs" value={number.format(data.total_runs)} helper={`${data.successful_runs} succeeded · ${data.failed_runs} failed`} description="AI extraction and question-answering runs stored by SourceSure AI during the selected time window. This is an operation count, not a count of suppliers." />
       <MetricCard label="Runs completed without error" value={`${data.success_rate.toFixed(1)}%`} helper={`${data.successful_runs} of ${data.successful_runs + data.failed_runs} finished runs · ${data.in_progress_runs} processing`} description="The percentage of finished AI runs that ended without a recorded technical failure. In-progress runs are excluded. This does not measure extraction accuracy, answer correctness, or approval quality." />
       <MetricCard label="Total tokens" value={number.format(totalTokens)} helper={`${number.format(data.input_tokens)} input · ${number.format(data.output_tokens)} output`} description="The sum of model input and output tokens recorded for persisted AI runs in the selected window. Token volume indicates usage, not response quality." />
       <MetricCard label="P95 latency" value={duration(data.p95_latency_ms)} helper={`${duration(data.average_latency_ms)} average`} description="Ninety-five percent of completed AI runs finished at or below this duration. The remaining five percent were slower." />
@@ -160,7 +160,7 @@ export function AdminObservabilityPanel() {
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'repeat(3, 1fr)' }, gap: 2, mt: 2 }}>
         <IntegrationCard
           title="Langfuse"
-          description="Connection and telemetry-read health for Langfuse. Connected means VendorLens can read configured trace, usage, cost, or score metadata; it does not grade model accuracy."
+          description="Connection and telemetry-read health for Langfuse. Connected means SourceSure AI can read configured trace, usage, cost, or score metadata; it does not grade model accuracy."
           status={data.langfuse_metrics_error && data.langfuse_metrics_available ? 'Partially connected' : data.langfuse_metrics_available ? 'Connected' : data.langfuse_configured ? 'Metrics unavailable' : 'Not configured'}
           color={data.langfuse_metrics_available && !data.langfuse_metrics_error ? 'success' : 'warning'}
           summary={data.langfuse_trace_metrics_available ? `${number.format(data.langfuse_trace_count)} traces · ${data.langfuse_usage_metrics_available ? currency.format(data.langfuse_total_cost_usd) : 'cost unavailable'}` : data.langfuse_usage_metrics_available ? `${number.format(data.langfuse_observation_count)} observations · ${currency.format(data.langfuse_total_cost_usd)}` : 'Tracing dashboard is not currently readable'}

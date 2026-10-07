@@ -1,4 +1,4 @@
-"""Seed a clean, presentation-ready set of VendorLens demo supplier flows.
+"""Seed a clean, presentation-ready set of SourceSure AI demo supplier flows.
 
 The script talks to the running FastAPI API so the seeded records exercise the
 same upload, processing, review, compliance, approval, rejection, and audit
@@ -23,7 +23,7 @@ OUTPUT_PATH = ROOT / "sample_documents" / "demo_seed_manifest.json"
 FLOWS = [
     # {
     #     "key": "empty_intake",
-    #     "name": "VendorLens Empty Intake Demo",
+    #     "name": "SourceSure AI Empty Intake Demo",
     #     "country": "India",
     #     "contact_email": "empty.intake@example.com",
     #     "documents": {},

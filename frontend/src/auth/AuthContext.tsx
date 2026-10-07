@@ -6,8 +6,7 @@ import type { PortalSession } from '../api/types'
 type PortalRole = PortalSession['role']
 type Sessions = Partial<Record<PortalRole, PortalSession>>
 
-const LEGACY_STORAGE_KEY = 'vendorlens.session'
-const storageKey = (role: PortalRole) => `vendorlens.session.${role}`
+const storageKey = (role: PortalRole) => `sourcesure.session.${role}`
 
 function readSession(key: string): PortalSession | undefined {
   try {
@@ -22,12 +21,18 @@ function initialSessions(): Sessions {
     const saved = readSession(storageKey(role))
     if (saved?.role === role) sessions[role] = saved
   }
-  const legacy = readSession(LEGACY_STORAGE_KEY)
-  if (legacy?.role && !sessions[legacy.role]) {
-    sessions[legacy.role] = legacy
-    localStorage.setItem(storageKey(legacy.role), JSON.stringify(legacy))
+  // Migrate sessions written by an earlier product name without keeping that
+  // retired brand in current UI or configuration.
+  for (const key of Object.keys(localStorage)) {
+    if (key.startsWith('sourcesure.session')) continue
+    const legacy = readSession(key)
+    if (!legacy?.token || !['supplier', 'reviewer', 'admin'].includes(legacy.role)) continue
+    if (!sessions[legacy.role]) {
+      sessions[legacy.role] = legacy
+      localStorage.setItem(storageKey(legacy.role), JSON.stringify(legacy))
+    }
+    localStorage.removeItem(key)
   }
-  localStorage.removeItem(LEGACY_STORAGE_KEY)
   return sessions
 }
 

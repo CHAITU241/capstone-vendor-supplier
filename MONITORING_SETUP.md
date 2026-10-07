@@ -5,7 +5,7 @@ Start the FastAPI backend before running any of these tools.
 ## 1. Langfuse — AI tracing
 
 1. Create a Langfuse project and copy its public key, secret key, host, and dashboard URL into `backend/.env`.
-2. Set `LANGFUSE_RELEASE` to the deployed Git commit or submission tag. Keep `LANGFUSE_CAPTURE_CONTENT=false`; VendorLens sends operational metadata, not supplier document text.
+2. Set `LANGFUSE_RELEASE` to the deployed Git commit or submission tag. Keep `LANGFUSE_CAPTURE_CONTENT=false`; SourceSure AI sends operational metadata, not supplier document text.
 3. Start the backend normally and sign in through **Administrator** on the landing page.
 4. Open **AI observability** to verify that AI and Langfuse configuration are ready.
 5. Process a document, ask a supplier question, ask the reviewer assistant, and validate an ERP record.
@@ -13,7 +13,7 @@ Start the FastAPI backend before running any of these tools.
 
 Langfuse tracing is passive; no separate local server is required. Telemetry failures never block onboarding. Supplier IDs are hashed for grouping, filenames are excluded, and OpenRouter model names are normalized for Langfuse pricing lookup while the full provider model remains metadata.
 
-### Recommended `VendorLens AI Operations` dashboard
+### Recommended `SourceSure AI Operations` dashboard
 
 Create these widgets in Langfuse after the first live run:
 
@@ -58,7 +58,7 @@ The backend and its AI environment variables must be available while the evaluat
    ```
 
 3. Open `http://localhost:9090`.
-4. Generate traffic in VendorLens, then query `up` and metrics beginning with `vendorlens_`.
+4. Generate traffic in SourceSure AI, then query `up` and metrics beginning with `sourcesure_`.
 
 Prometheus scrapes the FastAPI `/metrics` endpoint. Use it to inspect request counts, errors, latency, AI calls, and dependency health.
 

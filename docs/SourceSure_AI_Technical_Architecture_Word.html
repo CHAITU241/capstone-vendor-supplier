@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>VendorLens Supplier Onboarding — Technical Architecture</title>
+  <title>SourceSure AI Supplier Onboarding — Technical Architecture</title>
   <style>
     @page { size: A4; margin: 0; }
     * { box-sizing: border-box; }
@@ -53,7 +53,7 @@
 <body>
 
   <section class="page">
-    <div class="eyebrow">VENDORLENS · TECHNICAL WORKING DOCUMENT</div>
+    <div class="eyebrow">SOURCESURE AI · TECHNICAL WORKING DOCUMENT</div>
     <h1>Supplier Onboarding<br>Technical Architecture</h1>
     <div class="subtitle">Implementation-level view of the application architecture, persistence model, document pipeline, and supplier-scoped retrieval-augmented generation.</div>
 
@@ -65,7 +65,7 @@
     </table>
 
     <h2>1. Architecture at a glance</h2>
-    <p>VendorLens manages a supplier from initial case creation through document intake, AI-assisted review, deterministic compliance, and a final human decision. The browser never calls an AI provider directly. FastAPI owns validation, redaction, AI orchestration, retrieval isolation, compliance, and audit recording.</p>
+    <p>SourceSure AI manages a supplier from initial case creation through document intake, AI-assisted review, deterministic compliance, and a final human decision. The browser never calls an AI provider directly. FastAPI owns validation, redaction, AI orchestration, retrieval isolation, compliance, and audit recording.</p>
 
     <div class="flow" aria-label="End-to-end supplier onboarding flow">
       <div class="flow-step"><span class="number">1</span>Create supplier case</div><div class="flow-arrow">→</div>
@@ -78,7 +78,7 @@
       <div class="flow-step"><span class="number">8</span>Mock ERP + audit</div>
     </div>
 
-    <img class="diagram system" src="assets/vendorlens-system-architecture.png" alt="VendorLens system and data architecture">
+    <img class="diagram system" src="assets/sourcesure-system-architecture.png" alt="SourceSure AI system and data architecture">
 
     <div class="callout teal"><strong>Design principle.</strong> AI produces extracted candidates and grounded answers; it does not approve suppliers. Every accepted answer must cite retrieved evidence, and every approval must pass deterministic checks plus explicit reviewer confirmation.</div>
 
@@ -88,7 +88,7 @@
         <td><strong>Application layer</strong><br>FastAPI/Uvicorn REST service with Pydantic contracts, SQLAlchemy persistence, document processing, AI orchestration, and review rules.</td>
       </tr>
     </table>
-    <div class="footer">VendorLens Supplier Onboarding · Technical Architecture · Page 1 of 4</div>
+    <div class="footer">SourceSure AI Supplier Onboarding · Technical Architecture · Page 1 of 4</div>
   </section>
 
   <section class="page">
@@ -122,14 +122,14 @@
     <h3>Canonical structured fields</h3>
     <p>The extraction model returns a schema-validated document type plus field name, value, page, and confidence at temperature zero. Null-like values are removed. Values below 0.75 confidence, classification mismatches, or invalid page references require review. Repeated fields are ranked by authoritative source—tax documents for tax identifiers and insurance documents for insurer/expiry data. Conflicts keep the preferred value but force human review.</p>
 
-    <div class="footer">VendorLens Supplier Onboarding · Technical Architecture · Page 2 of 4</div>
+    <div class="footer">SourceSure AI Supplier Onboarding · Technical Architecture · Page 2 of 4</div>
   </section>
 
   <section class="page">
     <h2>3. Retrieval-augmented generation (RAG)</h2>
     <p>The RAG design has two controlled phases: index construction when all three supplier documents are processed, and supplier-scoped retrieval when a question is asked.</p>
 
-    <img class="diagram rag" src="assets/vendorlens-rag-pipeline.png" alt="VendorLens RAG indexing and question pipeline">
+    <img class="diagram rag" src="assets/sourcesure-rag-pipeline.png" alt="SourceSure AI RAG indexing and question pipeline">
 
     <h3>Chunking methodology</h3>
     <table class="data">
@@ -147,7 +147,7 @@
 
     <div class="callout teal"><strong>Isolation and grounding.</strong> Filtering occurs inside the vector query before ranking results are consumed. Valid model labels are mapped back to the real filename, page, excerpt, and internal chunk ID. This prevents cross-supplier retrieval and rejects uncited model answers at the application boundary.</div>
 
-    <div class="footer">VendorLens Supplier Onboarding · Technical Architecture · Page 3 of 4</div>
+    <div class="footer">SourceSure AI Supplier Onboarding · Technical Architecture · Page 3 of 4</div>
   </section>
 
   <section class="page">
@@ -194,7 +194,7 @@
     <h3>Implementation references</h3>
     <p class="code">backend/app/services/{chunking.py,retrieval.py,processing.py,redaction.py}<br>backend/app/{models.py,vector_store.py,config.py} · compose.yaml · frontend/src/api/client.ts</p>
 
-    <div class="footer">VendorLens Supplier Onboarding · Technical Architecture · Page 4 of 4</div>
+    <div class="footer">SourceSure AI Supplier Onboarding · Technical Architecture · Page 4 of 4</div>
   </section>
 
 </body>

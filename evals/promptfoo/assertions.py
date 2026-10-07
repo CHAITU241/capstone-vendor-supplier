@@ -1,4 +1,4 @@
-"""Deterministic Promptfoo assertions for VendorLens API responses."""
+"""Deterministic Promptfoo assertions for SourceSure AI API responses."""
 
 from __future__ import annotations
 

@@ -1,9 +1,10 @@
-name: vendorlens
+name: sourcesure
 
 services:
   database:
     image: postgres:18-alpine
     environment:
+      # Stable internal identifiers preserve existing demo data across the rebrand.
       POSTGRES_DB: vendorlens
       POSTGRES_USER: vendorlens
       POSTGRES_PASSWORD: vendorlens
@@ -89,5 +90,8 @@ services:
 
 volumes:
   postgres_data:
+    name: vendorlens_postgres_data
   uploads_data:
+    name: vendorlens_uploads_data
   chroma_data:
+    name: vendorlens_chroma_data

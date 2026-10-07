@@ -1,4 +1,4 @@
-"""Generate the VendorLens supplier training document pack."""
+"""Generate the SourceSure AI supplier training document pack."""
 
 from pathlib import Path
 from textwrap import wrap
@@ -34,10 +34,10 @@ def new_document(title: str, subject: str) -> tuple[pymupdf.Document, pymupdf.Pa
     document.set_metadata(
         {
             "title": title,
-            "author": "VendorLens Document Generator",
+            "author": "SourceSure AI Document Generator",
             "subject": subject,
             "keywords": "supplier onboarding, training dataset",
-            "creator": "VendorLens AI",
+            "creator": "SourceSure AI",
             "producer": "PyMuPDF",
         }
     )

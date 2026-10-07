@@ -1,8 +1,8 @@
-# VendorLens AI — Project Blueprint
+# SourceSure AI — Project Blueprint
 
 ## Purpose
 
-VendorLens streamlines supplier onboarding by combining document extraction, retrieval-augmented Q&A, deterministic compliance rules, and human approval in one workflow.
+SourceSure AI streamlines supplier onboarding by combining document extraction, retrieval-augmented Q&A, deterministic compliance rules, and human approval in one workflow.
 
 ## Users and workflow
 

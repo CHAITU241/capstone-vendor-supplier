@@ -1,4 +1,4 @@
-"""Generate four coherent supplier packs for VendorLens quality evaluation."""
+"""Generate four coherent supplier packs for SourceSure AI quality evaluation."""
 
 import json
 from dataclasses import dataclass

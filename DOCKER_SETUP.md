@@ -1,4 +1,4 @@
-# VendorLens AI — Docker setup from a fresh clone
+# SourceSure AI — Docker setup from a fresh clone
 
 This guide starts the complete core application with Docker Compose:
 
@@ -122,7 +122,7 @@ docker compose logs -f
 
 Press `Ctrl+C` to stop following logs; the containers continue running in the background.
 
-## 6. Open and verify VendorLens
+## 6. Open and verify SourceSure AI
 
 - Application: `http://localhost:5173`
 - FastAPI documentation: `http://localhost:8000/docs`
@@ -200,10 +200,10 @@ docker compose exec database psql -U vendorlens -d vendorlens
 
 Named volumes preserve:
 
-- PostgreSQL records and audit history in `vendorlens_postgres_data`.
-- Uploaded source files in `vendorlens_uploads_data`.
+- PostgreSQL records and audit history in the stable internal volume `vendorlens_postgres_data`.
+- Uploaded source files in the stable internal volume `vendorlens_uploads_data`.
 - Originals removed from the active checklist remain in the same uploads volume and are listed as previous uploads. Replacements receive new document IDs and version numbers.
-- Chroma vectors in `vendorlens_chroma_data`.
+- Chroma vectors in the stable internal volume `vendorlens_chroma_data`.
 
 To inspect them:
 

@@ -129,13 +129,13 @@ export function SupplierAssistantPopover() {
   return <>
     {!open && <Fab color="primary" variant="extended" aria-label="Open onboarding help" onClick={() => setOpen(true)}
       sx={{ position: 'fixed', right: { xs: 16, sm: 24 }, bottom: { xs: 16, sm: 24 }, zIndex: (theme) => theme.zIndex.fab, gap: 1, px: 2.5, boxShadow: 4 }}>
-      <SupportAgentRoundedIcon /> Ask VendorLens
+      <SupportAgentRoundedIcon /> Ask SourceSure AI
     </Fab>}
     <Drawer anchor="right" open={open} onClose={() => setOpen(false)} PaperProps={{ sx: { width: { xs: '100%', sm: 480 }, maxWidth: '100vw', bgcolor: '#FAFBFF' } }}>
       <Stack sx={{ height: '100%' }}>
         <Stack direction="row" alignItems="center" spacing={1.5} sx={{ px: 2.5, py: 2, bgcolor: 'white', borderBottom: '1px solid', borderColor: 'divider' }}>
           <Box sx={{ width: 42, height: 42, display: 'grid', placeItems: 'center', bgcolor: '#EDE9FE', color: 'tertiary.main', borderRadius: 2 }}><SupportAgentRoundedIcon /></Box>
-          <Box sx={{ flexGrow: 1 }}><Typography fontWeight={750}>VendorLens guide</Typography><Typography variant="caption" color="text.secondary">{contextLabel ? `Reviewing ${contextLabel}` : 'Supplier onboarding help'}</Typography></Box>
+          <Box sx={{ flexGrow: 1 }}><Typography fontWeight={750}>SourceSure AI guide</Typography><Typography variant="caption" color="text.secondary">{contextLabel ? `Reviewing ${contextLabel}` : 'Supplier onboarding help'}</Typography></Box>
           <IconButton title="Clear saved chat and start again" aria-label="Clear saved chat and start again" onClick={() => void resetChat()} disabled={asking}><RefreshRoundedIcon /></IconButton>
           <IconButton title="Close assistant" aria-label="Close assistant" onClick={() => setOpen(false)}><CloseRoundedIcon /></IconButton>
         </Stack>
