@@ -141,6 +141,9 @@ def test_other_supplier_uses_baseline_documents_and_manual_policy_legal_checkpoi
                 files={"file": ("signed-scope.txt", b"Signed supporting scope", "text/plain")},
             )
             assert attachment.status_code == 201, attachment.text
+            attachment_id = attachment.json()["id"]
+            assert attachment.json()["ai_extraction_status"] == "not_configured"
+            assert attachment.json()["erp_fields"] == []
             review = client.post(
                 f"/api/suppliers/{supplier_id}/other-review",
                 headers=reviewer_headers,
@@ -150,6 +153,30 @@ def test_other_supplier_uses_baseline_documents_and_manual_policy_legal_checkpoi
             refreshed = client.get(f"/api/suppliers/{supplier_id}", headers=reviewer_headers).json()
             assert len(refreshed["additional_documents"]) == 1
             assert refreshed["other_review_completed_at"] is not None
+
+            deleted = client.delete(
+                f"/api/suppliers/{supplier_id}/additional-documents/{attachment_id}",
+                headers=reviewer_headers,
+            )
+            assert deleted.status_code == 204, deleted.text
+            refreshed = client.get(f"/api/suppliers/{supplier_id}", headers=reviewer_headers).json()
+            assert refreshed["additional_documents"] == []
+            assert refreshed["other_review_note"].startswith("Policy and Legal confirmed")
+            assert refreshed["other_review_completed_at"] is None
+
+            replacement = client.post(
+                f"/api/suppliers/{supplier_id}/additional-documents",
+                headers=reviewer_headers,
+                data={"verification_note": "Verified the replacement signed scope received by email."},
+                files={"file": ("replacement-signed-scope.txt", b"Replacement signed supporting scope", "text/plain")},
+            )
+            assert replacement.status_code == 201, replacement.text
+            rereview = client.post(
+                f"/api/suppliers/{supplier_id}/other-review",
+                headers=reviewer_headers,
+                json={"note": "Policy and Legal confirmed that the replacement evidence is sufficient."},
+            )
+            assert rereview.status_code == 200, rereview.text
     finally:
         app.dependency_overrides.clear()
         engine.dispose()

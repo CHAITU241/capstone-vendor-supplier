@@ -28,6 +28,7 @@ from app.services.portal_auth import require_reviewer
 from app.services.document_policy import required_types_for
 from app.services.documents import DocumentExtractionError, extract_document_text
 from app.services.openai_service import AIConfigurationError, build_openai_service
+from app.services.redaction import redact_pii, restore_placeholders
 from app.services.retrieval import delete_document_chunks, get_chunk_collection
 from app.services.upload_validation import UploadValidationError, validate_staged_upload
 
@@ -446,6 +447,50 @@ async def upload_additional_document(
     directory.mkdir(parents=True, exist_ok=True)
     path = directory / f"{document_id}{ALLOWED_CONTENT_TYPES[content_type]}"
     path.write_bytes(contents)
+    erp_fields: list[dict] = []
+    extraction_status = "not_configured"
+    extraction_error = None
+    text_extraction_method = None
+    ocr_quality_score = None
+    try:
+        extracted = extract_document_text(path, content_type, settings)
+        text_extraction_method = extracted.text_extraction_method
+        ocr_quality_score = extracted.ocr_quality_score
+        if settings.ai_configured:
+            extraction_status = "processing"
+            redaction = redact_pii(extracted.text)
+            result = build_openai_service(settings).extract_additional_evidence(
+                filename=filename,
+                redacted_text=redaction.text,
+            )
+            allowed_fields = {
+                "legal_name", "registered_address", "country", "tax_reference",
+                "contact_name", "contact_email", "bank_account_number", "bank_ifsc",
+                "insurance_provider", "insurance_expiry_date", "payment_terms",
+            }
+            best_fields: dict[str, dict] = {}
+            for field in result.value.fields:
+                if field.field_name not in allowed_fields or not field.value:
+                    continue
+                value = restore_placeholders(field.value, redaction.replacements).strip()
+                if not value:
+                    continue
+                candidate = {
+                    "field_name": field.field_name,
+                    "value": value[:1000],
+                    "page_number": min(field.page_number or 1, max(extracted.page_count, 1)),
+                    "confidence": round(field.confidence, 4),
+                }
+                current = best_fields.get(field.field_name)
+                if current is None or candidate["confidence"] > current["confidence"]:
+                    best_fields[field.field_name] = candidate
+            erp_fields = list(best_fields.values())
+            extraction_status = "ready"
+    except Exception as exc:
+        # This evidence was already checked by the reviewer. AI extraction is an
+        # ERP convenience and must not prevent the manual evidence from being retained.
+        extraction_status = "failed"
+        extraction_error = f"{type(exc).__name__}: ERP field extraction could not be completed."[:500]
     record = AdditionalDocument(
         id=document_id,
         supplier_id=supplier.id,
@@ -457,14 +502,29 @@ async def upload_additional_document(
         uploaded_by=reviewer,
         verification_note=note,
         verified_at=datetime.now(UTC),
+        erp_fields=erp_fields,
+        ai_extraction_status=extraction_status,
+        ai_extraction_error=extraction_error,
+        text_extraction_method=text_extraction_method,
+        ocr_quality_score=ocr_quality_score,
     )
+    # Evidence changes invalidate a previously recorded Policy/Legal outcome.
+    # The reviewer must record the outcome again against the current evidence set.
+    supplier.other_reviewed_by = None
+    supplier.other_review_completed_at = None
     db.add(record)
     db.add(AuditEvent(
         supplier_id=supplier.id,
         action="supplier.additional_evidence_attached",
         entity_type="additional_document",
         entity_id=str(record.id),
-        details={"filename": filename, "reviewer_name": reviewer, "manually_verified": True},
+        details={
+            "filename": filename,
+            "reviewer_name": reviewer,
+            "manually_verified": True,
+            "erp_extraction_status": extraction_status,
+            "erp_field_count": len(erp_fields),
+        },
     ))
     try:
         db.commit()
@@ -474,6 +534,51 @@ async def upload_additional_document(
         raise
     db.refresh(record)
     return record
+
+
+@router.delete(
+    "/{supplier_id}/additional-documents/{document_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def delete_additional_document(
+    supplier_id: uuid.UUID,
+    document_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> Response:
+    supplier = db.get(Supplier, supplier_id)
+    if supplier is None or supplier.submitted_at is None:
+        raise HTTPException(status_code=404, detail="Supplier was not found.")
+    if supplier.category != "OTHER":
+        raise HTTPException(status_code=409, detail="Additional evidence is available only for Other-category suppliers.")
+    if supplier.status in {SupplierStatus.APPROVED, SupplierStatus.REJECTED}:
+        raise HTTPException(status_code=409, detail="Evidence cannot be removed after the supplier is finalized.")
+    record = db.scalar(select(AdditionalDocument).where(
+        AdditionalDocument.id == document_id,
+        AdditionalDocument.supplier_id == supplier_id,
+    ))
+    if record is None:
+        raise HTTPException(status_code=404, detail="Additional evidence was not found.")
+    path = _private_file_path(record.storage_path, settings)
+    filename = record.filename
+    db.delete(record)
+    supplier.other_reviewed_by = None
+    supplier.other_review_completed_at = None
+    db.add(AuditEvent(
+        supplier_id=supplier.id,
+        action="supplier.additional_evidence_deleted",
+        entity_type="additional_document",
+        entity_id=str(document_id),
+        details={"filename": filename, "policy_legal_review_reset": True},
+    ))
+    db.commit()
+    try:
+        path.unlink(missing_ok=True)
+    except OSError:
+        # The database record is authoritative. A storage cleanup job can remove
+        # an orphaned file without resurrecting reviewer evidence in the workflow.
+        pass
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 def retry_text_extraction(

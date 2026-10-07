@@ -236,6 +236,11 @@ export interface AdditionalDocument {
   uploaded_by: string
   verification_note: string
   verified_at: string
+  erp_fields: Array<{ field_name: string; value: string; page_number: number; confidence: number }>
+  ai_extraction_status: 'pending' | 'processing' | 'ready' | 'failed' | 'not_configured'
+  ai_extraction_error: string | null
+  text_extraction_method: 'native' | 'ocr' | 'mixed' | null
+  ocr_quality_score: number | null
   created_at: string
 }
 

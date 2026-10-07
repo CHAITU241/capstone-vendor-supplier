@@ -107,6 +107,11 @@ class AdditionalDocumentRead(BaseModel):
     uploaded_by: str
     verification_note: str
     verified_at: datetime
+    erp_fields: list[dict] = Field(default_factory=list)
+    ai_extraction_status: str
+    ai_extraction_error: str | None = None
+    text_extraction_method: str | None = None
+    ocr_quality_score: float | None = None
     created_at: datetime
 
 

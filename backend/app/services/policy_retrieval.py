@@ -283,6 +283,16 @@ def reviewer_context_for(supplier: Supplier) -> str:
             f"Policy/Legal review recorded: {'Yes' if supplier.other_review_completed_at else 'No'}.",
             f"Reviewer-attached email evidence: {len(supplier.additional_documents)} file(s).",
         ])
+        for document in supplier.additional_documents:
+            lines.append(
+                f"- Reviewer-verified file {document.filename}: {document.verification_note} "
+                f"(ERP extraction {document.ai_extraction_status})."
+            )
+            for field in document.erp_fields or []:
+                lines.append(
+                    f"  ERP suggestion {field.get('field_name')}: {field.get('value')} "
+                    f"(page {field.get('page_number')}; confidence {float(field.get('confidence') or 0):.0%})."
+                )
     lines.extend(_case_facts(supplier, reviewer=True))
     return "\n".join(lines)[:22000]
 

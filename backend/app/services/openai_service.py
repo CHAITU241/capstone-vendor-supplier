@@ -46,6 +46,10 @@ class DocumentExtraction(BaseModel):
     policy_checks: list[PolicyCheckAssessment] = Field(min_length=2, max_length=2)
 
 
+class AdditionalEvidenceExtraction(BaseModel):
+    fields: list[ExtractedValue] = Field(default_factory=list, max_length=12)
+
+
 class GroundedAnswer(BaseModel):
     answer: str
     information_found: bool
@@ -171,6 +175,54 @@ class OpenAIService:
                         "field_names": [field.field_name for field in parsed.fields],
                         "field_count": len(parsed.fields),
                     },
+                    usage_details={"input": result.input_tokens, "output": result.output_tokens},
+                )
+                return result
+
+    def extract_additional_evidence(
+        self,
+        filename: str,
+        redacted_text: str,
+    ) -> ModelResult[AdditionalEvidenceExtraction]:
+        prompt = _read_prompt("additional_evidence_extraction_v1.txt")
+        input_metadata = {
+            "file_extension": Path(filename).suffix.lower() or "unknown",
+            "text_chars": len(redacted_text),
+            "feature": "reviewer_additional_evidence_extraction",
+        }
+        with observe_ai_call(
+            "supplier.additional_evidence.extraction", self.settings.active_extraction_model
+        ) as ai_metrics:
+            with self.tracer.generation(
+                name="supplier.additional_evidence.extraction",
+                model=self.settings.active_extraction_model,
+                input_data=self.tracer.input_payload(input_metadata, redacted_text),
+                metadata={**input_metadata, "prompt_version": "additional-evidence-extraction-v1"},
+            ) as generation:
+                response = self.client.beta.chat.completions.parse(
+                    model=self.settings.active_extraction_model,
+                    messages=[
+                        {"role": "system", "content": prompt},
+                        {"role": "user", "content": f"Filename: {filename}\n\n{redacted_text}"},
+                    ],
+                    response_format=AdditionalEvidenceExtraction,
+                    temperature=0,
+                    max_completion_tokens=self.settings.extraction_max_completion_tokens,
+                    **self._structured_output_options(),
+                )
+                parsed = response.choices[0].message.parsed
+                if parsed is None:
+                    raise AIResponseError("The extraction model returned no structured result.")
+                usage = response.usage
+                result = ModelResult(
+                    value=parsed,
+                    input_tokens=int(getattr(usage, "prompt_tokens", 0) or 0),
+                    output_tokens=int(getattr(usage, "completion_tokens", 0) or 0),
+                )
+                ai_metrics.input_tokens = result.input_tokens
+                ai_metrics.output_tokens = result.output_tokens
+                generation.update(
+                    output={"field_names": [field.field_name for field in parsed.fields]},
                     usage_details={"input": result.input_tokens, "output": result.output_tokens},
                 )
                 return result

@@ -155,6 +155,8 @@ export const api = {
     })
   },
   reviewerAdditionalOriginal: (supplierId: string, id: string) => originalFile(`/suppliers/${supplierId}/additional-documents/${id}/content`),
+  deleteAdditionalDocument: (supplierId: string, id: string) =>
+    request<void>(`/suppliers/${supplierId}/additional-documents/${id}`, { method: 'DELETE' }),
   processSupplier: (supplierId: string, refresh = false) =>
     request<ProcessSupplierResponse>(`/suppliers/${supplierId}/process${refresh ? '?refresh=true' : ''}`, {
       method: 'POST',

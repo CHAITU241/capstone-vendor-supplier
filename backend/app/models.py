@@ -248,6 +248,11 @@ class AdditionalDocument(Base):
     uploaded_by: Mapped[str] = mapped_column(String(100))
     verification_note: Mapped[str] = mapped_column(Text)
     verified_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    erp_fields: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list)
+    ai_extraction_status: Mapped[str] = mapped_column(String(20), default="pending")
+    ai_extraction_error: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    text_extraction_method: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    ocr_quality_score: Mapped[float | None] = mapped_column(Float, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

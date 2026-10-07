@@ -2,6 +2,7 @@ import uuid
 from datetime import date, datetime, timezone
 
 from app.models import (
+    AdditionalDocument,
     ComplianceStatus,
     Document,
     DocumentType,
@@ -395,6 +396,34 @@ def test_verified_ai_values_are_the_exact_erp_preview_values() -> None:
     preview = build_erp_preview(supplier)
     assert preview.payload["tax_reference"] == "VERIFIED-PAN-002"
     assert preview.sources["tax_reference"]["source"] == "reviewed_evidence"
+
+
+def test_reviewer_verified_additional_evidence_supplies_missing_erp_values() -> None:
+    supplier = ready_supplier()
+    supplier.additional_documents = [AdditionalDocument(
+        id=uuid.uuid4(),
+        supplier_id=supplier.id,
+        filename="signed-commercial-terms.pdf",
+        storage_path="uploads/signed-commercial-terms.pdf",
+        content_type="application/pdf",
+        file_size=100,
+        sha256="a" * 64,
+        uploaded_by="Demo reviewer",
+        verification_note="Verified the signed commercial terms.",
+        verified_at=datetime.now(timezone.utc),
+        erp_fields=[{
+            "field_name": "payment_terms",
+            "value": "Net 30",
+            "page_number": 2,
+            "confidence": 0.94,
+        }],
+        ai_extraction_status="ready",
+    )]
+
+    preview = build_erp_preview(supplier)
+
+    assert preview.payload["payment_terms"] == "Net 30"
+    assert preview.sources["payment_terms"]["source"] == "reviewer_verified_additional_evidence"
 
 
 def test_aster_cloudworks_style_happy_path_passes_after_human_review() -> None:

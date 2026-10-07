@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from app.models import DocumentType, ExtractedField, Supplier
+from app.models import AdditionalDocument, DocumentType, ExtractedField, Supplier
 
 
 @dataclass(frozen=True)
@@ -41,6 +41,29 @@ def _reviewed_field(supplier: Supplier, field_name: str) -> ExtractedField | Non
     return max(candidates, key=rank)
 
 
+def _additional_erp_field(
+    supplier: Supplier, field_name: str,
+) -> tuple[dict, AdditionalDocument] | None:
+    """Return the strongest ERP suggestion from manually verified supporting evidence."""
+    candidates: list[tuple[dict, AdditionalDocument]] = []
+    for document in supplier.additional_documents:
+        if document.ai_extraction_status != "ready":
+            continue
+        for field in document.erp_fields or []:
+            if (
+                field.get("field_name") == field_name
+                and field.get("value") not in {None, ""}
+                and float(field.get("confidence") or 0) >= 0.75
+            ):
+                candidates.append((field, document))
+    if not candidates:
+        return None
+    return max(
+        candidates,
+        key=lambda item: (float(item[0].get("confidence") or 0), item[1].verified_at),
+    )
+
+
 def build_erp_preview(supplier: Supplier) -> ErpPreview:
     payload: dict = {}
     sources: dict[str, dict] = {}
@@ -59,7 +82,19 @@ def build_erp_preview(supplier: Supplier) -> ErpPreview:
     def reviewed_or_supplier(field_name: str, extracted_name: str, fallback) -> None:
         field = _reviewed_field(supplier, extracted_name)
         if field is None:
-            supplier_value(field_name, fallback)
+            additional = _additional_erp_field(supplier, field_name)
+            if additional is None:
+                supplier_value(field_name, fallback)
+                return
+            extracted, document = additional
+            payload[field_name] = extracted["value"]
+            sources[field_name] = {
+                "source": "reviewer_verified_additional_evidence",
+                "label": "AI-extracted from reviewer-verified evidence",
+                "additional_document_id": str(document.id),
+                "confidence": extracted.get("confidence"),
+                "page_number": extracted.get("page_number"),
+            }
             return
         payload[field_name] = field.value
         sources[field_name] = {

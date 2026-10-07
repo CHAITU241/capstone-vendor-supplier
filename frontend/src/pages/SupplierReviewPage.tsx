@@ -4,6 +4,7 @@ import AttachFileRoundedIcon from '@mui/icons-material/AttachFileRounded'
 import BlockRoundedIcon from '@mui/icons-material/BlockRounded'
 import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded'
 import DescriptionRoundedIcon from '@mui/icons-material/DescriptionRounded'
+import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
 import DoneAllRoundedIcon from '@mui/icons-material/DoneAllRounded'
 import EditRoundedIcon from '@mui/icons-material/EditRounded'
 import ExpandLessRoundedIcon from '@mui/icons-material/ExpandLessRounded'
@@ -133,6 +134,7 @@ export function SupplierReviewPage() {
   const [confirmAllOpen, setConfirmAllOpen] = useState(false)
   const [otherReviewNote, setOtherReviewNote] = useState('')
   const [additionalVerificationNote, setAdditionalVerificationNote] = useState('')
+  const [additionalDocumentToDelete, setAdditionalDocumentToDelete] = useState<string | null>(null)
 
   const loadSupplier = useCallback(async (options: { includeHistory?: boolean; validateErp?: boolean } = {}) => {
     const { includeHistory = true, validateErp = true } = options
@@ -170,7 +172,7 @@ export function SupplierReviewPage() {
   useEffect(() => { void loadSupplier() }, [loadSupplier])
 
   useEffect(() => {
-    if (supplier?.category === 'OTHER' && supplier.other_review_note) setOtherReviewNote(supplier.other_review_note)
+    if (supplier?.category === 'OTHER') setOtherReviewNote(supplier.other_review_note ?? '')
   }, [supplier?.category, supplier?.other_review_note])
 
   const orderedEvidence = useMemo(() => {
@@ -264,12 +266,27 @@ export function SupplierReviewPage() {
     } finally { setBusy(false) }
   }
 
+  async function deleteAdditionalDocument() {
+    if (!additionalDocumentToDelete) return
+    const deleted = await runAction(
+      () => api.deleteAdditionalDocument(supplierId, additionalDocumentToDelete),
+      'Reviewer-added evidence removed. Record the Policy and Legal outcome again after attaching the correct evidence.',
+    )
+    if (deleted) {
+      setAdditionalDocumentToDelete(null)
+      setAdditionalVerificationNote('')
+    }
+  }
+
   async function completeOtherReview() {
     if (otherReviewNote.trim().length < 10) return
     if (await runAction(
       () => api.completeOtherReview(supplierId, otherReviewNote.trim()),
       'Policy and Legal review outcome recorded. ERP hand-off can proceed after the remaining checks pass.',
-    )) setOtherReviewNote(otherReviewNote.trim())
+    )) {
+      setOtherReviewNote(otherReviewNote.trim())
+      setAdditionalVerificationNote('')
+    }
   }
 
   async function runAction(action: () => Promise<unknown>, success: string): Promise<boolean> {
@@ -541,14 +558,16 @@ export function SupplierReviewPage() {
           <Stack spacing={2.25}>
             <Box><Stack direction="row" spacing={1} alignItems="center"><FactCheckRoundedIcon color="warning" /><Typography variant="h6">Tailored category review</Typography><Chip size="small" color={supplier.other_review_completed_at ? 'success' : 'warning'} label={supplier.other_review_completed_at ? 'Policy / Legal review recorded' : 'Policy / Legal review required'} /></Stack>
               <Typography variant="body2" color="text.secondary" sx={{ mt: .75 }}>The supplier uploaded the three BASE documents because no listed category fit. Use this note to consult Policy and Legal; the case assistant also has this context.</Typography></Box>
-            <Box sx={{ p: 2, bgcolor: 'action.hover', borderRadius: 2 }}><Typography variant="caption" color="text.secondary" fontWeight={700}>SUPPLIER SERVICE NOTE</Typography><Typography sx={{ mt: .5, whiteSpace: 'pre-wrap' }}>{supplier.service_description || 'No description was provided.'}</Typography></Box>
+            <Box>
+              <TextField fullWidth label="Policy / Legal review outcome" value={otherReviewNote} onChange={(event) => setOtherReviewNote(event.target.value)} multiline minRows={3} disabled={finalized} helperText="Saved in PostgreSQL on this supplier's review record, with reviewer and time recorded in the audit trail." />
+              {!finalized && <Button variant="contained" color="warning" sx={{ mt: 1.5 }} disabled={busy || otherReviewNote.trim().length < 10} onClick={() => void completeOtherReview()}>{supplier.other_review_completed_at ? 'Update review outcome' : 'Record Policy / Legal review complete'}</Button>}
+            </Box>
             <Divider />
             <Box><Typography fontWeight={750}>Verified evidence received by email</Typography><Typography variant="body2" color="text.secondary">Attach documents only after manually checking them. These files are retained separately from AI-processed policy requirements.</Typography></Box>
-            {supplier.additional_documents.length > 0 && <Stack spacing={1}>{supplier.additional_documents.map((document) => <Stack key={document.id} direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ sm: 'center' }} spacing={1} sx={{ p: 1.5, border: 1, borderColor: 'divider', borderRadius: 1.5 }}><Box><Typography fontWeight={650}>{document.filename}</Typography><Typography variant="caption" color="text.secondary">Verified by {document.uploaded_by} · {new Date(document.verified_at).toLocaleString()} · {document.verification_note}</Typography></Box><Button size="small" onClick={() => void viewAdditionalDocument(document.id)}>View</Button></Stack>)}</Stack>}
             {!finalized && <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} alignItems={{ md: 'flex-start' }}><TextField fullWidth size="small" label="What did you verify?" value={additionalVerificationNote} onChange={(event) => setAdditionalVerificationNote(event.target.value)} helperText="At least 10 characters; saved in the audit trail." /><Button component="label" variant="outlined" startIcon={busy ? <CircularProgress size={16} /> : <AttachFileRoundedIcon />} disabled={busy || additionalVerificationNote.trim().length < 10} sx={{ minWidth: 220 }}>{busy ? 'Attaching…' : 'Attach verified evidence'}<input hidden type="file" accept="application/pdf,image/png,image/jpeg,text/plain,.pdf,.png,.jpg,.jpeg,.txt" onChange={(event) => void uploadAdditionalDocument(event)} /></Button></Stack>}
-            <Divider />
-            <TextField label="Policy / Legal review outcome" value={otherReviewNote} onChange={(event) => setOtherReviewNote(event.target.value)} multiline minRows={3} disabled={finalized} helperText="Record the category decision, additional requirements, or why the BASE documents are sufficient." />
-            {!finalized && <Button variant="contained" color="warning" sx={{ alignSelf: 'flex-start' }} disabled={busy || otherReviewNote.trim().length < 10} onClick={() => void completeOtherReview()}>{supplier.other_review_completed_at ? 'Update review outcome' : 'Record Policy / Legal review complete'}</Button>}
+            {supplier.additional_documents.length > 0 && <Stack spacing={1}>{supplier.additional_documents.map((document) => <Stack key={document.id} direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ sm: 'center' }} spacing={1} sx={{ p: 1.5, border: 1, borderColor: 'divider', borderRadius: 1.5 }}><Box><Typography fontWeight={650}>{document.filename}</Typography><Typography variant="caption" color="text.secondary">Verified by {document.uploaded_by} · {new Date(document.verified_at).toLocaleString()} · {document.verification_note}</Typography></Box><Stack direction="row" spacing={.5}><Button size="small" onClick={() => void viewAdditionalDocument(document.id)}>View</Button>{!finalized && <Button size="small" color="error" startIcon={<DeleteOutlineRoundedIcon />} disabled={busy} onClick={() => setAdditionalDocumentToDelete(document.id)}>Delete</Button>}</Stack></Stack>)}</Stack>}
+            <Box sx={{ p: 2, bgcolor: 'action.hover', borderRadius: 2 }}><Typography variant="caption" color="text.secondary" fontWeight={700}>SUPPLIER SERVICE NOTE</Typography><Typography sx={{ mt: .5, whiteSpace: 'pre-wrap' }}>{supplier.service_description || 'No description was provided.'}</Typography></Box>
+            <Alert severity="info">AI extracts ERP-useful suggestions from these files, but no compliance checks are created because the evidence was manually reviewed.</Alert>
           </Stack>
         </CardContent>
       </Card>}
@@ -575,6 +594,22 @@ export function SupplierReviewPage() {
         <CardContent sx={{ p: { xs: 2.5, md: 4 } }}>
           <Stack direction="row" spacing={1} alignItems="center"><FactCheckRoundedIcon color="primary" /><Typography variant="h6">Requirement review</Typography></Stack>
           <Typography color="text.secondary" variant="body2" sx={{ mt: .5 }}>Review the document, policy findings, and extracted values together. Confirm or flag the requirement without leaving its card.</Typography>
+          {supplier.category === 'OTHER' && <Box sx={{ mt: 2.5, p: 2, border: 1, borderColor: 'info.main', borderRadius: 2.5, bgcolor: 'rgba(2,136,209,.04)' }}>
+            <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={1}>
+              <Box><Typography fontWeight={750}>Manually reviewed supporting evidence</Typography><Typography variant="body2" color="text.secondary">Reviewer-added files are visible here for completeness. They produce ERP suggestions only and do not create policy checks.</Typography></Box>
+              <Chip size="small" color={supplier.additional_documents.length ? 'success' : 'default'} label={`${supplier.additional_documents.length} file${supplier.additional_documents.length === 1 ? '' : 's'} added`} sx={{ alignSelf: { xs: 'flex-start', sm: 'center' } }} />
+            </Stack>
+            {supplier.additional_documents.length === 0 ? <Alert severity="info" sx={{ mt: 1.5 }}>No additional evidence has been attached by the reviewer.</Alert> : <Stack spacing={1.25} sx={{ mt: 1.5 }}>
+              {supplier.additional_documents.map((document) => <Box key={document.id} sx={{ p: 1.5, bgcolor: 'background.paper', border: 1, borderColor: 'divider', borderRadius: 1.5 }}>
+                <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={1}>
+                  <Box><Typography fontWeight={700}>{document.filename}</Typography><Typography variant="caption" color="text.secondary">Manual verification: {document.verification_note}</Typography></Box>
+                  <Stack direction="row" spacing={.5} alignItems="center"><Chip size="small" color={document.ai_extraction_status === 'ready' ? 'success' : document.ai_extraction_status === 'failed' ? 'warning' : 'default'} label={`ERP extraction ${displayStatus(document.ai_extraction_status)}`} /><Button size="small" onClick={() => void viewAdditionalDocument(document.id)}>View</Button>{!finalized && <Button size="small" color="error" onClick={() => setAdditionalDocumentToDelete(document.id)}>Delete</Button>}</Stack>
+                </Stack>
+                {document.ai_extraction_error && <Typography variant="caption" color="warning.dark" display="block" sx={{ mt: .75 }}>{document.ai_extraction_error} The manually verified file remains valid.</Typography>}
+                {document.erp_fields.length > 0 && <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' }, gap: 1, mt: 1.25 }}>{document.erp_fields.map((field) => <Box key={field.field_name} sx={{ p: 1, borderRadius: 1, bgcolor: 'action.hover' }}><Typography variant="caption" color="text.secondary" fontWeight={700}>{fieldLabel(field.field_name)}</Typography><Typography variant="body2" fontWeight={650} sx={{ overflowWrap: 'anywhere' }}>{field.value}</Typography><Typography variant="caption" color={field.confidence >= .75 ? 'text.secondary' : 'warning.dark'}>page {field.page_number} · {Math.round(field.confidence * 100)}% AI confidence · {field.confidence >= .75 ? 'available to ERP' : 'below ERP-use threshold'}</Typography></Box>)}</Box>}
+              </Box>)}
+            </Stack>}
+          </Box>}
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' }, gap: 1, my: 2.5 }}>
             {filterOptions.map((option) => {
               const count = orderedEvidence.filter((item) => item.status === option.key).length
@@ -646,6 +681,7 @@ export function SupplierReviewPage() {
       <Dialog open={flagDocumentId !== null} onClose={() => !busy && !flagDraftLoading && setFlagDocumentId(null)} fullWidth maxWidth="sm"><DialogTitle>Flag requirement for follow-up</DialogTitle><DialogContent><Stack spacing={2} sx={{ pt: 1 }}><DialogContentText>The portal drafts a grounded reason from the current policy findings. Review or edit it before saving; the human reviewer remains responsible for the flag.</DialogContentText>{flagDraftLoading ? <Alert severity="info" icon={<CircularProgress size={18} />}>Drafting a reason from this document’s findings and the applicable policy…</Alert> : flagDraftSource && <Alert severity={flagDraftSource === 'ai_rag' ? 'success' : 'info'}>{flagDraftSource === 'ai_rag' ? 'AI draft generated from the calculated findings and retrieved policy.' : 'A safe draft was generated from the calculated findings.'}</Alert>}<TextField label="Reason" value={flagReason} onChange={(event) => setFlagReason(event.target.value)} multiline minRows={3} autoFocus disabled={flagDraftLoading} /></Stack></DialogContent><DialogActions><Button onClick={() => { setFlagDocumentId(null); setFlagDraftSource(null) }} disabled={busy || flagDraftLoading}>Cancel</Button><Button color="error" variant="contained" onClick={() => void submitFlag()} disabled={busy || flagDraftLoading || flagReason.trim().length < 5}>{busy ? 'Saving...' : 'Flag requirement'}</Button></DialogActions></Dialog>
       <Dialog open={confirmAllOpen} onClose={() => !busy && setConfirmAllOpen(false)} fullWidth maxWidth="sm"><DialogTitle>Confirm all ready requirements?</DialogTitle><DialogContent><Stack spacing={2} sx={{ pt: 1 }}><DialogContentText>This will confirm {readyRequirements.length} requirement{readyRequirements.length === 1 ? '' : 's'} whose policy checks are matched and whose processing is complete.</DialogContentText><Alert severity="warning">Confirm only after comparing these documents with their extracted values. Items requiring OCR or human attention are excluded automatically.</Alert></Stack></DialogContent><DialogActions><Button onClick={() => setConfirmAllOpen(false)} disabled={busy}>Cancel</Button><Button color="success" variant="contained" startIcon={busy ? <CircularProgress size={17} /> : <DoneAllRoundedIcon />} onClick={() => void confirmAllReady()} disabled={busy || readyRequirements.length === 0}>{busy ? 'Confirming…' : `Confirm ${readyRequirements.length}`}</Button></DialogActions></Dialog>
       <Dialog open={decisionAction !== null} onClose={() => !busy && setDecisionAction(null)} fullWidth maxWidth="sm"><DialogTitle>{decisionAction === 'approve' ? 'Approve and send to ERP for approval?' : 'Reject supplier?'}</DialogTitle><DialogContent>{decisionAction === 'approve' ? <DialogContentText>This records the human decision, submits the proposed supplier record to the mock ERP approval workflow, and locks the review. The portal reference remains the onboarding identifier; the downstream ERP workflow returns a separate record ID and final Vendor ID for the Vendor Master.</DialogContentText> : <Stack spacing={2} sx={{ pt: 1 }}><DialogContentText>Provide an auditable rejection reason. Nothing will be sent to ERP.</DialogContentText><TextField label="Rejection reason" value={rejectionReason} onChange={(event) => setRejectionReason(event.target.value)} multiline minRows={3} autoFocus /></Stack>}</DialogContent><DialogActions><Button onClick={() => setDecisionAction(null)} disabled={busy}>Cancel</Button><Button color={decisionAction === 'approve' ? 'success' : 'error'} variant="contained" onClick={() => void saveDecision()} disabled={busy || (decisionAction === 'reject' && rejectionReason.trim().length < 10)}>{busy ? 'Saving decision...' : decisionAction === 'approve' ? 'Approve and send' : 'Confirm rejection'}</Button></DialogActions></Dialog>
+      <Dialog open={additionalDocumentToDelete !== null} onClose={() => !busy && setAdditionalDocumentToDelete(null)} fullWidth maxWidth="sm"><DialogTitle>Delete reviewer-added evidence?</DialogTitle><DialogContent><DialogContentText>The file and its AI-extracted ERP suggestions will be removed. If a Policy and Legal outcome was already recorded, it will be cleared so the decision can be recorded again against the correct evidence.</DialogContentText></DialogContent><DialogActions><Button onClick={() => setAdditionalDocumentToDelete(null)} disabled={busy}>Cancel</Button><Button color="error" variant="contained" startIcon={<DeleteOutlineRoundedIcon />} disabled={busy} onClick={() => void deleteAdditionalDocument()}>{busy ? 'Deleting…' : 'Delete evidence'}</Button></DialogActions></Dialog>
       <ErpRecordDialog open={showErpRecord} record={erpRecord} onClose={() => setShowErpRecord(false)} />
     </Stack>
   )
