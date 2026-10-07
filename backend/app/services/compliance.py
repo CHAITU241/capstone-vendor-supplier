@@ -166,27 +166,63 @@ def _evaluate_policy_compliance(
     baseline_name = baseline_name_field.value if baseline_name_field else None
 
     outcomes: list[RuleOutcome] = []
+    processed_requirement_ids: set[str] = set()
     for item in checklist.documents:
-        document = next(
-            (candidate for candidate in supplier.documents
-             if candidate.document_type == item.document_type),
-            None,
-        )
-        expected_fields = required_extraction_field_names(item.document_type)
-        document_fields = fields_by_document.get(document.id, {}) if document else {}
+        # Some policy requirements intentionally consist of multiple physical
+        # evidence files. Evaluate their numbered checks once against the union
+        # of those files while keeping each file independently reviewable.
+        if item.requirement_id in processed_requirement_ids:
+            continue
+        processed_requirement_ids.add(item.requirement_id)
+        requirement_items = [
+            candidate for candidate in checklist.documents
+            if candidate.requirement_id == item.requirement_id
+        ]
+        requirement_documents = [
+            document
+            for requirement_item in requirement_items
+            for document in supplier.documents
+            if document.document_type == requirement_item.document_type
+        ]
+        document = requirement_documents[0] if requirement_documents else None
+        expected_fields = list(dict.fromkeys(
+            field_name
+            for requirement_item in requirement_items
+            for field_name in required_extraction_field_names(requirement_item.document_type)
+        ))
+        document_fields = {
+            field_name: field
+            for requirement_document in requirement_documents
+            for field_name, field in fields_by_document.get(requirement_document.id, {}).items()
+        }
         found_fields = set(document_fields)
         missing_fields = sorted(set(expected_fields) - found_fields)
+        evidence_complete = (
+            len(requirement_documents) == len(requirement_items)
+            and all(
+                candidate.processing_status == ProcessingStatus.READY
+                for candidate in requirement_documents
+            )
+        )
+        extraction_failed = any(
+            candidate.ai_extraction_status == "failed"
+            for candidate in requirement_documents
+        )
+        all_documents_verified = bool(requirement_documents) and all(
+            candidate.review_status == "verified"
+            for candidate in requirement_documents
+        )
 
         for check_number, check_text in enumerate(item.checks, start=1):
             cited_fields: list[str] = []
             cited_page = None
             assessment_method = "deterministic"
-            if document is None or document.processing_status != ProcessingStatus.READY:
+            if not evidence_complete:
                 status = ComplianceStatus.FAIL
                 message = "Required evidence is missing or unreadable."
                 ai_assessment = "not_matched"
                 ai_reason = message
-            elif document.ai_extraction_status == "failed":
+            elif extraction_failed:
                 assessment_method = "human_required"
                 status = ComplianceStatus.NEEDS_REVIEW
                 message = "AI assessment is unavailable; verify this check directly against the original evidence."
@@ -207,7 +243,14 @@ def _evaluate_policy_compliance(
                     portal_bank_ifsc=supplier.bank_ifsc,
                     evaluation_date=evaluation_date,
                 )
-                assessment = assessment_lookup.get((str(document.id), check_number))
+                assessments = [
+                    assessment_lookup.get((str(candidate.id), check_number))
+                    for candidate in requirement_documents
+                ]
+                assessment = next(
+                    (candidate for candidate in assessments if candidate and candidate.get("result") != "human_review"),
+                    next((candidate for candidate in assessments if candidate), None),
+                )
                 if objective is not None:
                     cited_fields = [name for name in objective.evidence_fields if name in document_fields]
                     assessment_result = objective.result
@@ -260,7 +303,7 @@ def _evaluate_policy_compliance(
                 # the calculated finding or the evidence shown beside it. A verified
                 # document promotes the check to pass; a flagged document is blocked
                 # separately by REVIEW.FLAGGED_DOCUMENTS below.
-                if document.review_status == "verified":
+                if all_documents_verified:
                     assessment_method = "reviewer"
                     status = ComplianceStatus.PASS
                     message = "Reviewer verified this numbered policy check against the original evidence."
@@ -288,7 +331,12 @@ def _evaluate_policy_compliance(
                     "check_text": check_text,
                     "source": item.source,
                     "document_id": str(document.id) if document else None,
-                    "review_status": document.review_status if document else "missing",
+                    "document_ids": [str(candidate.id) for candidate in requirement_documents],
+                    "review_status": (
+                        "verified" if all_documents_verified
+                        else "disputed" if any(candidate.review_status == "disputed" for candidate in requirement_documents)
+                        else "pending"
+                    ),
                     "ai_assessment": ai_assessment,
                     "ai_reason": ai_reason,
                     "assessment_method": assessment_method,

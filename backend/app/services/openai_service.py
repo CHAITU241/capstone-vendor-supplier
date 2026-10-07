@@ -109,7 +109,8 @@ class OpenAIService:
         definition = load_policy().requirements.get(requirement_id)
         allowed_fields = extraction_field_names(expected_type)
         if definition:
-            prompt += (f"\nExpected policy item: {requirement_id} ({definition.label})."
+            prompt += (f"\nExpected upload slot: {expected_type.value}."
+                       f" Expected policy item: {requirement_id} ({definition.label})."
                        f" Accepted evidence: {definition.accepted_evidence}"
                        f" Required fields: {definition.required_fields}"
                        f" Policy check 1: {definition.checks[0]}"

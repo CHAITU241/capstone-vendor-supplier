@@ -49,6 +49,7 @@ class DocumentType(str, enum.Enum):
     FOOD_002 = "FOOD-002"
     EVENT_001 = "EVENT-001"
     TRANS_001 = "TRANS-001"
+    TRANS_001_DECLARATION = "TRANS-001-DECL"
     STORE_001 = "STORE-001"
     PROD_001 = "PROD-001"
     PAY_001 = "PAY-001"

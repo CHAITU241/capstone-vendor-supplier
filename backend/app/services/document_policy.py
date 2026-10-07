@@ -119,6 +119,36 @@ def checklist_for(supplier: Supplier) -> Checklist:
     documents = []
     for code in policy.baseline + subcategory.requirements:
         definition = policy.requirements[code]
+        if code == "TRANS-001":
+            documents.extend((
+                RequiredDocument(
+                    document_type=DocumentType.TRANS_001,
+                    requirement_id=code,
+                    label="Cargo and transit insurance certificate",
+                    why=definition.why,
+                    accepted_evidence="Cargo/transit insurance certificate.",
+                    required_fields=(
+                        "Supplier legal name; insurer; policy number; cargo cover in INR; "
+                        "policy effective and expiry dates."
+                    ),
+                    checks=definition.checks,
+                    source=definition.source,
+                ),
+                RequiredDocument(
+                    document_type=DocumentType.TRANS_001_DECLARATION,
+                    requirement_id=code,
+                    label="Signed custody-control declaration",
+                    why="Establish how goods are tracked and controlled while in the supplier's custody.",
+                    accepted_evidence="Signed custody-control declaration.",
+                    required_fields=(
+                        "Supplier legal name; tracking method; custody owner; loss notice interval; "
+                        "declaration date."
+                    ),
+                    checks=definition.checks,
+                    source=definition.source,
+                ),
+            ))
+            continue
         documents.append(RequiredDocument(
             document_type=BASE_TYPES[code] if code in BASE_TYPES else DocumentType(code),
             requirement_id=code, **definition.model_dump(),
@@ -146,6 +176,23 @@ CONDITIONAL_EXTRACTION_FIELDS: dict[str, set[str]] = {
     },
 }
 
+TRANS_001_FIELDS: dict[DocumentType, tuple[str, ...]] = {
+    DocumentType.TRANS_001: (
+        "supplier_name",
+        "insurance_provider",
+        "policy_number",
+        "cargo_cover_in_inr",
+        "policy_effective_and_expiry_dates",
+    ),
+    DocumentType.TRANS_001_DECLARATION: (
+        "supplier_name",
+        "tracking_method",
+        "custody_owner",
+        "loss_notice_interval",
+        "declaration_date",
+    ),
+}
+
 
 def _field_key(label: str, document_type: DocumentType) -> str:
     key = re.sub(r"[^a-z0-9]+", "_", label.casefold()).strip("_")
@@ -170,6 +217,8 @@ def _field_key(label: str, document_type: DocumentType) -> str:
 
 def extraction_field_names(document_type: DocumentType) -> list[str]:
     """Return only fields explicitly required by the applicable policy item."""
+    if document_type in TRANS_001_FIELDS:
+        return list(TRANS_001_FIELDS[document_type])
     requirement_id = requirement_id_for_document_type(document_type)
     definition = load_policy().requirements.get(requirement_id)
     return list(dict.fromkeys(
@@ -180,6 +229,8 @@ def extraction_field_names(document_type: DocumentType) -> list[str]:
 
 
 def requirement_id_for_document_type(document_type: DocumentType) -> str:
+    if document_type == DocumentType.TRANS_001_DECLARATION:
+        return "TRANS-001"
     return next(
         (code for code, kind in BASE_TYPES.items() if kind == document_type),
         document_type.value,

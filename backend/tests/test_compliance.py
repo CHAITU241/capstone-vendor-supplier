@@ -456,3 +456,44 @@ def test_aster_cloudworks_style_happy_path_passes_after_human_review() -> None:
     assert len(policy_checks) == 14
     assert all(outcome.status == ComplianceStatus.PASS for outcome in outcomes)
     assert approval_ready(outcomes) is True
+
+
+def test_transport_checks_combine_insurance_and_declaration_without_duplicates() -> None:
+    supplier = Supplier(
+        id=uuid.uuid4(),
+        name=SUPPLIER_NAME,
+        country="India",
+        category="LOG",
+        subcategory="LOG-COU",
+    )
+    supplier.documents = [
+        document(item.document_type) for item in checklist_for(supplier).documents
+    ]
+    by_type = {item.document_type: item for item in supplier.documents}
+    insurance = by_type[DocumentType.TRANS_001]
+    declaration = by_type[DocumentType.TRANS_001_DECLARATION]
+    supplier.extracted_fields = [
+        field(supplier, insurance, "supplier_name", SUPPLIER_NAME),
+        field(supplier, insurance, "insurance_provider", "Aster Demo Insurance"),
+        field(supplier, insurance, "policy_number", "DEMO-POL-0064-TRA"),
+        field(supplier, insurance, "cargo_cover_in_inr", "5500000"),
+        field(supplier, insurance, "policy_effective_and_expiry_dates", "2026-06-21 to 2027-01-17"),
+        field(supplier, declaration, "supplier_name", SUPPLIER_NAME),
+        field(supplier, declaration, "tracking_method", "GPS parcel scan tracking"),
+        field(supplier, declaration, "custody_owner", "Head of Delivery Operations"),
+        field(supplier, declaration, "loss_notice_interval", "12 hours"),
+        field(supplier, declaration, "declaration_date", "2026-09-01"),
+    ]
+
+    outcomes = evaluate_compliance(supplier, today=date(2026, 9, 19))
+    transport_checks = [
+        item for item in outcomes
+        if item.evidence.get("requirement_id") == "TRANS-001"
+    ]
+
+    assert [item.rule_code for item in transport_checks] == [
+        "TRANS-001.CHECK-1",
+        "TRANS-001.CHECK-2",
+    ]
+    assert all(item.status == ComplianceStatus.PASS for item in transport_checks)
+    assert all(len(item.evidence["document_ids"]) == 2 for item in transport_checks)
