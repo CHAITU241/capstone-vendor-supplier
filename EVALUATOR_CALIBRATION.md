@@ -41,4 +41,4 @@ All 50 stress cases remain in the **pending human semantic audit** queue, includ
 
 Docker and provider credentials are unavailable in this authoring environment. No new live evaluation is claimed or required for a scoring-only correction. Run the documented offline reassessment locally against the saved JSON, or a fresh full evaluation if new model observations are wanted.
 
-Validation for this commit: **351 backend tests passed** (including 52 new regression cases); full manifest/PDF/hash/actual-OCR preflight passed; whitespace checks passed. Frontend and production RAG code are unchanged.
+Latest validation: **356 backend tests passed** (including 52 grading regressions and five evaluation-isolation checks); full manifest/PDF/hash/actual-OCR preflight passed; whitespace checks passed. Frontend and production RAG code are unchanged.

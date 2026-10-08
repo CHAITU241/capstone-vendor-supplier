@@ -1,3 +1,10 @@
+## 2026-10-08 — Isolate evaluation suppliers from the reviewer worklist
+
+- Added a non-null `Supplier.is_evaluation` flag, default false, set explicitly by the evaluator through the existing reviewer-authenticated creation API. Normal portal applications and reviewer-created suppliers retain their default visibility. The reviewer list excludes evaluation records, so its list-derived counts remain clean.
+- Startup migration `0022_evaluation_suppliers` marks all existing runs of the pinned 15 evaluation suppliers using exact synthetic name/contact pairs, country India and absent portal account/category/subcategory. It preserves all IDs, documents, statuses and review/evaluation records; lookalike or account-backed applications remain visible.
+- Validation: 356 backend tests passed; actual upgrade/backfill/downgrade tested against preserved rows, PostgreSQL migration SQL checked, and Alembic has a single head.
+- Evaluation access by ID and owner admin records remain available. The runner checks acknowledgement of its marker and stops on an outdated backend rather than continuing an unisolated run. No scoring contracts, corpus files, model prompts or saved report observations changed.
+
 ## 2026-10-08 — Six saved-run scoring corrections, evaluator v4
 
 - Manifest v5 scoring revision 2 accepts only three declared corroborating pages, one standalone monetary answer and two clear coverage denials. Primary citations, monetary values, dates and all originals/question identities remain unchanged; the original v5 revision 1 manifest is pinned.

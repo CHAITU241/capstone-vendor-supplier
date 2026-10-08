@@ -159,7 +159,7 @@ def test_upload_failure_is_incomplete_pipeline_run_not_wrong_rag_answer(monkeypa
     def fake_request(method,url,**kwargs):
         if url.endswith('/health'):return {'status':'healthy'}
         if '/portal/auth/' in url:return {'token':'demo'}
-        if url.endswith('/suppliers'):return {'id':'supplier'}
+        if url.endswith('/suppliers'):return {'id':'supplier','is_evaluation':True}
         raise AssertionError('Do not call processing or Q&A after rejected intake')
     monkeypatch.setattr('scripts.run_quality_evaluation.request_json',fake_request)
     def failed_upload(*args,**kwargs):raise RuntimeError('Upload rejected: scan quality')

@@ -347,7 +347,10 @@ def reviewer_headers(
 
 def create_evaluation_supplier(base_url: str, payload: dict, headers: dict[str, str]) -> dict:
     # Preserve existing suppliers, uploads and reviewer state. Each run owns new IDs.
-    return request_json("POST", f"{base_url}/suppliers", json=payload, headers=headers)
+    supplier = request_json("POST", f"{base_url}/suppliers", json={**payload, "is_evaluation": True}, headers=headers)
+    if supplier.get("is_evaluation") is not True:
+        raise RuntimeError("Backend did not isolate the evaluation supplier. Pull the latest code and rebuild the backend before running evaluation.")
+    return supplier
 
 
 def ensure_documents(

@@ -16,6 +16,7 @@ from app.services.document_policy import Checklist
 
 
 class SupplierCreate(BaseModel):
+    is_evaluation: bool = False
     name: str = Field(min_length=2, max_length=200)
     country: str = Field(min_length=2, max_length=100)
     contact_email: EmailStr | None = None
@@ -23,6 +24,8 @@ class SupplierCreate(BaseModel):
 
 class SupplierSummary(BaseModel):
     model_config = ConfigDict(from_attributes=True)
+
+    is_evaluation: bool = False
 
     id: uuid.UUID
     name: str

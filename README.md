@@ -60,6 +60,8 @@ See [MONITORING_SETUP.md](MONITORING_SETUP.md) for the three monitoring and eval
 
 ## Controlled quality evaluation
 
+Evaluation suppliers are kept out of the reviewer worklist. Rebuild the backend after pulling to apply the migration for existing evaluation records; future runs mark their own records automatically.
+
 The final package has 15 synthetic suppliers, 45 PDFs (73 pages) and 150 RAG questions, including a separately reported 50-question stress cohort. Multi-page clauses, dated endorsements, mixed OCR, address roles and cover conditions complement the existing native/OCR/conflict/scenario evidence. Run `docker compose run --rm --build evaluation --validate-only`, then `docker compose run --rm --build evaluation` against the configured backend. JSON/Markdown reports separate upload/OCR, processing and Q&A timing and make the required stress-answer audit visible. The 135 registration/tax field checks do not establish insurance compliance or supplier approval. See [QUALITY_EVALUATION.md](QUALITY_EVALUATION.md) and [EVALUATOR_CALIBRATION.md](EVALUATOR_CALIBRATION.md) for the fixed rubric, validation and final-run instructions. The complete owner-run reassessment scores 145/150 (96.67%) automatically, including 47/50 (94%) stress; six grading errors were corrected without new model calls. Five failed cases remain and the 50 stress semantic reviews are pending. Calibration tests are not model scores.
 
 ## AI provider selection

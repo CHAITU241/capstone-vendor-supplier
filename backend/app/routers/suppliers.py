@@ -19,6 +19,7 @@ router = APIRouter(prefix="/suppliers", tags=["suppliers"], dependencies=[Depend
 @router.post("", response_model=SupplierSummary, status_code=status.HTTP_201_CREATED)
 def create_supplier(payload: SupplierCreate, db: Session = Depends(get_db)) -> SupplierSummary:
     supplier = Supplier(
+        is_evaluation=payload.is_evaluation,
         name=payload.name.strip(),
         country=payload.country.strip() if payload.country else None,
         contact_email=str(payload.contact_email) if payload.contact_email else None,
@@ -32,7 +33,7 @@ def create_supplier(payload: SupplierCreate, db: Session = Depends(get_db)) -> S
             action="supplier.created",
             entity_type="supplier",
             entity_id=str(supplier.id),
-            details={"name": supplier.name},
+            details={"name": supplier.name, "is_evaluation": supplier.is_evaluation},
         )
     )
     db.commit()
@@ -45,7 +46,7 @@ def list_suppliers(db: Session = Depends(get_db)) -> list[SupplierSummary]:
     statement = (
         select(Supplier, func.count(Document.id).label("document_count"))
         .outerjoin(Document)
-        .where(Supplier.submitted_at.is_not(None))
+        .where(Supplier.submitted_at.is_not(None), Supplier.is_evaluation.is_(False))
         .group_by(Supplier.id)
         .order_by(Supplier.created_at.desc())
     )

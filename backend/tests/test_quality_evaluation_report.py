@@ -229,7 +229,8 @@ def test_live_runner_creates_fresh_suppliers_and_forces_complete_processing(monk
             entry = next(entries)
             sid = f"supplier-{len(records)}"
             records[sid] = {"entry": entry, "documents": [], "next_question": 0}
-            return {"id": sid}
+            assert kwargs["json"]["is_evaluation"] is True
+            return {"id": sid, "is_evaluation": True}
         sid = url.split("/suppliers/")[1].split("/")[0]
         record = records[sid]
         if url.endswith("/process"):

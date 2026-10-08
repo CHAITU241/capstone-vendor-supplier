@@ -15,6 +15,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     func,
+    false,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -90,6 +91,7 @@ class Supplier(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String(200), index=True)
+    is_evaluation: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false(), nullable=False)
     country: Mapped[str | None] = mapped_column(String(100), nullable=True)
     contact_email: Mapped[str | None] = mapped_column(String(320), nullable=True)
     tax_reference: Mapped[str | None] = mapped_column(String(100), nullable=True)
