@@ -217,6 +217,7 @@ def _evaluate_policy_compliance(
             cited_fields: list[str] = []
             cited_page = None
             assessment_method = "deterministic"
+            evidence_requires_verification = False
             if not evidence_complete:
                 status = ComplianceStatus.FAIL
                 message = "Required evidence is missing or unreadable."
@@ -275,14 +276,14 @@ def _evaluate_policy_compliance(
                     or document_fields[name].confidence < 0.75
                     for name in cited_fields
                 )
-                if assessment_result == "not_matched" and low_confidence:
+                evidence_requires_verification = low_confidence
+                # Keep objective arithmetic/matching visible even when its OCR
+                # inputs need verification. This is not an approval: the check
+                # and extracted-field controls remain NEEDS_REVIEW.
+                if low_confidence and objective is None:
                     status = ComplianceStatus.NEEDS_REVIEW
                     ai_assessment = "human_review"
-                    ai_reason = (
-                        "The calculated policy finding is a mismatch, but the cited extracted "
-                        "evidence has low confidence and requires human confirmation. "
-                        f"Calculated finding: {assessment_reason}"
-                    )
+                    ai_reason = "The cited extracted evidence has low confidence and requires human confirmation."
                 elif assessment_result == "not_matched":
                     status = ComplianceStatus.FAIL
                     ai_assessment = "not_matched"
@@ -295,6 +296,9 @@ def _evaluate_policy_compliance(
                     status = ComplianceStatus.NEEDS_REVIEW
                     ai_assessment = "human_review"
                     ai_reason = assessment_reason
+                if low_confidence and objective is not None:
+                    status = ComplianceStatus.NEEDS_REVIEW
+                    ai_reason += " Compare the extracted values with the original; OCR/extraction confidence requires human verification."
                 message = (
                     f"Policy evaluation found a mismatch: {ai_reason}"
                     if ai_assessment == "not_matched" else
@@ -344,6 +348,7 @@ def _evaluate_policy_compliance(
                     "ai_assessment": ai_assessment,
                     "ai_reason": ai_reason,
                     "assessment_method": assessment_method,
+                    "evidence_requires_verification": evidence_requires_verification,
                     "evidence_fields": cited_fields,
                     "evidence_page": cited_page,
                     "expected_fields": expected_fields,

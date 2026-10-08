@@ -4,6 +4,15 @@ This file is the short resumption context for future AI or developer sessions.
 Read this file first, then open only the files relevant to the next task.
 The complete product intent remains in `PROJECT_BLUEPRINT.md`.
 
+## 2026-10-08 — Consistent OCR findings and processing completion
+
+- Processing now commits terminal run/supplier states and refreshed compliance results in one transaction, preventing the review poller from stopping on stale findings.
+- Objective check results remain visible as matched/not matched even when extracted inputs need human verification; this does not approve uncertain OCR evidence.
+- Refresh preserves OCR quality attention and field verification requirements. Bulk confirmation excludes OCR-review documents and uncertain fields independently of their document status.
+- Semantic findings prefer current/latest processing over older upload-time assessments.
+- Regression coverage includes first run, forced refresh, already-indexed evidence, OCR-quality gates, future-date mismatch and independent bulk-confirmation exclusions.
+- Verification: 122 backend tests passed; frontend production build passed. Live supplier/provider verification remains to be performed on the deployed VM.
+
 ## Current Status
 
 - Current milestone: Phases 1-4 are implemented on the local `phase-4` branch.

@@ -86,8 +86,10 @@ function requirementStatus(document: SupplierDocument | undefined, checks: Compl
   if (document?.review_status === 'disputed') return 'flagged'
   if (document?.review_status === 'verified') return 'verified'
   if (document?.review_status === 'attention') return 'attention'
+  if (document?.ocr_quality_status === 'review' || document?.ocr_quality_status === 'poor') return 'attention'
   if (!document || document.ai_extraction_status === 'failed' || document.ai_index_status === 'failed') return 'attention'
   if (checks.length === 0) return 'attention'
+  if (checks.some((check) => check.evidence.evidence_requires_verification === true)) return 'attention'
   if (checks.some((check) => policyOutcome(check) !== 'matched')) return 'attention'
   return 'matched'
 }

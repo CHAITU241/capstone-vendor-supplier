@@ -2,6 +2,7 @@
 
 from datetime import UTC, datetime
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
@@ -23,7 +24,8 @@ from app.models import (
 from app.services.document_policy import checklist_for
 
 
-def test_confirm_ready_requirements_excludes_manual_attention_and_audits_batch(tmp_path):
+@pytest.mark.parametrize("attention_reason", ["document", "ocr", "field"])
+def test_confirm_ready_requirements_excludes_manual_attention_and_audits_batch(tmp_path, attention_reason):
     engine = create_engine(
         "sqlite+pysqlite://",
         connect_args={"check_same_thread": False},
@@ -75,7 +77,8 @@ def test_confirm_ready_requirements_excludes_manual_attention_and_audits_batch(t
                     processing_status=ProcessingStatus.READY,
                     ai_extraction_status="ready",
                     ai_index_status="ready",
-                    review_status="attention" if index == 0 else "pending",
+                    review_status="attention" if index == 0 and attention_reason == "document" else "pending",
+                    ocr_quality_status="review" if index == 0 and attention_reason == "ocr" else None,
                 )
                 db.add(document)
                 db.flush()
@@ -90,7 +93,7 @@ def test_confirm_ready_requirements_excludes_manual_attention_and_audits_batch(t
                     value=supplier.name,
                     page_number=1,
                     confidence=0.98,
-                    needs_review=index == 0,
+                    needs_review=index == 0 and attention_reason == "field",
                     review_status="pending",
                 ))
                 for check_number in (1, 2):
@@ -143,7 +146,7 @@ def test_confirm_ready_requirements_excludes_manual_attention_and_audits_batch(t
             assert all(document.review_status == "verified" for document in confirmed_documents)
             assert all(document.reviewed_by == "Batch Reviewer" for document in confirmed_documents)
             assert attention_document is not None
-            assert attention_document.review_status == "attention"
+            assert attention_document.review_status == ("attention" if attention_reason == "document" else "pending")
 
             fields = db.scalars(
                 select(ExtractedField).where(ExtractedField.supplier_id == supplier_id)
@@ -157,7 +160,7 @@ def test_confirm_ready_requirements_excludes_manual_attention_and_audits_batch(t
                 field for field in fields if field.document_id == attention_document_id
             )
             assert attention_field.review_status == "pending"
-            assert attention_field.needs_review
+            assert attention_field.needs_review == (attention_reason == "field")
 
             audits = db.scalars(
                 select(AuditEvent).where(AuditEvent.supplier_id == supplier_id)

@@ -10,7 +10,7 @@ from app.models import (
     ProcessingStatus,
     Supplier,
 )
-from app.services.compliance import approval_ready, evaluate_compliance
+from app.services.compliance import approval_ready, evaluate_compliance, _policy_assessment_lookup
 from app.services.document_policy import checklist_for, extraction_field_names
 from app.services.mock_erp import build_erp_preview
 
@@ -144,6 +144,46 @@ def test_policy_uploads_are_not_misreported_as_validated() -> None:
     assert outcomes["BASE-001.CHECK-2"].evidence["check_text"].endswith("status is Active.")
     assert outcomes["BASE-003.CHECK-1"].evidence["source"].endswith("§BASE-003")
     assert approval_ready(list(outcomes.values())) is False
+
+
+def test_objective_date_finding_is_visible_without_bypassing_uncertain_ocr() -> None:
+    supplier = Supplier(id=uuid.uuid4(), name=SUPPLIER_NAME, country="India",
+                        category="GOODS", subcategory="GOODS-OFF")
+    registration = document(DocumentType.REGISTRATION)
+    registration.review_status = "attention"
+    registration.ai_extraction_status = "ready"
+    registration.ocr_quality_status = "review"
+    supplier.documents = [registration]
+    supplier.extracted_fields = [
+        field(supplier, registration, "supplier_name", SUPPLIER_NAME),
+        field(supplier, registration, "registration_date", "2026-01-01", needs_review=True),
+        field(supplier, registration, "status", "Active", needs_review=True),
+    ]
+    results = {item.rule_code: item for item in evaluate_compliance(supplier, today=date(2026, 8, 4))}
+    check = results["BASE-001.CHECK-2"]
+    assert check.evidence["ai_assessment"] == "matched"
+    assert "on or before evaluation" in check.evidence["ai_reason"]
+    assert check.evidence["evidence_requires_verification"] is True
+    assert check.status == ComplianceStatus.NEEDS_REVIEW
+    assert not approval_ready(list(results.values()))
+
+    supplier.extracted_fields[1].value = "2027-01-01"
+    future = {item.rule_code: item for item in evaluate_compliance(supplier, today=date(2026, 8, 4))}
+    assert future["BASE-001.CHECK-2"].evidence["ai_assessment"] == "not_matched"
+
+
+def test_latest_processing_assessment_overrides_stale_upload_assessment() -> None:
+    from app.models import AiRun, AiRunType
+    supplier = ready_supplier()
+    source = supplier.documents[0]
+    old = {"document_id": str(source.id), "check_number": 1, "result": "human_review"}
+    new = {**old, "result": "matched"}
+    source.upload_validation_details = {"policy_assessments": [old]}
+    supplier.ai_runs = [AiRun(run_type=AiRunType.PROCESSING,
+                            created_at=datetime.now(timezone.utc),
+                            details={"policy_assessments": [new]})]
+    assert _policy_assessment_lookup(supplier, None)[(str(source.id), 1)] == new
+    assert _policy_assessment_lookup(supplier, [old])[(str(source.id), 1)] == old
 
 
 def test_name_mismatch_and_unresolved_field_need_review() -> None:

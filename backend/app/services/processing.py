@@ -389,15 +389,6 @@ def _process_supplier_documents(
                     classification_mismatches.append(document.filename)
                     document.review_status = "attention"
                     document.review_comment = "AI classified this file differently from its selected requirement."
-                elif document.review_status not in {"verified", "disputed"}:
-                    if document.ocr_quality_status == "review":
-                        document.review_status = "attention"
-                        document.review_comment = (
-                            "OCR reliability requires manual comparison with the original document."
-                        )
-                    else:
-                        document.review_status = "pending"
-                        document.review_comment = None
 
                 requirement_id = requirement_id_for_document_type(document.document_type)
                 for assessment in extraction.value.policy_checks:
@@ -431,11 +422,27 @@ def _process_supplier_documents(
                         value=value,
                         page_number=page_number,
                         confidence=field.confidence,
-                        needs_review=field.confidence < 0.75 or type_mismatch or page_out_of_range,
+                        needs_review=(
+                            field.confidence < 0.75 or type_mismatch or page_out_of_range
+                            or document.ocr_quality_status in {"review", "poor"}
+                        ),
                     )
                     existing = best_fields.get(field.field_name)
                     if existing is None or candidate.confidence > existing.confidence:
                         best_fields[field.field_name] = candidate
+
+                if not type_mismatch and document.review_status not in {"verified", "disputed"}:
+                    needs_attention = (
+                        document.ocr_quality_status in {"review", "poor"}
+                        or any(field.needs_review for field in best_fields.values())
+                    )
+                    document.review_status = "attention" if needs_attention else "pending"
+                    document.review_comment = (
+                        "OCR reliability requires manual comparison with the original document."
+                        if document.ocr_quality_status in {"review", "poor"} else
+                        "One or more extracted values require comparison with the original document."
+                        if needs_attention else None
+                    )
 
                 db.execute(delete(ExtractedField).where(ExtractedField.document_id == document.id))
                 for field in best_fields.values():
@@ -519,6 +526,11 @@ def _process_supplier_documents(
                 "fields": missing,
             })
 
+    run.status = AiRunStatus.FAILED if failed_documents else AiRunStatus.SUCCEEDED
+    run.error_message = (
+        f"{len(failed_documents)} document stage(s) failed; successful documents were retained. Retry only the failed evidence."
+        if failed_documents else None
+    )
     run.details = {
         "ai_provider": settings.ai_provider,
         "refresh_requested": force_reprocess,
@@ -538,22 +550,6 @@ def _process_supplier_documents(
     }
     supplier = db.get(Supplier, supplier.id)
     supplier.status = SupplierStatus.NEEDS_REVIEW
-    db.expire(supplier, ["documents", "extracted_fields", "compliance_results"])
-    persist_compliance_results(
-        db,
-        supplier,
-        evaluate_compliance(supplier, ai_policy_assessments=policy_assessments),
-    )
-
-    # Keep the run in PROCESSING until the derived compliance checks have been
-    # rebuilt successfully. If finalization fails, the outer recovery path can
-    # still find this run and close it as failed instead of leaving a stale
-    # success record with old checks.
-    run.status = AiRunStatus.FAILED if failed_documents else AiRunStatus.SUCCEEDED
-    run.error_message = (
-        f"{len(failed_documents)} document stage(s) failed; successful documents were retained. Retry only the failed evidence."
-        if failed_documents else None
-    )
     db.add(AuditEvent(
         supplier_id=supplier.id,
         action="ai.processing.partial" if failed_documents else "ai.processing.completed",
@@ -562,9 +558,17 @@ def _process_supplier_documents(
         details={"field_count": len(all_fields), "chunk_count": chunk_count,
                  "failed_document_count": len(failed_document_ids)},
     ))
+    # Publish terminal run/supplier state and the corresponding policy findings
+    # atomically. Pollers must not stop on a completed run with stale checks.
+    db.flush()
+    db.expire(supplier, ["documents", "extracted_fields", "compliance_results"])
+    persist_compliance_results(
+        db,
+        supplier,
+        evaluate_compliance(supplier, ai_policy_assessments=policy_assessments),
+    )
     db.commit()
     db.refresh(run)
-    db.refresh(supplier)
     record_processing("partial" if failed_documents else "success")
     return ProcessingOutcome(
         run=run,

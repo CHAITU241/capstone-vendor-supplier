@@ -649,6 +649,12 @@ def confirm_ready_requirements(
             and document.processing_status.value == "ready"
             and document.ai_extraction_status == "ready"
             and document.ai_index_status != "failed"
+            and document.ocr_quality_status not in {"review", "poor"}
+            and not any(
+                field.needs_review or field.confidence < 0.75
+                for field in supplier.extracted_fields
+                if field.document_id == document.id
+            )
             and checks_matched
         ):
             ready.append(document)
