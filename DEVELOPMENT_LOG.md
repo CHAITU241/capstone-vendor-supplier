@@ -4,6 +4,15 @@ This file is the short resumption context for future AI or developer sessions.
 Read this file first, then open only the files relevant to the next task.
 The complete product intent remains in `PROJECT_BLUEPRINT.md`.
 
+## 2026-10-08 — Expanded OCR, conflict and onboarding evaluation
+
+- Active manifest v4 contains 10 synthetic suppliers, 30 originals, 100 RAG questions and 90 current-policy extraction checks. The pinned five-supplier v3 records and originals remain unchanged.
+- Added two OCR suppliers with six image-only PDFs, two suppliers with contradictory addresses/terms/expiry dates, and one supplier with broader vendor-master/AP/insurance/handover questions.
+- Conflict scoring requires both values, source attribution, both citations and conflict/uncertainty guards. Reports expose cohort results, OCR execution/quality, and failed components. Gold transcripts are never uploaded as evidence.
+- Fixed an upload-quality bug for supplementary scans with no policy extraction fields: use OCR readability instead of counting inapplicable field confidence/coverage as zero. Poor scans remain rejected; review-quality originals retain attention flags.
+- Structural preflight exercises actual OCR and verifies the full corpus. Expanded model scores remain pending on the owner Docker/provider machine; existing reports and the presentation are not relabelled as a 100-question result.
+- Validation: 159 backend tests passed; frontend production build passed; all 30 originals validated, all 15 added pages rendered and visually reviewed, and all six scans exercised backend OCR. Compose wiring checked statically; Docker execution is unavailable in this workspace.
+
 ## 2026-10-08 — Consistent OCR findings and processing completion
 
 - Processing now commits terminal run/supplier states and refreshed compliance results in one transaction, preventing the review poller from stopping on stale findings.

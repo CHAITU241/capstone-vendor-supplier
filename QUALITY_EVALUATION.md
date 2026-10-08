@@ -1,40 +1,45 @@
 # SourceSure AI Controlled Quality Evaluation
 
-## Current scope: manifest version 3
+The active manifest is **version 4: 10 synthetic suppliers, 30 source PDFs, 100 RAG questions and 90 policy-field extraction checks**. The expanded live run remains pending; adding evidence does not establish a new accuracy score.
 
-The corpus contains five synthetic suppliers, 15 text-native PDFs and 50 RAG questions. It evaluates two distinct capabilities:
+## Evidence and question coverage
 
-- **Policy extraction:** 45 checks across ten registration/tax documents, scored within the original that supplied each field.
-- **Grounded RAG:** all 15 originals, including five supplementary liability certificates. These legacy `insurance` documents are explicitly RAG-only because the current policy defines no extraction fields for that upload type.
+| Supplier group | Suppliers | PDFs | RAG questions | Purpose |
+|---|---:|---:|---:|---|
+| Baseline | 5 | 15 | 50 | Native-text facts, paraphrases, dates, multi-fact answers and unsupported requests |
+| OCR | 2 | 6 | 20 | Image-only originals requiring backend OCR |
+| Conflicting evidence | 2 | 6 | 20 | Address, payment-term and expiry disagreements across originals |
+| Broader onboarding scenarios | 1 | 3 | 10 | Vendor-master setup, AP terms, insurance diary, procurement handover and missing payment/approval evidence |
+| **Total** | **10** | **30** | **100** | **80 answerable; 20 safe not-found** |
 
-This does not evaluate full supplier approval, every category-specific policy, or OCR. Production extraction allow-lists and RAG prompts were not broadened to improve the score.
+The added packs are Mallige Precision Works and Narmada Instrumentation (OCR), Aravali Process Equipment and Coromandel Sensor Systems (conflicting evidence), and Tungabhadra Industrial Services (onboarding scenarios). Each supplier has registration, tax and supplementary liability originals and ten questions.
 
-Each supplier contributes:
+| Question type | Count |
+|---|---:|
+| Direct fact | 32 |
+| Paraphrased fact | 16 |
+| Date interpretation | 7 |
+| Multi-fact | 9 |
+| Safe not-found | 20 |
+| Conflict resolution | 8 |
+| Scenario-based | 8 |
+| **Total** | **100** |
 
-| Type | Questions per supplier | Total |
-|---|---:|---:|
-| Direct fact | 4 | 20 |
-| Paraphrased fact | 2 | 10 |
-| Date interpretation | 1 | 5 |
-| Multi-fact | 1 | 5 |
-| Safe not-found | 2 | 10 |
+The two scanned packs contain six one-page image-only PDFs: one grayscale raster pack and one JPEG-compressed pack with scanner margins. Their pinned `.source.txt` files are authoring transcripts for offline gold validation only; they are never uploaded or indexed as evidence. Preflight exercises the actual backend OCR routine. A live run also requires backend metadata proving OCR processed every scanned page. OCR quality scores and review flags remain visible in the report.
 
-## Why version 2 was corrected
+Each conflicting-evidence supplier has four questions that require both disagreeing values, source attribution, both source citations, conflict acknowledgement and an uncertainty/clarification guard. The originals provide no correction or authority rule; selecting one value as confirmed is unsupported. The other six questions cover facts and guarded fallback. Scenario questions cover eight answerable tasks and two unsupported requests for a bank account or approval.
 
-The live version-2 run on 8 October 2026 recorded 45/50 RAG passes and 5/45 legacy extraction passes. Its JSON is retained unchanged as `historical_results_manifest_v2_50_questions.json`, alongside its original Markdown report and `historical_manifest_v2.json`. The older 24-question run remains separately archived.
+## Scoring contract
 
-Version 2 expected address/contact/payment fields outside the current registration allow-list, expected GSTIN under the PAN field, and scored unsupported legacy insurance extraction. Its field score is not an estimate of current policy extraction quality. It also reused upload-time fields instead of rerunning extraction. All five RAG failures were the question “Where is this business officially registered?” expecting a full street address while the model returned a country/city.
+A strict RAG pass requires the expected answer components, correct found/not-found decision, valid expected citations and supplier isolation. Conflict questions additionally require their declared source citations and lexical conflict/uncertainty guards. Unsupported questions must return the exact safe fallback with zero citations. Model errors remain failed cases; expected facts are authored before a run.
 
-Version 3 declares extraction expectations by original:
+Extraction scores **90 current policy fields across 20 registration/tax originals**, checked within the document that supplied each field. The ten supplementary liability certificates are explicitly RAG-only because the legacy `insurance` type has no policy extraction field contract. This evaluates extraction and grounded Q&A, not full supplier approval or every category policy. Production allow-lists and RAG prompts are unchanged.
 
-- Registration: legal name, registration number, issuing registry, registration date and status.
-- Tax: legal name, PAN/tax reference, GST registration status and GSTIN.
+For scanned supplementary evidence with no extraction field contract, upload quality uses visual/readability checks; inapplicable field confidence and coverage are recorded as null. Poor scans remain rejected and review-quality scans retain attention flags. Registration/tax field quality gates remain in force.
 
-The registration/tax PDFs explicitly contain these facts. The paraphrased address question now asks for the complete street address and postal code; partial city/country answers still fail. Equivalent calendar dates pass, but wrong or incomplete dates fail. Scores across manifest versions must not be presented as a like-for-like model improvement.
+## Run on the Docker machine
 
-## Reproduce on the Docker machine
-
-From the repository root, with `backend/.env` configured for OpenRouter:
+From the repository root, with `backend/.env` configured for the AI provider:
 
 ```bash
 git pull --ff-only origin supplier-rag-feature
@@ -43,30 +48,32 @@ docker compose run --rm --build evaluation --validate-only
 docker compose run --rm --build evaluation
 ```
 
-If reviewer demo login is disabled, export both `EVALUATION_REVIEWER_EMAIL` and `EVALUATION_REVIEWER_PASSWORD` in the shell first. Compose forwards them only to the evaluation runner. Never commit credentials.
+The evaluation container includes Python dependencies and English Tesseract OCR. Compose mounts the corpus and reports, waits for backend health and uses `http://backend:8000/api`; provider credentials stay in the backend. If reviewer demo login is disabled, export both `EVALUATION_REVIEWER_EMAIL` and `EVALUATION_REVIEWER_PASSWORD` before running. Never commit credentials.
 
-Direct Python (with backend requirements installed):
+Direct Python, with backend requirements and Tesseract installed:
 
 ```bash
 PYTHONPATH=backend python scripts/run_quality_evaluation.py --validate-only
 PYTHONPATH=backend python scripts/run_quality_evaluation.py --base-url http://127.0.0.1:8000/api
 ```
 
-The preflight checks policy-field coverage, manifest/ground-truth consistency, PDF checksums, readability, question assertions and dataset counts before API calls. A normal run creates five new evaluation supplier records; it never reuses, overwrites or deletes existing supplier/reviewer data. Duplicate display names are expected across runs; each report records its supplier IDs. Uploaded original hashes are verified against the corpus. Processing uses `refresh=true` and checks that all three documents were processed freshly.
+Preflight checks exact counts/cohorts, policy coverage, question assertions, manifest/ground-truth consistency, PDF and transcript hashes, native readability, image-only scan structure and actual OCR extraction. A normal run creates ten fresh evaluation supplier records and verifies uploaded original hashes. Processing uses `refresh=true` and requires every original to be processed freshly. Existing suppliers and reviewer decisions are preserved; each report records the new supplier IDs.
 
-## Results and audit trail
+## Reports and audit trail
 
-A completed live run creates:
+A completed live run writes these files in the host repository:
 
 - `sample_documents/evaluation_sets/latest_results.json`
 - `sample_documents/evaluation_sets/latest_results.md`
 
-Both paths are mounted to the host repository. Existing latest reports are copied byte-for-byte into `results_archive/<timestamp_uuid>/` before replacement. An interrupted run does not publish a new final report. No placeholder metrics are generated by preflight or tests.
+Existing latest reports are copied byte-for-byte into `results_archive/<timestamp_uuid>/` before replacement. Preflight and unit tests do not publish placeholder scores. An interrupted run does not publish a new final report. Until a version-4 live run completes, an existing latest report still describes its recorded manifest version and question count.
 
-The JSON records run ID, manifest version/hash, original metadata/hashes, supplier IDs, field expectations/actuals, processing diagnostics, each answer and expected facts, citation excerpts, retrieved chunk IDs/distances, models, prompts, usage and latency. The Markdown includes strict end-to-end accuracy, answer/found/citation/fallback/isolation accuracy, extraction mismatches, per-type/per-supplier results, average/P50/P95/max latency, processing diagnostics and methodology.
+JSON retains run/manifest provenance, original hashes and metadata, supplier IDs, expected/actual field values, processing diagnostics, question answers and gold assertions, citation excerpts, retrieved chunk IDs/distances, model/prompt versions, tokens and latency. Markdown reports strict end-to-end and component accuracies, failures by component, per-type/per-supplier/per-cohort results, OCR execution evidence, average/P50/P95/max latency, usage, extraction mismatches and limitations. Q&A tokens are separated from extraction/indexing usage.
 
-Citation checks require expected source documents, valid original/page identity and membership in the retrieved chunk set. Isolation checks validate retrieved and cited supplier/original IDs and scan answers/excerpts for other evaluation supplier names. Q&A token totals are labelled separately from extraction/indexing usage. Failed checks remain failed; the runner does not change model outputs or expected facts after seeing an answer.
+The pinned `baseline_manifest_v3.json` preserves the original five supplier records and PDF hashes. `scripts/generate_evaluation_documents.py` regenerates that baseline only; `scripts/generate_extended_evaluation_documents.py` regenerates the expanded package and active manifest. Regeneration is optional and does not run the model. The runner can read the pinned baseline via `--manifest sample_documents/evaluation_sets/baseline_manifest_v3.json`.
 
-## Limitations
+## Interpretation and remaining limits
 
-This is a small controlled synthetic regression corpus, not a production guarantee. PDF content is one-page, English and text-native. Text matching tolerates case/punctuation and date format changes but is not a semantic judge; it does not prove every sentence is factually correct or that every cited excerpt entails the claim. Isolation checks are structural/name checks rather than exhaustive adversarial leakage tests. Larger held-out tests need scans, OCR noise, multi-page evidence, contradictory values, real paraphrases and category-specific requirements. Monetary costs should be taken from provider/Langfuse records, not inferred from token totals.
+This is a controlled synthetic English corpus. The scan cases exercise OCR, including compression, but do not cover severe blur, skew, handwriting or every scanner defect. Broader questions are authored onboarding scenarios, not independently sampled real user traffic. Documents remain one page each; conflicting evidence now spans separate originals rather than pages within one file.
+
+Answer matching, source attribution and conflict guards are lexical checks, not a semantic judge. Citation checks verify expected document/page/retrieved-chunk identity; they do not prove every excerpt entails every claim. Isolation checks are structural/name checks, not exhaustive adversarial leakage testing. Real held-out supplier documents, independent question labels and multi-page evidence remain future calibration work. Results from different manifest versions are not a like-for-like model improvement. Monetary cost should come from provider/Langfuse records rather than token-based estimates.

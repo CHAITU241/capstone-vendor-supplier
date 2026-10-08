@@ -52,8 +52,27 @@ def dates_in(value: str) -> set[str]:
 def answer_matches(answer: str, case: dict) -> bool:
     return (
         all(normalized(term) in normalized(answer) for term in case["expected_terms"])
+        and all(any(normalized(term) in normalized(answer) for term in group) for group in case.get("expected_term_groups", []))
         and set(case.get("expected_dates", [])) <= dates_in(answer)
     )
+
+
+def conflict_checks(answer: str, case: dict) -> dict[str, bool | None]:
+    """Predeclared lexical guards, not an assertion of semantic entailment."""
+    value = normalized(answer)
+    acknowledgement = bool(re.search(r"\b(conflict\w*|disagree\w*|different|differ\w*|inconsisten\w*|discrepan\w*|mismatch\w*)\b", value))
+    uncertainty = bool(re.search(
+        r"\b(unclear|unresolved|insufficient|unconfirmed)\b|"
+        r"\b(cannot|can t|unable to)\b.{0,55}\b(confirm|determine|establish|choose|verify)\b|"
+        r"\b(not|no|neither)\b.{0,35}\b(confirmed|established|precedence|definitive|authoritative|confirmation)\b|"
+        r"\b(clarif\w*|confirm\w*|verif\w*)\b.{0,35}\b(required|needed|necessary)\b|"
+        r"\b(need\w*|require\w*|should|must)\b.{0,55}\b(clarif\w*|confirm\w*|verif\w*)\b",
+        value,
+    ))
+    return {
+        "conflict_match": acknowledgement if case.get("requires_conflict_acknowledgement") else None,
+        "uncertainty_match": uncertainty if case.get("requires_uncertainty") else None,
+    }
 
 
 def validate_manifest(manifest_path: Path) -> dict:
@@ -65,14 +84,17 @@ def validate_manifest(manifest_path: Path) -> dict:
     from app.services.document_policy import extraction_field_names
 
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    if manifest.get("version") != 3:
-        raise ValueError("Use the policy-aligned version-3 manifest; older extraction scores are not comparable.")
+    version = manifest.get("version")
+    if version not in (3, 4):
+        raise ValueError("Use a policy-aligned version-3 or expanded version-4 manifest.")
     suppliers = manifest["suppliers"]
-    if len(suppliers) != 5 or len({s["slug"] for s in suppliers}) != 5:
-        raise ValueError("The evaluation requires five distinct supplier packs.")
+    expected_suppliers = 5 if version == 3 else 10
+    if len(suppliers) != expected_suppliers or len({s["slug"] for s in suppliers}) != expected_suppliers:
+        raise ValueError(f"The evaluation requires {expected_suppliers} distinct supplier packs.")
     type_counts = {}
     paths = set()
     for entry in suppliers:
+        source_texts = {}
         documents = entry["documents"]
         expectations = entry["extraction_expectations"]
         rag_only = entry["rag_only_documents"]
@@ -85,11 +107,30 @@ def validate_manifest(manifest_path: Path) -> dict:
             paths.add(path)
             if hashlib.sha256(path.read_bytes()).hexdigest() != entry["document_sha256"][kind]:
                 raise ValueError(f"PDF checksum mismatch: {path}")
+            mode = entry.get("document_modes", {}).get(kind, "native")
             with pymupdf.open(path) as doc:
-                if not doc.is_pdf or doc.is_encrypted or not doc.page_count or not all(page.get_text().strip() for page in doc):
+                if not doc.is_pdf or doc.is_encrypted or not doc.page_count:
                     raise ValueError(f"Unreadable evaluation PDF: {path}")
-                source_text = " ".join(page.get_text() for page in doc)
+                if mode == "ocr":
+                    if any(page.get_text().strip() or not page.get_images() for page in doc):
+                        raise ValueError(f"OCR original must contain only scanned page images: {path}")
+                    transcript = path.with_suffix(".source.txt")
+                    if hashlib.sha256(transcript.read_bytes()).hexdigest() != entry["source_transcript_sha256"][kind]:
+                        raise ValueError(f"OCR authoring transcript checksum mismatch: {path}")
+                    source_text = transcript.read_text(encoding="utf-8")
+                    # Exercise the deployed extraction routine. Recognition mistakes
+                    # are scored live, not silently repaired from the transcript.
+                    from app.config import Settings
+                    from app.services.documents import extract_document_text
+                    extracted = extract_document_text(path, "application/pdf", Settings())
+                    if extracted.text_extraction_method != "ocr" or not extracted.text.strip():
+                        raise ValueError(f"OCR preflight did not exercise scanned pages: {path}")
+                elif mode == "native" and all(page.get_text().strip() for page in doc):
+                    source_text = " ".join(page.get_text() for page in doc)
+                else:
+                    raise ValueError(f"Unreadable or unknown document mode: {path}")
             allowed = set(extraction_field_names(DocumentType(kind)))
+            source_texts[filename] = source_text
             if kind in expectations:
                 if not expectations[kind] or set(expectations[kind]) != allowed:
                     raise ValueError(f"Extraction ground truth must cover the current policy fields: {entry['slug']}/{kind}")
@@ -109,6 +150,17 @@ def validate_manifest(manifest_path: Path) -> dict:
                     raise ValueError("Answerable cases require evidence and answer assertions.")
                 if not set(case["expected_sources"]) <= set(documents.values()):
                     raise ValueError("Question cites an unknown corpus document.")
+                if not set(case.get("required_sources", [])) <= set(case["expected_sources"]):
+                    raise ValueError("Required citations must be allowed source documents.")
+                evidence = " ".join(source_texts[name] for name in case["expected_sources"])
+                if any(normalized(term) not in normalized(evidence) for term in case["expected_terms"]) or not set(case.get("expected_dates", [])) <= dates_in(evidence):
+                    raise ValueError(f"Question ground truth absent from declared sources: {entry['slug']}/{case['id']}")
+                if kind == "conflict_resolution" and (
+                    len(case.get("required_sources", [])) < 2
+                    or not case.get("requires_conflict_acknowledgement")
+                    or not case.get("requires_uncertainty")
+                ):
+                    raise ValueError("Conflicting evidence requires both sources, conflict acknowledgement and uncertainty.")
             elif kind != "safe_not_found" or case["expected_sources"] or case["expected_terms"] != [NOT_FOUND_ANSWER]:
                 raise ValueError("Unsupported cases require the exact guarded fallback and no sources.")
             for expected_date in case.get("expected_dates", []):
@@ -116,8 +168,18 @@ def validate_manifest(manifest_path: Path) -> dict:
         ground_truth = manifest_path.parent / entry["slug"] / "ground_truth.json"
         if json.loads(ground_truth.read_text(encoding="utf-8")) != entry:
             raise ValueError(f"Supplier ground truth differs from combined manifest: {entry['slug']}")
-    if len(paths) != 15 or type_counts != {"direct_fact": 20, "paraphrased_fact": 10, "date_interpretation": 5, "multi_fact": 5, "safe_not_found": 10}:
-        raise ValueError("Corpus must contain 15 PDFs and the agreed 20/10/5/5/10 question split.")
+    counts = ({"documents":15, "questions":50, "question_types":{"direct_fact":20,"paraphrased_fact":10,"date_interpretation":5,"multi_fact":5,"safe_not_found":10}}
+              if version == 3 else {"documents":30, "questions":100, "question_types":{"direct_fact":32,"paraphrased_fact":16,"date_interpretation":7,"multi_fact":9,"safe_not_found":20,"conflict_resolution":8,"scenario_based":8}})
+    if len(paths) != counts["documents"] or type_counts != counts["question_types"]:
+        raise ValueError("Corpus document/question counts differ from the pinned evaluation contract.")
+    if version == 4:
+        cohorts = {name:sum(s.get("cohort", "baseline") == name for s in suppliers) for name in ("baseline", "ocr", "conflicting_evidence", "scenario_questions")}
+        if cohorts != {"baseline":5,"ocr":2,"conflicting_evidence":2,"scenario_questions":1}:
+            raise ValueError("Expanded evaluation requires 5 baseline, 2 OCR, 2 conflict and 1 scenario supplier.")
+        if any(set(s.get("document_modes", {}).values()) != {"ocr"} or len(s["document_modes"]) != 3 for s in suppliers if s.get("cohort") == "ocr"):
+            raise ValueError("Both OCR supplier packs require three image-only originals.")
+        if manifest.get("expected_counts") != {"suppliers":10, **counts}:
+            raise ValueError("Declared expected counts differ from the pinned v4 contract.")
     return manifest
 
 
@@ -232,6 +294,17 @@ def evaluate_fields(detail: dict, expectations: dict[str, dict[str, str]]) -> di
     }
 
 
+def verify_ocr_execution(entry: dict, documents: list[dict]) -> None:
+    if entry.get("cohort") != "ocr":
+        return
+    if len(documents) != len(entry["documents"]) or any(
+        doc.get("text_extraction_method") != "ocr"
+        or doc.get("ocr_pages") != list(range(1, doc["page_count"] + 1))
+        for doc in documents
+    ):
+        raise RuntimeError("Scanned originals did not pass through backend OCR. Enable OCR and rebuild the backend before evaluation.")
+
+
 def evaluate_question(
     base_url: str,
     supplier_id: str,
@@ -254,7 +327,8 @@ def evaluate_question(
     citation_names = {item["filename"] for item in body["citations"]}
     expected_sources = set(case["expected_sources"])
     if case["information_found"]:
-        citation_match = bool(citation_names) and citation_names <= expected_sources
+        citation_match = (bool(citation_names) and citation_names <= expected_sources
+                          and set(case.get("required_sources", [])) <= citation_names)
     else:
         citation_match = not citation_names and body["answer"] == NOT_FOUND_ANSWER
     isolation_text = " ".join([
@@ -293,7 +367,8 @@ def evaluate_question(
         and body["answer"] == NOT_FOUND_ANSWER
         and not body["citations"]
     ) if not case["information_found"] else None
-    passed = answer_match and found_match and citation_match and isolation_match
+    conflict = conflict_checks(body["answer"], case)
+    passed = answer_match and found_match and citation_match and isolation_match and all(value is not False for value in conflict.values())
     return {
         "id": case["id"],
         "question_type": case["question_type"],
@@ -304,10 +379,14 @@ def evaluate_question(
         "citation_match": citation_match,
         "safe_fallback_match": safe_fallback_match,
         "isolation_match": isolation_match,
+        **conflict,
         "answer": body["answer"],
         "expected_terms": case["expected_terms"],
         "expected_dates": case.get("expected_dates", []),
+        "expected_term_groups": case.get("expected_term_groups", []),
         "expected_sources": case["expected_sources"],
+        "required_sources": case.get("required_sources", []),
+        "gold_rationale": case.get("gold_rationale"),
         "information_found": body["information_found"],
         "expected_information_found": case["information_found"],
         "citations": [
@@ -380,6 +459,8 @@ def build_summary(results: list[dict], elapsed_ms: int) -> dict:
             "found_match": question["found_match"],
             "citation_match": question["citation_match"],
             "isolation_match": question["isolation_match"],
+            "conflict_match": question.get("conflict_match"),
+            "uncertainty_match": question.get("uncertainty_match"),
         }
         for supplier in results
         for question in supplier["questions"]
@@ -400,6 +481,10 @@ def build_summary(results: list[dict], elapsed_ms: int) -> dict:
             "questions": len(questions),
             "answerable_questions": len(found_questions),
             "safe_not_found_questions": len(not_found_questions),
+            "ocr_suppliers": sum(s.get("cohort") == "ocr" for s in results),
+            "ocr_documents": sum(len(s.get("documents", [])) for s in results if s.get("cohort") == "ocr"),
+            "conflicting_evidence_suppliers": sum(s.get("cohort") == "conflicting_evidence" for s in results),
+            "scenario_question_suppliers": sum(s.get("cohort") == "scenario_questions" for s in results),
             "question_types": {
                 name: sum(question["question_type"] == name for question in questions)
                 for name in sorted({question["question_type"] for question in questions})
@@ -451,6 +536,19 @@ def build_summary(results: list[dict], elapsed_ms: int) -> dict:
         }),
         "by_question_type": grouped_question_metrics(questions),
         "by_supplier": per_supplier,
+        "by_cohort": {
+            cohort: {
+                "passed": sum(q["passed"] for s in results if s.get("cohort", "baseline") == cohort for q in s["questions"]),
+                "total": sum(len(s["questions"]) for s in results if s.get("cohort", "baseline") == cohort),
+                "accuracy": ratio(sum(q["passed"] for s in results if s.get("cohort", "baseline") == cohort for q in s["questions"]), sum(len(s["questions"]) for s in results if s.get("cohort", "baseline") == cohort)),
+            } for cohort in sorted({s.get("cohort", "baseline") for s in results})
+        },
+        "ocr_documents": [
+            {"supplier":s["slug"], "filename":d["filename"], "method":d.get("text_extraction_method"),
+             "pages":d.get("ocr_pages", []), "quality_score":d.get("ocr_quality_score"),
+             "quality_status":d.get("ocr_quality_status"), "warnings":d.get("ocr_warnings", [])}
+            for s in results if s.get("cohort") == "ocr" for d in s.get("documents", [])
+        ],
         "failure_count": len(failures),
         "failures": failures,
         "evaluation_elapsed_ms": elapsed_ms,
@@ -495,6 +593,7 @@ def run_evaluation(
         if not processing["run"].get("details", {}).get("refresh_requested") or processing.get("processed_document_count") != len(entry["documents"]):
             raise RuntimeError("Backend did not perform a complete fresh processing run. Rebuild/start the backend before evaluation.")
         detail = request_json("GET", f"{base_url}/suppliers/{supplier_id}", headers=headers)
+        verify_ocr_execution(entry, detail["documents"])
         field_result = evaluate_fields(
             detail, entry["extraction_expectations"]
         )
@@ -513,6 +612,7 @@ def run_evaluation(
         results.append(
             {
                 "slug": entry["slug"],
+                "cohort": entry.get("cohort", "baseline"),
                 "supplier_id": supplier_id,
                 "documents": detail["documents"],
                 "extraction_expectations": entry["extraction_expectations"],
@@ -552,7 +652,8 @@ def run_evaluation(
         "run_id": str(uuid.uuid4()),
         "manifest_version": manifest["version"],
         "manifest_sha256": hashlib.sha256(manifest_path.read_bytes()).hexdigest(),
-        "evaluation_scope": "Policy extraction on registration and tax documents; grounded RAG across all three documents. Not full onboarding approval or OCR coverage.",
+        "evaluation_scope": ("Policy extraction on registration and tax originals; grounded RAG on all originals. Six image-only scans, two conflicting-evidence suppliers and procurement-style scenarios are included. Full onboarding approval is outside scope."
+                             if manifest["version"] == 4 else "Policy extraction on registration and tax documents; grounded RAG across all three documents. Not full onboarding approval or OCR coverage."),
         "base_url": base_url,
         "summary": summary,
         "suppliers": results,
@@ -644,8 +745,8 @@ def render_markdown_report(result: dict) -> str:
         for failure in summary["failures"]:
             components = [
                 name.replace("_match", "")
-                for name in ("answer_match", "found_match", "citation_match", "isolation_match")
-                if not failure[name]
+                for name in ("answer_match", "found_match", "citation_match", "isolation_match", "conflict_match", "uncertainty_match")
+                if failure.get(name) is False
             ]
             lines.append(
                 f"| {failure['supplier']} | {failure['id']} | {failure['question_type']} | {', '.join(components)} |"
@@ -671,15 +772,24 @@ def render_markdown_report(result: dict) -> str:
         lines.append("No failed extraction checks.")
     for processing in summary.get("processing_runs", []):
         lines.append(f"- Processing: status={processing.get('status', 'unknown')}; failed documents={processing.get('failed_document_count', 'unknown')}; model={processing.get('model', 'unknown')}; prompt={processing.get('prompt_version', 'unknown')}; input/output tokens={processing.get('input_tokens', 0)}/{processing.get('output_tokens', 0)}.")
+    if result.get("manifest_version") == 4:
+        lines.extend(["", "## Results by evaluation cohort", "", "| Cohort | Passed | Accuracy |", "|---|---:|---:|"])
+        for name, metrics in summary["by_cohort"].items():
+            lines.append(f"| {name.replace('_', ' ').title()} | {metrics['passed']}/{metrics['total']} | {percentage(metrics['accuracy'])} |")
+        lines.extend(["", "## OCR execution evidence", "", "| Supplier | Original | Method | Pages | Quality |", "|---|---|---|---|---|"])
+        for doc in summary["ocr_documents"]:
+            lines.append(f"| {doc['supplier']} | {doc['filename']} | {doc['method']} | {doc['pages']} | {doc['quality_score']} ({doc['quality_status']}) |")
+        lines.extend(["", "Conflict cases additionally require every declared source citation, both disagreeing values, source attribution, explicit conflict acknowledgement and a lexical uncertainty/clarification guard. Recognition errors and incorrect conflict answers remain failed cases. OCR authoring transcripts are used only for offline ground-truth validation and are never uploaded as evidence."])
     lines.extend([
         "",
         "## Method and interpretation",
         "",
-        "Each question passes only when expected answer components (including equivalent calendar dates), information-found decision, citation rule and supplier isolation all pass. Citations must use expected source documents and valid retrieved chunk IDs belonging to the evaluated supplier. Safe-not-found cases require the exact guarded fallback with no citations. Every run creates five fresh supplier records, checks original PDF hashes and forces extraction/indexing refresh; existing supplier data is preserved. Extraction checks use current policy fields per document, with the legacy liability certificate explicitly RAG-only. Latency wraps the live HTTP request; P50/P95 use nearest rank. Headline token totals cover Q&A; extraction/indexing usage is recorded separately. Scores from different manifest versions must not be presented as a like-for-like improvement.",
+        "Each question passes only when expected answer components (including equivalent calendar dates), information-found decision, citation rule and supplier isolation all pass. Citations must use expected source documents and valid retrieved chunk IDs belonging to the evaluated supplier. Safe-not-found cases require the exact guarded fallback with no citations. Every run creates fresh supplier records, checks original PDF hashes and forces extraction/indexing refresh; existing supplier data is preserved. Extraction checks use current policy fields per document, with the legacy liability certificate explicitly RAG-only. Latency wraps the live HTTP request; P50/P95 use nearest rank. Headline token totals cover Q&A; extraction/indexing usage is recorded separately. Scores from different manifest versions must not be presented as a like-for-like improvement.",
         "",
         "## Limitations",
         "",
-        "This is a controlled synthetic regression evaluation, not a production guarantee. The corpus uses text-native, one-page English PDFs and exact expected facts. Results should be labelled as controlled evaluation results; production calibration would require a larger held-out corpus containing scans, OCR noise, multi-page evidence, conflicting values and real user paraphrases.",
+        ("This remains a small synthetic English corpus, not a production guarantee. Scans cover clean rasterization and JPEG compression, not the full range of real scanning defects. Procurement-style questions are authored scenarios, not independently sampled real user traffic. Component matching and conflict guards are lexical, not semantic entailment checks. Future calibration needs held-out real documents, more scan defects, multi-page evidence and independently labelled user questions."
+         if result.get("manifest_version") == 4 else "This is a controlled synthetic regression evaluation, not a production guarantee. The corpus uses text-native, one-page English PDFs and exact expected facts. Results should be labelled as controlled evaluation results; production calibration would require a larger held-out corpus containing scans, OCR noise, multi-page evidence, conflicting values and real user paraphrases."),
         "",
     ])
     return "\n".join(lines)
@@ -713,7 +823,8 @@ def main() -> None:
     args = parser.parse_args()
     if args.validate_only:
         manifest = validate_manifest(args.manifest.resolve())
-        print(f"Validated manifest v{manifest['version']}: 5 suppliers, 15 PDFs, 50 questions, 45 source-scoped extraction checks.")
+        suppliers = manifest["suppliers"]
+        print(f"Validated manifest v{manifest['version']}: {len(suppliers)} suppliers, {sum(len(s['documents']) for s in suppliers)} PDFs, {sum(len(s['questions']) for s in suppliers)} questions, {sum(len(f) for s in suppliers for f in s['extraction_expectations'].values())} source-scoped extraction checks.")
         return
     result = run_evaluation(
         args.base_url.rstrip("/"),

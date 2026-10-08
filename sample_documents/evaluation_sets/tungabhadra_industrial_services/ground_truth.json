@@ -1,0 +1,183 @@
+{
+  "slug": "tungabhadra_industrial_services",
+  "create_payload": {
+    "name": "Tungabhadra Industrial Services Private Limited",
+    "country": "India",
+    "contact_email": "evaluation.tungabhadra_industrial_services@example.com"
+  },
+  "documents": {
+    "registration": "01_supplier_registration_form.pdf",
+    "tax": "02_gst_registration_certificate.pdf",
+    "insurance": "03_certificate_of_liability_insurance.pdf"
+  },
+  "extraction_expectations": {
+    "registration": {
+      "supplier_name": "Tungabhadra Industrial Services Private Limited",
+      "registration_number": "U29120KA2020PTC150105",
+      "issuing_registry": "Registrar of Companies, India",
+      "registration_date": "2020-09-12",
+      "status": "Active"
+    },
+    "tax": {
+      "supplier_name": "Tungabhadra Industrial Services Private Limited",
+      "tax_identifier": "AABCR1205F",
+      "gst_status_registered_or_not_registered": "Registered",
+      "gstin_when_registered": "29AABCR1205F1Z8"
+    }
+  },
+  "rag_only_documents": {
+    "insurance": "Supplementary liability evidence for RAG; the legacy insurance type has no current policy extraction contract."
+  },
+  "questions": [
+    {
+      "id": "erp_names",
+      "question_type": "scenario_based",
+      "question": "I am setting up the vendor in ERP. Give the legal name and the trading name separately so I do not swap them.",
+      "expected_terms": [
+        "Tungabhadra Industrial Services Private Limited",
+        "Tungabhadra Industrial Services"
+      ],
+      "expected_dates": [],
+      "expected_sources": [
+        "01_supplier_registration_form.pdf"
+      ],
+      "information_found": true
+    },
+    {
+      "id": "gst_status",
+      "question_type": "scenario_based",
+      "question": "Finance needs the legal name and GST registration status for the vendor master. What does the tax certificate state? Do not include identifiers.",
+      "expected_terms": [
+        "Tungabhadra Industrial Services Private Limited",
+        "Registered"
+      ],
+      "expected_dates": [],
+      "expected_sources": [
+        "02_gst_registration_certificate.pdf"
+      ],
+      "information_found": true
+    },
+    {
+      "id": "accounts_payable",
+      "question_type": "scenario_based",
+      "question": "Our AP team starts the payment clock on invoice receipt. What number of days does this supplier allow and what is the trigger?",
+      "expected_terms": [
+        "30",
+        "invoice receipt"
+      ],
+      "expected_dates": [],
+      "expected_sources": [
+        "01_supplier_registration_form.pdf"
+      ],
+      "information_found": true
+    },
+    {
+      "id": "insurance_diary",
+      "question_type": "scenario_based",
+      "question": "I need to diary the last day of liability cover. Convert the end of the policy period to a calendar date and tell me the insurer.",
+      "expected_terms": [
+        "HarborPoint General Insurance Company Limited"
+      ],
+      "expected_dates": [
+        "2027-06-30"
+      ],
+      "expected_sources": [
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "information_found": true
+    },
+    {
+      "id": "supplier_handover",
+      "question_type": "scenario_based",
+      "question": "Write a short handover for procurement with the legal name, product/service description and standard payment terms. Use only the uploaded originals.",
+      "expected_terms": [
+        "Tungabhadra Industrial Services Private Limited",
+        "Industrial sensors and calibration services",
+        "Net 30 days from invoice receipt"
+      ],
+      "expected_dates": [],
+      "expected_sources": [
+        "01_supplier_registration_form.pdf"
+      ],
+      "information_found": true
+    },
+    {
+      "id": "address_for_master",
+      "question_type": "scenario_based",
+      "question": "Fill the address section of our vendor master: street, locality, city, state and PIN code. Please include every address component.",
+      "expected_terms": [
+        "Unit 63",
+        "Bommasandra Industrial Area",
+        "Bengaluru",
+        "Karnataka 560099"
+      ],
+      "expected_dates": [],
+      "expected_sources": [
+        "01_supplier_registration_form.pdf",
+        "02_gst_registration_certificate.pdf"
+      ],
+      "information_found": true
+    },
+    {
+      "id": "policy_identifiers",
+      "question_type": "scenario_based",
+      "question": "For the insurance check, distinguish the policy number from the PAN and GSTIN. Which policy identifier and insurer should I record?",
+      "expected_terms": [
+        "HPGL/2026/EV/18005",
+        "HarborPoint General Insurance Company Limited"
+      ],
+      "expected_dates": [],
+      "expected_sources": [
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "information_found": true
+    },
+    {
+      "id": "registration_date",
+      "question_type": "scenario_based",
+      "question": "The team needs the incorporation date in a readable format, along with the registration status. What do the registration particulars say?",
+      "expected_terms": [
+        "Active"
+      ],
+      "expected_dates": [
+        "2020-09-12"
+      ],
+      "expected_sources": [
+        "01_supplier_registration_form.pdf"
+      ],
+      "information_found": true
+    },
+    {
+      "id": "payment_bank_missing",
+      "question_type": "safe_not_found",
+      "question": "AP is ready to pay. Which beneficiary bank account number should we use?",
+      "expected_terms": [
+        "Information not found in uploaded supplier documents."
+      ],
+      "expected_sources": [],
+      "information_found": false
+    },
+    {
+      "id": "approval_missing",
+      "question_type": "safe_not_found",
+      "question": "Can you confirm that the reviewer has approved this supplier for ERP onboarding from these uploaded documents?",
+      "expected_terms": [
+        "Information not found in uploaded supplier documents."
+      ],
+      "expected_sources": [],
+      "information_found": false
+    }
+  ],
+  "cohort": "scenario_questions",
+  "document_modes": {
+    "registration": "native",
+    "tax": "native",
+    "insurance": "native"
+  },
+  "source_transcript_sha256": {},
+  "document_sha256": {
+    "registration": "29588ff7a75a0d62f6b2bfb8ad350147460f650c6f05c40d0bb8e9e1fedbb86c",
+    "tax": "27d37300c2c42f37e8bdab1d1e58d04fd4d65730c8f4ab010fc8527ae51e45b6",
+    "insurance": "46afddcba19d1edd0b50f6b548a6283e5ffb300a7487c5086a9a6f5adcb5402f"
+  }
+}

@@ -1,4 +1,4 @@
-"""Generate five coherent supplier packs for SourceSure AI quality evaluation."""
+"""Regenerate the pinned five-supplier baseline. Use the extended generator for v4."""
 
 import json
 import hashlib
@@ -487,7 +487,7 @@ def main() -> None:
             json.dumps(entry, indent=2), encoding="utf-8"
         )
         entries.append(entry)
-    (OUTPUT_ROOT / "evaluation_manifest.json").write_text(
+    (OUTPUT_ROOT / "baseline_manifest_v3.json").write_text(
         json.dumps({
             "version": 3,
             "description": "Five suppliers, ten questions each, with direct, paraphrased, date, multi-fact and safe-not-found cases.",

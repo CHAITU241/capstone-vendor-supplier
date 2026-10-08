@@ -58,6 +58,10 @@ See [DOCKER_SETUP.md](DOCKER_SETUP.md) for the complete first-clone guide, verif
 
 See [MONITORING_SETUP.md](MONITORING_SETUP.md) for the three monitoring and evaluation tools.
 
+## Controlled quality evaluation
+
+The current package has 10 synthetic suppliers, 30 PDFs and 100 RAG questions, including six image-only scans, conflicting originals and broader onboarding scenarios. Run `docker compose run --rm --build evaluation` against the configured backend to generate JSON and Markdown reports. See [QUALITY_EVALUATION.md](QUALITY_EVALUATION.md) for the question split, scoring rubric, OCR checks and run instructions. Expanded live scores remain pending until this command completes.
+
 ## AI provider selection
 
 Set `OPENROUTER_API_KEY` to route document extraction, embeddings, supplier Q&A, and the general assistant through OpenRouter. OpenRouter model IDs are configured independently with `OPENROUTER_EXTRACTION_MODEL`, `OPENROUTER_ANSWER_MODEL`, and `OPENROUTER_EMBEDDING_MODEL`.

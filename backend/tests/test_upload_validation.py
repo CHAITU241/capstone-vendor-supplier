@@ -337,6 +337,54 @@ def test_low_quality_ocr_is_rejected_before_permanent_storage(
         assert db.scalars(select(Document)).all() == []
 
 
+@pytest.mark.parametrize("visual_score,expected_status", [(10, "poor"), (50, "review"), (90, "good")])
+def test_supplementary_scans_use_readability_without_nonexistent_policy_fields(
+    upload_app, monkeypatch: pytest.MonkeyPatch, visual_score: int, expected_status: str,
+) -> None:
+    client, _, profile, engine, _, _ = upload_app
+    assert extraction_field_names(DocumentType.INSURANCE) == []
+    # Evaluation uses the legacy, uncategorized supplementary-evidence flow.
+    with Session(engine) as db:
+        supplier = db.get(Supplier, UUID(profile["id"]))
+        supplier.category = None
+        supplier.subcategory = None
+        supplier.submitted_at = datetime.now(UTC)
+        supplier.requirements_snapshot = None
+        db.commit()
+    monkeypatch.setattr(
+        "app.routers.documents.extract_document_text",
+        lambda *_: ExtractedDocument(
+            text="[Page 1]\nSupplementary liability certificate",
+            page_count=1, text_extraction_method="ocr", ocr_pages=(1,),
+            ocr_language="eng", ocr_quality_score=visual_score,
+            ocr_quality_status=expected_status,
+            ocr_quality_details=({"page_number": 1, "visual_score": visual_score},),
+        ),
+    )
+    reviewer = client.post("/api/portal/auth/reviewer-demo").json()
+    response = client.post(
+        f"/api/suppliers/{profile['id']}/documents",
+        headers={"Authorization": f"Bearer {reviewer['token']}"},
+        data={"document_type": "insurance"},
+        files={"file": ("liability.pdf", b"scanned evidence", "application/pdf")},
+    )
+    if expected_status == "poor":
+        assert response.status_code == 422, response.text
+        assert "Image quality is too low" in response.json()["message"]
+        with Session(engine) as db:
+            assert db.scalars(select(Document)).all() == []
+    else:
+        assert response.status_code == 201, response.text
+        body = response.json()
+        assert body["ocr_quality_score"] == visual_score
+        assert body["ocr_quality_status"] == expected_status
+        assert body["review_status"] == ("attention" if expected_status == "review" else "pending")
+        with Session(engine) as db:
+            document = db.scalar(select(Document))
+            assert document is not None and document.extracted_fields == []
+            assert document.ocr_quality_details["required_field_coverage"] is None
+
+
 def test_supplier_can_only_preview_ocr_and_reviewer_can_auditably_correct_it(
     upload_app, monkeypatch: pytest.MonkeyPatch,
 ) -> None:

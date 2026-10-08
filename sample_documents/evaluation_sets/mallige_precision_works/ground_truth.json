@@ -1,0 +1,178 @@
+{
+  "slug": "mallige_precision_works",
+  "create_payload": {
+    "name": "Mallige Precision Works Private Limited",
+    "country": "India",
+    "contact_email": "evaluation.mallige_precision_works@example.com"
+  },
+  "documents": {
+    "registration": "01_supplier_registration_form.pdf",
+    "tax": "02_gst_registration_certificate.pdf",
+    "insurance": "03_certificate_of_liability_insurance.pdf"
+  },
+  "extraction_expectations": {
+    "registration": {
+      "supplier_name": "Mallige Precision Works Private Limited",
+      "registration_number": "U29120KA2020PTC150101",
+      "issuing_registry": "Registrar of Companies, India",
+      "registration_date": "2020-09-12",
+      "status": "Active"
+    },
+    "tax": {
+      "supplier_name": "Mallige Precision Works Private Limited",
+      "tax_identifier": "AABCR1201F",
+      "gst_status_registered_or_not_registered": "Registered",
+      "gstin_when_registered": "29AABCR1201F1Z8"
+    }
+  },
+  "rag_only_documents": {
+    "insurance": "Supplementary liability evidence for RAG; the legacy insurance type has no current policy extraction contract."
+  },
+  "questions": [
+    {
+      "id": "legal_name",
+      "question_type": "direct_fact",
+      "question": "What is the supplier's full legal name?",
+      "expected_terms": [
+        "Mallige Precision Works Private Limited"
+      ],
+      "expected_sources": [
+        "01_supplier_registration_form.pdf",
+        "02_gst_registration_certificate.pdf",
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "information_found": true
+    },
+    {
+      "id": "payment_terms",
+      "question_type": "direct_fact",
+      "question": "What are the supplier's standard payment terms?",
+      "expected_terms": [
+        "Net 30 days from invoice receipt"
+      ],
+      "expected_sources": [
+        "01_supplier_registration_form.pdf"
+      ],
+      "information_found": true
+    },
+    {
+      "id": "insurance_provider",
+      "question_type": "direct_fact",
+      "question": "Which company provides the supplier's liability insurance?",
+      "expected_terms": [
+        "HarborPoint General Insurance Company Limited"
+      ],
+      "expected_sources": [
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "information_found": true
+    },
+    {
+      "id": "insurance_expiry",
+      "question_type": "date_interpretation",
+      "question": "When does the supplier's liability insurance expire?",
+      "expected_terms": [],
+      "expected_dates": [
+        "2027-06-30"
+      ],
+      "expected_sources": [
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "information_found": true
+    },
+    {
+      "id": "business_activity",
+      "question_type": "direct_fact",
+      "question": "What products or services does this supplier provide?",
+      "expected_terms": [
+        "Industrial sensors and calibration services"
+      ],
+      "expected_sources": [
+        "01_supplier_registration_form.pdf",
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "information_found": true
+    },
+    {
+      "id": "trading_name_paraphrase",
+      "question_type": "paraphrased_fact",
+      "question": "Which trading or brand name does this company operate under?",
+      "expected_terms": [
+        "Mallige Precision Works"
+      ],
+      "expected_sources": [
+        "01_supplier_registration_form.pdf",
+        "02_gst_registration_certificate.pdf"
+      ],
+      "information_found": true
+    },
+    {
+      "id": "registered_address_paraphrase",
+      "question_type": "paraphrased_fact",
+      "question": "At what complete street address is this business registered? Include the locality, city, state and postal code.",
+      "expected_terms": [
+        "Unit 21",
+        "Peenya Industrial Estate",
+        "Bengaluru",
+        "Karnataka",
+        "560058"
+      ],
+      "expected_sources": [
+        "01_supplier_registration_form.pdf",
+        "02_gst_registration_certificate.pdf"
+      ],
+      "information_found": true
+    },
+    {
+      "id": "insurance_provider_and_expiry",
+      "question_type": "multi_fact",
+      "question": "Give me both the liability insurer and the policy expiry date.",
+      "expected_terms": [
+        "HarborPoint General Insurance Company Limited"
+      ],
+      "expected_dates": [
+        "2027-06-30"
+      ],
+      "expected_sources": [
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "information_found": true
+    },
+    {
+      "id": "absent_bank_balance",
+      "question_type": "safe_not_found",
+      "question": "What is the supplier's current bank account balance?",
+      "expected_terms": [
+        "Information not found in uploaded supplier documents."
+      ],
+      "expected_sources": [],
+      "information_found": false
+    },
+    {
+      "id": "absent_credit_rating",
+      "question_type": "safe_not_found",
+      "question": "What external credit rating has been assigned to this supplier?",
+      "expected_terms": [
+        "Information not found in uploaded supplier documents."
+      ],
+      "expected_sources": [],
+      "information_found": false
+    }
+  ],
+  "cohort": "ocr",
+  "document_modes": {
+    "registration": "ocr",
+    "tax": "ocr",
+    "insurance": "ocr"
+  },
+  "source_transcript_sha256": {
+    "registration": "d0e3eed7df14e1820bc26dcdfab3cd511b5ed784082fdc4d75e2440ef4691f68",
+    "tax": "42ccf6ebad3d08af7ecfdaf35657dca450964594d43fe87f12b8b5614f62e26a",
+    "insurance": "a0f6f0c6a6895a4c9445a324db9f395201ab0068a4de13257f7fcb0aa753d36c"
+  },
+  "document_sha256": {
+    "registration": "bd4aca6e4d3dc288856eef8772daf9101246485684f600db94cb2f1ac4c0e607",
+    "tax": "fc3de9c8df03efe10ce3b2ca9f61867295476d40798e42571c9edf88f928b955",
+    "insurance": "0e835378c990973b1381b8e5c9d4cc409dcf87b4c1c8cd13c65d5d3924b3c246"
+  }
+}

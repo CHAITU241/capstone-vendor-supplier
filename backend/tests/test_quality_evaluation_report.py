@@ -14,7 +14,7 @@ from scripts.run_quality_evaluation import (
 
 
 ROOT = Path(__file__).resolve().parents[2]
-MANIFEST = ROOT / "sample_documents" / "evaluation_sets" / "evaluation_manifest.json"
+MANIFEST = ROOT / "sample_documents" / "evaluation_sets" / "baseline_manifest_v3.json"
 
 
 def test_final_manifest_has_five_suppliers_and_fifty_varied_questions() -> None:

@@ -123,6 +123,16 @@ def _ocr_reliability(
     if not extracted.ocr_pages:
         return None, None, None
     visual_score = extracted.ocr_quality_score or 0
+    if not extraction_field_names(expected_type):
+        # Supplementary evidence has no policy field contract. Missing model
+        # fields cannot reduce its reliability; visual/readability gates apply.
+        return visual_score, _quality_status(visual_score, settings), {
+            "meaning": "Estimated OCR readability; no policy extraction fields apply. Not document authenticity.",
+            "visual_quality_score": visual_score,
+            "average_field_confidence": None,
+            "required_field_coverage": None,
+            "page_metrics": list(extracted.ocr_quality_details),
+        }
     average_confidence = (
         sum(field.confidence for field in fields) / len(fields) * 100
         if fields else 0.0
