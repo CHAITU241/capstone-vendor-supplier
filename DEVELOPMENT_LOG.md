@@ -13,6 +13,16 @@ The complete product intent remains in `PROJECT_BLUEPRINT.md`.
 - Regression coverage includes first run, forced refresh, already-indexed evidence, OCR-quality gates, future-date mismatch and independent bulk-confirmation exclusions.
 - Verification: 122 backend tests passed; frontend production build passed. Live supplier/provider verification remains to be performed on the deployed VM.
 
+## 2026-10-08 — Final 50-question RAG evaluation
+
+- Expanded the controlled evaluation from four suppliers/six repeated questions to five suppliers/ten questions each.
+- The 50 cases cover direct facts, paraphrased facts, date interpretation, multi-fact answers and safe not-found behaviour; ten cases explicitly require guarded fallback with zero citations.
+- Added an industry-distinct renewable-components supplier pack, producing 15 total source PDFs.
+- The runner now reports strict end-to-end accuracy, answer/found/citation/fallback/isolation components, results by question type and supplier, average/P50/P95/maximum latency, tokens, failures, methodology and limitations.
+- Every live run writes machine-readable `latest_results.json` and mentor-ready `latest_results.md`. Final values remain pending until OpenRouter credentials are available.
+- Added a one-command Compose evaluation service: `docker compose run --rm --build evaluation`.
+- Verification: 125 backend tests passed, the frontend production build passed, all 15 generated PDFs are readable, and the Compose YAML/evaluation dependency structure parsed successfully. Docker execution and the live 50-question run remain pending on the VM.
+
 ## Current Status
 
 - Current milestone: Phases 1-4 are implemented on the local `phase-4` branch.

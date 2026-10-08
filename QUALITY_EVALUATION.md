@@ -2,12 +2,12 @@
 
 ## Scope
 
-This evaluation checks structured extraction, supplier-scoped retrieval, grounded answers, citations, not-found handling, and latency against four additional supplier document packs.
+This evaluation checks structured extraction, supplier-scoped retrieval, grounded answers, citations, not-found handling, and latency against five supplier document packs.
 Each supplier has a registration form, GST registration certificate, and liability insurance certificate.
 The documents contain different identities, addresses, contacts, commercial terms, activities, insurers, and policy dates.
 
 The evaluation corpus is under `sample_documents/evaluation_sets/`.
-Machine-readable ground truth is in `evaluation_manifest.json` and the latest detailed output is in `latest_results.json`.
+Machine-readable ground truth is in `evaluation_manifest.json`. A live run creates `latest_results.json` and `latest_results.md`; the earlier 24-question evidence is retained as `historical_results_4_suppliers_24_questions.json`.
 
 ## Quality Fixes Evaluated
 
@@ -26,14 +26,13 @@ Machine-readable ground truth is in `evaluation_manifest.json` and the latest de
 ## Evaluation Cases
 
 Four suppliers were evaluated with nine expected canonical fields each, for 36 field checks.
-Each supplier was asked six questions:
+The current final corpus contains ten questions per supplier (50 total):
 
-1. Full legal name.
-2. Standard payment terms.
-3. Liability insurance provider.
-4. Liability insurance expiry.
-5. Products or services supplied.
-6. A deliberately absent bank-account balance.
+1. Four direct factual questions: legal name, payment terms, insurer, and business activity.
+2. Two paraphrased questions: trading name and registered address.
+3. One date-interpretation question: liability insurance expiry.
+4. One multi-fact question: insurer and expiry together.
+5. Two deliberately unsupported questions: bank balance and external credit rating.
 
 An answerable case passes only when expected answer terms, `information_found`, and an expected source citation all match.
 The absent case passes only when the exact guarded not-found answer is returned with zero citations.
@@ -56,7 +55,7 @@ The failures had two main causes:
 
 One contact name also included its job role and failed strict field comparison.
 
-## Final Run
+## Historical 24-question run
 
 After the citation-label, cutoff, and extraction-prompt changes:
 
@@ -82,16 +81,26 @@ It passed legal name, registered address, insurance expiry, and absent bank-bala
 The previously failing expiry question returned `31 MAR 2027` with the insurance document citation.
 Asteron produced eight canonical fields because its original PDFs do not explicitly state every supported field; missing values are no longer represented by literal `"null"` rows.
 
+## Final 50-question run
+
+The codebase is ready for the final run using five suppliers, 15 documents and 50 questions. Run it after configuring the final OpenRouter credentials. The runner creates both `latest_results.json` and the presentation-ready `latest_results.md`; do not reuse the historical 24-question figures as the final result.
+
 ## Reproduce
 
-Start FastAPI with valid Azure OpenAI configuration, then run from the repository root:
+Start FastAPI with valid OpenRouter configuration, then run from the repository root:
+
+```bash
+docker compose run --rm --build evaluation
+```
+
+The equivalent direct Python commands are:
 
 ```powershell
 .\backend\.venv\Scripts\python.exe scripts\generate_evaluation_documents.py
 .\backend\.venv\Scripts\python.exe scripts\run_quality_evaluation.py
 ```
 
-The runner reuses suppliers with matching names, uploads missing document categories, reprocesses documents, replaces their Chroma chunks, executes all questions, and overwrites `latest_results.json`.
+The runner reuses suppliers with matching names, uploads missing document categories, reprocesses documents, replaces their Chroma chunks, executes all questions, and overwrites `latest_results.json` and `latest_results.md`.
 
 ## Interpretation and Limitations
 

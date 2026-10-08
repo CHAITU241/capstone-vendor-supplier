@@ -25,6 +25,7 @@ COPY backend/alembic.ini ./alembic.ini
 COPY backend/alembic ./alembic
 COPY backend/app ./app
 COPY backend/policy ./policy
+COPY scripts/run_quality_evaluation.py ./scripts/run_quality_evaluation.py
 COPY backend/docker-entrypoint.sh ./docker-entrypoint.sh
 
 RUN mkdir -p /app/uploads /app/data/chroma \

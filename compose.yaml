@@ -88,6 +88,20 @@ services:
       - "${FRONTEND_PORT:-5173}:80"
     restart: unless-stopped
 
+  evaluation:
+    profiles: ["evaluation"]
+    build:
+      context: .
+      target: backend
+    user: "${LOCAL_UID:-1000}:${LOCAL_GID:-1000}"
+    entrypoint: ["python", "scripts/run_quality_evaluation.py"]
+    command: ["--base-url", "http://backend:8000/api"]
+    depends_on:
+      backend:
+        condition: service_healthy
+    volumes:
+      - ./sample_documents/evaluation_sets:/app/sample_documents/evaluation_sets
+
 volumes:
   postgres_data:
     name: vendorlens_postgres_data

@@ -1,9 +1,9 @@
 {
-  "slug": "eastbridge_logistics",
+  "slug": "sahyadri_renewable_components",
   "create_payload": {
-    "name": "Eastbridge Logistics and Warehousing Private Limited",
+    "name": "Sahyadri Renewable Components Private Limited",
     "country": "India",
-    "contact_email": "souvik.banerjee@example.com"
+    "contact_email": "neha.patil@example.com"
   },
   "documents": {
     "registration": "01_supplier_registration_form.pdf",
@@ -11,15 +11,15 @@
     "insurance": "03_certificate_of_liability_insurance.pdf"
   },
   "expected_fields": {
-    "supplier_name": "Eastbridge Logistics and Warehousing Private Limited",
-    "address": "Warehouse 7, Jalan Logistics Park, Dankuni, Hooghly, West Bengal 712311",
+    "supplier_name": "Sahyadri Renewable Components Private Limited",
+    "address": "Unit 14, Chakan Green Industrial Park, Pune, Maharashtra 410501",
     "country": "India",
-    "tax_identifier": "19AACCE8765M1Z4",
-    "contact_name": "Souvik Banerjee",
-    "contact_email": "souvik.banerjee@example.com",
-    "insurance_provider": "AtlasGuard General Insurance Company Limited",
-    "insurance_expiry_date": "30 SEP 2027",
-    "payment_terms": "Net 15 days after monthly service acceptance"
+    "tax_identifier": "27AALCS2468R1Z5",
+    "contact_name": "Neha Patil",
+    "contact_email": "neha.patil@example.com",
+    "insurance_provider": "SummitShield General Insurance Company Limited",
+    "insurance_expiry_date": "14 AUG 2027",
+    "payment_terms": "Net 30 days after goods receipt and quality acceptance"
   },
   "questions": [
     {
@@ -27,7 +27,7 @@
       "question_type": "direct_fact",
       "question": "What is the supplier's full legal name?",
       "expected_terms": [
-        "Eastbridge Logistics and Warehousing Private Limited"
+        "Sahyadri Renewable Components Private Limited"
       ],
       "expected_sources": [
         "01_supplier_registration_form.pdf",
@@ -41,7 +41,7 @@
       "question_type": "direct_fact",
       "question": "What are the supplier's standard payment terms?",
       "expected_terms": [
-        "Net 15 days after monthly service acceptance"
+        "Net 30 days after goods receipt and quality acceptance"
       ],
       "expected_sources": [
         "01_supplier_registration_form.pdf"
@@ -53,7 +53,7 @@
       "question_type": "direct_fact",
       "question": "Which company provides the supplier's liability insurance?",
       "expected_terms": [
-        "AtlasGuard General Insurance Company Limited"
+        "SummitShield General Insurance Company Limited"
       ],
       "expected_sources": [
         "03_certificate_of_liability_insurance.pdf"
@@ -65,7 +65,7 @@
       "question_type": "date_interpretation",
       "question": "When does the supplier's liability insurance expire?",
       "expected_terms": [
-        "30 SEP 2027"
+        "14 AUG 2027"
       ],
       "expected_sources": [
         "03_certificate_of_liability_insurance.pdf"
@@ -77,7 +77,7 @@
       "question_type": "direct_fact",
       "question": "What products or services does this supplier provide?",
       "expected_terms": [
-        "Contract warehousing, inventory handling and regional freight coordination"
+        "Solar mounting structures, inverter enclosures and renewable-energy component assemblies"
       ],
       "expected_sources": [
         "01_supplier_registration_form.pdf",
@@ -90,7 +90,7 @@
       "question_type": "paraphrased_fact",
       "question": "Which trading or brand name does this company operate under?",
       "expected_terms": [
-        "Eastbridge Logistics"
+        "Sahyadri Renewables"
       ],
       "expected_sources": [
         "01_supplier_registration_form.pdf",
@@ -103,7 +103,7 @@
       "question_type": "paraphrased_fact",
       "question": "Where is this business officially registered?",
       "expected_terms": [
-        "Warehouse 7, Jalan Logistics Park, Dankuni, Hooghly, West Bengal 712311"
+        "Unit 14, Chakan Green Industrial Park, Pune, Maharashtra 410501"
       ],
       "expected_sources": [
         "01_supplier_registration_form.pdf",
@@ -116,8 +116,8 @@
       "question_type": "multi_fact",
       "question": "Give me both the liability insurer and the policy expiry date.",
       "expected_terms": [
-        "AtlasGuard General Insurance Company Limited",
-        "30 SEP 2027"
+        "SummitShield General Insurance Company Limited",
+        "14 AUG 2027"
       ],
       "expected_sources": [
         "03_certificate_of_liability_insurance.pdf"

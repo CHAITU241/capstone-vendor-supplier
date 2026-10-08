@@ -1,4 +1,4 @@
-"""Generate four coherent supplier packs for SourceSure AI quality evaluation."""
+"""Generate five coherent supplier packs for SourceSure AI quality evaluation."""
 
 import json
 from dataclasses import dataclass
@@ -155,6 +155,32 @@ SUPPLIERS = [
         tax_reference="GST/WB/2026/7310",
         insurance_reference="COI/AGG/2026/90441",
     ),
+    SupplierPack(
+        slug="sahyadri_renewable_components",
+        legal_name="Sahyadri Renewable Components Private Limited",
+        trading_name="Sahyadri Renewables",
+        address="Unit 14, Chakan Green Industrial Park, Pune, Maharashtra 410501",
+        country="India",
+        cin="U31909PN2021PTC204716",
+        pan="AALCS2468R",
+        gstin="27AALCS2468R1Z5",
+        incorporation_date="08 October 2021",
+        contact_name="Neha Patil",
+        contact_role="Manager - Commercial Finance",
+        contact_email="neha.patil@example.com",
+        contact_phone="+91 90005 67890",
+        product_category="Solar mounting structures, inverter enclosures and renewable-energy component assemblies",
+        payment_terms="Net 30 days after goods receipt and quality acceptance",
+        signatory="Aditya Joshi",
+        insurance_provider="SummitShield General Insurance Company Limited",
+        policy_number="SSG/RE/2026/58214",
+        policy_start="15 AUG 2026",
+        policy_expiry="14 AUG 2027",
+        occurrence_limit="INR 6,00,00,000",
+        registration_reference="SRC/VEN/2026/582",
+        tax_reference="GST/MH/2026/8425",
+        insurance_reference="COI/SSG/2026/58214",
+    ),
 ]
 
 
@@ -303,6 +329,7 @@ def evaluation_questions(supplier: SupplierPack) -> list[dict]:
     return [
         {
             "id": "legal_name",
+            "question_type": "direct_fact",
             "question": "What is the supplier's full legal name?",
             "expected_terms": [supplier.legal_name],
             "expected_sources": [
@@ -314,6 +341,7 @@ def evaluation_questions(supplier: SupplierPack) -> list[dict]:
         },
         {
             "id": "payment_terms",
+            "question_type": "direct_fact",
             "question": "What are the supplier's standard payment terms?",
             "expected_terms": [supplier.payment_terms],
             "expected_sources": ["01_supplier_registration_form.pdf"],
@@ -321,6 +349,7 @@ def evaluation_questions(supplier: SupplierPack) -> list[dict]:
         },
         {
             "id": "insurance_provider",
+            "question_type": "direct_fact",
             "question": "Which company provides the supplier's liability insurance?",
             "expected_terms": [supplier.insurance_provider],
             "expected_sources": ["03_certificate_of_liability_insurance.pdf"],
@@ -328,6 +357,7 @@ def evaluation_questions(supplier: SupplierPack) -> list[dict]:
         },
         {
             "id": "insurance_expiry",
+            "question_type": "date_interpretation",
             "question": "When does the supplier's liability insurance expire?",
             "expected_terms": [supplier.policy_expiry],
             "expected_sources": ["03_certificate_of_liability_insurance.pdf"],
@@ -335,6 +365,7 @@ def evaluation_questions(supplier: SupplierPack) -> list[dict]:
         },
         {
             "id": "business_activity",
+            "question_type": "direct_fact",
             "question": "What products or services does this supplier provide?",
             "expected_terms": [supplier.product_category],
             "expected_sources": [
@@ -344,8 +375,47 @@ def evaluation_questions(supplier: SupplierPack) -> list[dict]:
             "information_found": True,
         },
         {
+            "id": "trading_name_paraphrase",
+            "question_type": "paraphrased_fact",
+            "question": "Which trading or brand name does this company operate under?",
+            "expected_terms": [supplier.trading_name],
+            "expected_sources": [
+                "01_supplier_registration_form.pdf",
+                "02_gst_registration_certificate.pdf",
+            ],
+            "information_found": True,
+        },
+        {
+            "id": "registered_address_paraphrase",
+            "question_type": "paraphrased_fact",
+            "question": "Where is this business officially registered?",
+            "expected_terms": [supplier.address],
+            "expected_sources": [
+                "01_supplier_registration_form.pdf",
+                "02_gst_registration_certificate.pdf",
+            ],
+            "information_found": True,
+        },
+        {
+            "id": "insurance_provider_and_expiry",
+            "question_type": "multi_fact",
+            "question": "Give me both the liability insurer and the policy expiry date.",
+            "expected_terms": [supplier.insurance_provider, supplier.policy_expiry],
+            "expected_sources": ["03_certificate_of_liability_insurance.pdf"],
+            "information_found": True,
+        },
+        {
             "id": "absent_bank_balance",
+            "question_type": "safe_not_found",
             "question": "What is the supplier's current bank account balance?",
+            "expected_terms": ["Information not found in uploaded supplier documents."],
+            "expected_sources": [],
+            "information_found": False,
+        },
+        {
+            "id": "absent_credit_rating",
+            "question_type": "safe_not_found",
+            "question": "What external credit rating has been assigned to this supplier?",
             "expected_terms": ["Information not found in uploaded supplier documents."],
             "expected_sources": [],
             "information_found": False,
@@ -395,7 +465,11 @@ def main() -> None:
         )
         entries.append(entry)
     (OUTPUT_ROOT / "evaluation_manifest.json").write_text(
-        json.dumps({"version": 1, "suppliers": entries}, indent=2),
+        json.dumps({
+            "version": 2,
+            "description": "Five suppliers, ten questions each, with direct, paraphrased, date, multi-fact and safe-not-found cases.",
+            "suppliers": entries,
+        }, indent=2),
         encoding="utf-8",
     )
     print(f"Generated {len(entries)} supplier packs in {OUTPUT_ROOT}")
