@@ -10,16 +10,23 @@
     "tax": "02_gst_registration_certificate.pdf",
     "insurance": "03_certificate_of_liability_insurance.pdf"
   },
-  "expected_fields": {
-    "supplier_name": "Kaveri Flow Controls Private Limited",
-    "address": "Plot 22, SIDCO Industrial Estate, Kurichi, Coimbatore, Tamil Nadu 641021",
-    "country": "India",
-    "tax_identifier": "33AABCK1234F1Z8",
-    "contact_name": "Ananya Rao",
-    "contact_email": "ananya.rao@example.com",
-    "insurance_provider": "HarborPoint General Insurance Company Limited",
-    "insurance_expiry_date": "30 JUN 2027",
-    "payment_terms": "Net 30 days from invoice receipt"
+  "extraction_expectations": {
+    "registration": {
+      "supplier_name": "Kaveri Flow Controls Private Limited",
+      "registration_number": "U29120TZ2018PTC030945",
+      "issuing_registry": "Registrar of Companies, India",
+      "registration_date": "2018-09-12",
+      "status": "Active"
+    },
+    "tax": {
+      "supplier_name": "Kaveri Flow Controls Private Limited",
+      "tax_identifier": "AABCK1234F",
+      "gst_status_registered_or_not_registered": "Registered",
+      "gstin_when_registered": "33AABCK1234F1Z8"
+    }
+  },
+  "rag_only_documents": {
+    "insurance": "Supplementary liability evidence for RAG; the legacy insurance type has no current policy extraction contract."
   },
   "questions": [
     {
@@ -64,8 +71,9 @@
       "id": "insurance_expiry",
       "question_type": "date_interpretation",
       "question": "When does the supplier's liability insurance expire?",
-      "expected_terms": [
-        "30 JUN 2027"
+      "expected_terms": [],
+      "expected_dates": [
+        "2027-06-30"
       ],
       "expected_sources": [
         "03_certificate_of_liability_insurance.pdf"
@@ -101,9 +109,14 @@
     {
       "id": "registered_address_paraphrase",
       "question_type": "paraphrased_fact",
-      "question": "Where is this business officially registered?",
+      "question": "At what complete street address is this business registered? Include the locality, city, state and postal code.",
       "expected_terms": [
-        "Plot 22, SIDCO Industrial Estate, Kurichi, Coimbatore, Tamil Nadu 641021"
+        "Plot 22",
+        "SIDCO Industrial Estate",
+        "Kurichi",
+        "Coimbatore",
+        "Tamil Nadu",
+        "641021"
       ],
       "expected_sources": [
         "01_supplier_registration_form.pdf",
@@ -116,8 +129,10 @@
       "question_type": "multi_fact",
       "question": "Give me both the liability insurer and the policy expiry date.",
       "expected_terms": [
-        "HarborPoint General Insurance Company Limited",
-        "30 JUN 2027"
+        "HarborPoint General Insurance Company Limited"
+      ],
+      "expected_dates": [
+        "2027-06-30"
       ],
       "expected_sources": [
         "03_certificate_of_liability_insurance.pdf"
@@ -144,5 +159,10 @@
       "expected_sources": [],
       "information_found": false
     }
-  ]
+  ],
+  "document_sha256": {
+    "registration": "c0d592dbc61b542e7293c3d2fc2b3377064d9acd02ec4c120ed596636ee1de2c",
+    "tax": "6f50f0f18a388297359d70b9a9750761d0f22f3f9f72d2ede99cb59ff695cc08",
+    "insurance": "aec01b0fd1cc7db083ac066b2373801442c196b571b53e68c5c7e377176899d0"
+  }
 }

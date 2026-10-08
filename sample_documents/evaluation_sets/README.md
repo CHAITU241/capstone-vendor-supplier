@@ -1,39 +1,39 @@
 # Supplier Quality Evaluation Packs
 
-This folder contains five coherent supplier packs for repeatable SourceSure AI extraction and grounded-Q&A evaluation.
-The PDF content intentionally looks like ordinary onboarding documentation; synthetic-data disclosure and expected answers are kept outside the PDFs.
+Five synthetic supplier packs; three PDFs and ten RAG questions per pack. The active manifest is version 3.
 
-Each supplier directory contains:
+| Original | Extraction scope | RAG scope |
+|---|---|---|
+| `01_supplier_registration_form.pdf` | Five current registration-policy fields | Included |
+| `02_gst_registration_certificate.pdf` | Four tax-policy fields, with separate PAN and GSTIN | Included |
+| `03_certificate_of_liability_insurance.pdf` | Explicitly excluded: legacy type has no policy extraction contract | Included |
 
-- `01_supplier_registration_form.pdf` uploaded as `registration`.
-- `02_gst_registration_certificate.pdf` uploaded as `tax`.
-- `03_certificate_of_liability_insurance.pdf` uploaded as `insurance`.
-- `ground_truth.json` containing expected fields and Q&A cases.
+The evaluation therefore covers **45 source-scoped extraction checks**, **15 RAG originals**, and **50 questions** with a 20/10/5/5/10 direct/paraphrased/date/multi-fact/not-found split. It does not score complete onboarding approval or OCR.
 
-`evaluation_manifest.json` combines all five ground-truth files and 50 questions for the evaluation runner. Each supplier has ten questions spanning direct facts, paraphrases, date interpretation, a multi-fact response, and safe not-found behaviour.
-`latest_results.json` is generated after a live run and contains machine-readable field, answer, citation, safe-fallback, isolation, token, latency, question-type and per-supplier results. `latest_results.md` contains the same run as a mentor-ready report with methodology and limitations.
-The previous four-supplier/24-question run is retained as `historical_results_4_suppliers_24_questions.json` so it cannot be mistaken for the final result.
-
-Regenerate the documents from the repository root:
-
-```powershell
-.\backend\.venv\Scripts\python.exe scripts\generate_evaluation_documents.py
-```
-
-Run the live evaluation while FastAPI is available at port 8000:
-
-```powershell
-.\backend\.venv\Scripts\python.exe scripts\run_quality_evaluation.py
-```
-
-On the Linux demo VM, the easiest and recommended command is:
+From the repository root:
 
 ```bash
+docker compose up -d --build backend
+docker compose run --rm --build evaluation --validate-only
 docker compose run --rm --build evaluation
 ```
 
-This starts the required Compose dependencies if necessary and writes both reports into this directory. The default command uses the reviewer demo session. If reviewer authentication is enabled, run the Python command directly with `EVALUATION_REVIEWER_EMAIL` and `EVALUATION_REVIEWER_PASSWORD` set.
+Configure OpenRouter in `backend/.env`. If reviewer demo login is disabled, export both `EVALUATION_REVIEWER_EMAIL` and `EVALUATION_REVIEWER_PASSWORD` first. The service passes those variables to the runner.
 
-The runner reuses suppliers with matching legal names, uploads only missing categories, reprocesses their documents, and writes the complete result file.
+The validator checks PDF hashes/readability, policy schema coverage, exact question counts and ground-truth consistency before any API calls. Each live run creates five fresh supplier records and forces processing refresh. Existing cases are left intact; supplier IDs identify runs even when display names repeat.
 
-Headline accuracy is strict: a question passes only when its expected answer terms, found/not-found decision, citation rule, and supplier-isolation check all pass. The report labels the results as a controlled synthetic regression evaluation rather than a production guarantee.
+Reports are written to `latest_results.json` and `latest_results.md` in this directory, mounted onto the host. Previous latest reports are preserved in `results_archive/<timestamp_uuid>/`. No live report is written by validation-only mode or by tests.
+
+Historical evidence:
+
+- `historical_results_4_suppliers_24_questions.json`: the older 24-question run.
+- `historical_results_manifest_v2_50_questions.json` and `.md`: the actual version-2 run with 45/50 RAG passes; JSON bytes preserved unchanged.
+- `historical_manifest_v2.json`: the version-2 expectations. Its obsolete extraction score is not comparable with version 3.
+
+`evaluation_manifest.json` combines each supplier's `ground_truth.json` and pins PDF hashes. To regenerate the corpus intentionally, use the backend Python environment:
+
+```bash
+python scripts/generate_evaluation_documents.py
+```
+
+Regeneration changes PDF bytes and manifest hashes, so keep PDFs, all ground-truth files and the combined manifest together. Read `QUALITY_EVALUATION.md` for methodology and limitations. Genuine wrong answers, missing fields, incorrect dates and bad citations remain failures.

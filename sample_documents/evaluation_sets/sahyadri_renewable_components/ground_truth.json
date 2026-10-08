@@ -10,16 +10,23 @@
     "tax": "02_gst_registration_certificate.pdf",
     "insurance": "03_certificate_of_liability_insurance.pdf"
   },
-  "expected_fields": {
-    "supplier_name": "Sahyadri Renewable Components Private Limited",
-    "address": "Unit 14, Chakan Green Industrial Park, Pune, Maharashtra 410501",
-    "country": "India",
-    "tax_identifier": "27AALCS2468R1Z5",
-    "contact_name": "Neha Patil",
-    "contact_email": "neha.patil@example.com",
-    "insurance_provider": "SummitShield General Insurance Company Limited",
-    "insurance_expiry_date": "14 AUG 2027",
-    "payment_terms": "Net 30 days after goods receipt and quality acceptance"
+  "extraction_expectations": {
+    "registration": {
+      "supplier_name": "Sahyadri Renewable Components Private Limited",
+      "registration_number": "U31909PN2021PTC204716",
+      "issuing_registry": "Registrar of Companies, India",
+      "registration_date": "2021-10-08",
+      "status": "Active"
+    },
+    "tax": {
+      "supplier_name": "Sahyadri Renewable Components Private Limited",
+      "tax_identifier": "AALCS2468R",
+      "gst_status_registered_or_not_registered": "Registered",
+      "gstin_when_registered": "27AALCS2468R1Z5"
+    }
+  },
+  "rag_only_documents": {
+    "insurance": "Supplementary liability evidence for RAG; the legacy insurance type has no current policy extraction contract."
   },
   "questions": [
     {
@@ -64,8 +71,9 @@
       "id": "insurance_expiry",
       "question_type": "date_interpretation",
       "question": "When does the supplier's liability insurance expire?",
-      "expected_terms": [
-        "14 AUG 2027"
+      "expected_terms": [],
+      "expected_dates": [
+        "2027-08-14"
       ],
       "expected_sources": [
         "03_certificate_of_liability_insurance.pdf"
@@ -101,9 +109,13 @@
     {
       "id": "registered_address_paraphrase",
       "question_type": "paraphrased_fact",
-      "question": "Where is this business officially registered?",
+      "question": "At what complete street address is this business registered? Include the locality, city, state and postal code.",
       "expected_terms": [
-        "Unit 14, Chakan Green Industrial Park, Pune, Maharashtra 410501"
+        "Unit 14",
+        "Chakan Green Industrial Park",
+        "Pune",
+        "Maharashtra",
+        "410501"
       ],
       "expected_sources": [
         "01_supplier_registration_form.pdf",
@@ -116,8 +128,10 @@
       "question_type": "multi_fact",
       "question": "Give me both the liability insurer and the policy expiry date.",
       "expected_terms": [
-        "SummitShield General Insurance Company Limited",
-        "14 AUG 2027"
+        "SummitShield General Insurance Company Limited"
+      ],
+      "expected_dates": [
+        "2027-08-14"
       ],
       "expected_sources": [
         "03_certificate_of_liability_insurance.pdf"
@@ -144,5 +158,10 @@
       "expected_sources": [],
       "information_found": false
     }
-  ]
+  ],
+  "document_sha256": {
+    "registration": "7cab00a878d079b2d5abec70867163efd1d74eed9494939a5d83ff5dbefd130d",
+    "tax": "47746e6ce2325569f5f560d9daf1d2768cf10272b9a6649b9c25b9f48718c476",
+    "insurance": "d726f7b762b3240370ac739256d4f7e73605c4d82434e017a652d997ef6f77b3"
+  }
 }

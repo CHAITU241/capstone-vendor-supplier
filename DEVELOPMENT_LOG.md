@@ -23,6 +23,15 @@ The complete product intent remains in `PROJECT_BLUEPRINT.md`.
 - Added a one-command Compose evaluation service: `docker compose run --rm --build evaluation`.
 - Verification: 125 backend tests passed, the frontend production build passed, all 15 generated PDFs are readable, and the Compose YAML/evaluation dependency structure parsed successfully. Docker execution and the live 50-question run remain pending on the VM.
 
+## 2026-10-08 — Policy-aligned evaluation setup
+
+- Preserved the owner-provided v2 live run unchanged (45/50 RAG, 5/45 obsolete extraction checks) and archived its manifest/report.
+- Active manifest v3 scores 45 current policy fields by source document across registration/tax; five legacy liability certificates remain explicitly RAG-only. Updated PDFs declare issuer/status/GST facts.
+- Clarified complete-address intent, accepts equivalent dates, validates corpus hashes/schema before API calls, creates fresh supplier IDs and forces processing refresh.
+- Citation/isolation checks now verify supplier/original/chunk/page identity; reports retain expected/actual facts, excerpts, processing diagnostics and manifest provenance. Existing reports are archived before replacement.
+- Production policy and RAG prompts unchanged. Updated live run remains pending on the owner Docker/OpenRouter machine; no replacement scores fabricated.
+- Validation: 141 backend tests passed, manifest/PDF preflight passed, all 15 pages rendered and visually checked, Compose wiring checked. Native Docker execution remains unavailable in this workspace.
+
 ## Current Status
 
 - Current milestone: Phases 1-4 are implemented on the local `phase-4` branch.

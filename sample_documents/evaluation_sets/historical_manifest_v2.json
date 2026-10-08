@@ -1,5 +1,5 @@
 {
-  "version": 3,
+  "version": 2,
   "description": "Five suppliers, ten questions each, with direct, paraphrased, date, multi-fact and safe-not-found cases.",
   "suppliers": [
     {
@@ -14,23 +14,16 @@
         "tax": "02_gst_registration_certificate.pdf",
         "insurance": "03_certificate_of_liability_insurance.pdf"
       },
-      "extraction_expectations": {
-        "registration": {
-          "supplier_name": "Kaveri Flow Controls Private Limited",
-          "registration_number": "U29120TZ2018PTC030945",
-          "issuing_registry": "Registrar of Companies, India",
-          "registration_date": "2018-09-12",
-          "status": "Active"
-        },
-        "tax": {
-          "supplier_name": "Kaveri Flow Controls Private Limited",
-          "tax_identifier": "AABCK1234F",
-          "gst_status_registered_or_not_registered": "Registered",
-          "gstin_when_registered": "33AABCK1234F1Z8"
-        }
-      },
-      "rag_only_documents": {
-        "insurance": "Supplementary liability evidence for RAG; the legacy insurance type has no current policy extraction contract."
+      "expected_fields": {
+        "supplier_name": "Kaveri Flow Controls Private Limited",
+        "address": "Plot 22, SIDCO Industrial Estate, Kurichi, Coimbatore, Tamil Nadu 641021",
+        "country": "India",
+        "tax_identifier": "33AABCK1234F1Z8",
+        "contact_name": "Ananya Rao",
+        "contact_email": "ananya.rao@example.com",
+        "insurance_provider": "HarborPoint General Insurance Company Limited",
+        "insurance_expiry_date": "30 JUN 2027",
+        "payment_terms": "Net 30 days from invoice receipt"
       },
       "questions": [
         {
@@ -75,9 +68,8 @@
           "id": "insurance_expiry",
           "question_type": "date_interpretation",
           "question": "When does the supplier's liability insurance expire?",
-          "expected_terms": [],
-          "expected_dates": [
-            "2027-06-30"
+          "expected_terms": [
+            "30 JUN 2027"
           ],
           "expected_sources": [
             "03_certificate_of_liability_insurance.pdf"
@@ -113,14 +105,9 @@
         {
           "id": "registered_address_paraphrase",
           "question_type": "paraphrased_fact",
-          "question": "At what complete street address is this business registered? Include the locality, city, state and postal code.",
+          "question": "Where is this business officially registered?",
           "expected_terms": [
-            "Plot 22",
-            "SIDCO Industrial Estate",
-            "Kurichi",
-            "Coimbatore",
-            "Tamil Nadu",
-            "641021"
+            "Plot 22, SIDCO Industrial Estate, Kurichi, Coimbatore, Tamil Nadu 641021"
           ],
           "expected_sources": [
             "01_supplier_registration_form.pdf",
@@ -133,10 +120,8 @@
           "question_type": "multi_fact",
           "question": "Give me both the liability insurer and the policy expiry date.",
           "expected_terms": [
-            "HarborPoint General Insurance Company Limited"
-          ],
-          "expected_dates": [
-            "2027-06-30"
+            "HarborPoint General Insurance Company Limited",
+            "30 JUN 2027"
           ],
           "expected_sources": [
             "03_certificate_of_liability_insurance.pdf"
@@ -163,12 +148,7 @@
           "expected_sources": [],
           "information_found": false
         }
-      ],
-      "document_sha256": {
-        "registration": "c0d592dbc61b542e7293c3d2fc2b3377064d9acd02ec4c120ed596636ee1de2c",
-        "tax": "6f50f0f18a388297359d70b9a9750761d0f22f3f9f72d2ede99cb59ff695cc08",
-        "insurance": "aec01b0fd1cc7db083ac066b2373801442c196b571b53e68c5c7e377176899d0"
-      }
+      ]
     },
     {
       "slug": "norwood_clinical_systems",
@@ -182,23 +162,16 @@
         "tax": "02_gst_registration_certificate.pdf",
         "insurance": "03_certificate_of_liability_insurance.pdf"
       },
-      "extraction_expectations": {
-        "registration": {
-          "supplier_name": "Norwood Clinical Systems Private Limited",
-          "registration_number": "U33110KA2020PTC141208",
-          "issuing_registry": "Registrar of Companies, India",
-          "registration_date": "2020-12-03",
-          "status": "Active"
-        },
-        "tax": {
-          "supplier_name": "Norwood Clinical Systems Private Limited",
-          "tax_identifier": "AABCN5678K",
-          "gst_status_registered_or_not_registered": "Registered",
-          "gstin_when_registered": "29AABCN5678K1Z2"
-        }
-      },
-      "rag_only_documents": {
-        "insurance": "Supplementary liability evidence for RAG; the legacy insurance type has no current policy extraction contract."
+      "expected_fields": {
+        "supplier_name": "Norwood Clinical Systems Private Limited",
+        "address": "48, KIADB Health Technology Park, Whitefield, Bengaluru, Karnataka 560066",
+        "country": "India",
+        "tax_identifier": "29AABCN5678K1Z2",
+        "contact_name": "Rohan Kulkarni",
+        "contact_email": "rohan.kulkarni@example.com",
+        "insurance_provider": "CedarSure Commercial Insurance Company Limited",
+        "insurance_expiry_date": "15 DEC 2026",
+        "payment_terms": "Net 45 days from accepted delivery"
       },
       "questions": [
         {
@@ -243,9 +216,8 @@
           "id": "insurance_expiry",
           "question_type": "date_interpretation",
           "question": "When does the supplier's liability insurance expire?",
-          "expected_terms": [],
-          "expected_dates": [
-            "2026-12-15"
+          "expected_terms": [
+            "15 DEC 2026"
           ],
           "expected_sources": [
             "03_certificate_of_liability_insurance.pdf"
@@ -281,14 +253,9 @@
         {
           "id": "registered_address_paraphrase",
           "question_type": "paraphrased_fact",
-          "question": "At what complete street address is this business registered? Include the locality, city, state and postal code.",
+          "question": "Where is this business officially registered?",
           "expected_terms": [
-            "48",
-            "KIADB Health Technology Park",
-            "Whitefield",
-            "Bengaluru",
-            "Karnataka",
-            "560066"
+            "48, KIADB Health Technology Park, Whitefield, Bengaluru, Karnataka 560066"
           ],
           "expected_sources": [
             "01_supplier_registration_form.pdf",
@@ -301,10 +268,8 @@
           "question_type": "multi_fact",
           "question": "Give me both the liability insurer and the policy expiry date.",
           "expected_terms": [
-            "CedarSure Commercial Insurance Company Limited"
-          ],
-          "expected_dates": [
-            "2026-12-15"
+            "CedarSure Commercial Insurance Company Limited",
+            "15 DEC 2026"
           ],
           "expected_sources": [
             "03_certificate_of_liability_insurance.pdf"
@@ -331,12 +296,7 @@
           "expected_sources": [],
           "information_found": false
         }
-      ],
-      "document_sha256": {
-        "registration": "8623d3afbc581e48b7aafe1efbb08d97af92e34e7a896cb48729eb3912cb1a91",
-        "tax": "3ecb51c81deb7b93e15e75f9f854db6830556d0291d4ece84db3762565d7b255",
-        "insurance": "2a8f5f895c535f22e2297560e9b1424d8a3d7723151c1600dd93d3fc55883d93"
-      }
+      ]
     },
     {
       "slug": "prithvi_sustainable_packaging",
@@ -350,23 +310,16 @@
         "tax": "02_gst_registration_certificate.pdf",
         "insurance": "03_certificate_of_liability_insurance.pdf"
       },
-      "extraction_expectations": {
-        "registration": {
-          "supplier_name": "Prithvi Sustainable Packaging Private Limited",
-          "registration_number": "U21099GJ2019PTC109844",
-          "issuing_registry": "Registrar of Companies, India",
-          "registration_date": "2019-08-21",
-          "status": "Active"
-        },
-        "tax": {
-          "supplier_name": "Prithvi Sustainable Packaging Private Limited",
-          "tax_identifier": "AAGCP4321L",
-          "gst_status_registered_or_not_registered": "Registered",
-          "gstin_when_registered": "24AAGCP4321L1Z6"
-        }
-      },
-      "rag_only_documents": {
-        "insurance": "Supplementary liability evidence for RAG; the legacy insurance type has no current policy extraction contract."
+      "expected_fields": {
+        "supplier_name": "Prithvi Sustainable Packaging Private Limited",
+        "address": "Survey 118, Sanand Industrial Cluster, Ahmedabad, Gujarat 382110",
+        "country": "India",
+        "tax_identifier": "24AAGCP4321L1Z6",
+        "contact_name": "Devika Shah",
+        "contact_email": "devika.shah@example.com",
+        "insurance_provider": "Meridian Risk Assurance Company Limited",
+        "insurance_expiry_date": "31 JAN 2028",
+        "payment_terms": "Net 60 days from invoice date"
       },
       "questions": [
         {
@@ -411,9 +364,8 @@
           "id": "insurance_expiry",
           "question_type": "date_interpretation",
           "question": "When does the supplier's liability insurance expire?",
-          "expected_terms": [],
-          "expected_dates": [
-            "2028-01-31"
+          "expected_terms": [
+            "31 JAN 2028"
           ],
           "expected_sources": [
             "03_certificate_of_liability_insurance.pdf"
@@ -449,13 +401,9 @@
         {
           "id": "registered_address_paraphrase",
           "question_type": "paraphrased_fact",
-          "question": "At what complete street address is this business registered? Include the locality, city, state and postal code.",
+          "question": "Where is this business officially registered?",
           "expected_terms": [
-            "Survey 118",
-            "Sanand Industrial Cluster",
-            "Ahmedabad",
-            "Gujarat",
-            "382110"
+            "Survey 118, Sanand Industrial Cluster, Ahmedabad, Gujarat 382110"
           ],
           "expected_sources": [
             "01_supplier_registration_form.pdf",
@@ -468,10 +416,8 @@
           "question_type": "multi_fact",
           "question": "Give me both the liability insurer and the policy expiry date.",
           "expected_terms": [
-            "Meridian Risk Assurance Company Limited"
-          ],
-          "expected_dates": [
-            "2028-01-31"
+            "Meridian Risk Assurance Company Limited",
+            "31 JAN 2028"
           ],
           "expected_sources": [
             "03_certificate_of_liability_insurance.pdf"
@@ -498,12 +444,7 @@
           "expected_sources": [],
           "information_found": false
         }
-      ],
-      "document_sha256": {
-        "registration": "bd0d74a4b2a4cecaa93a99efbec534c2898fad162abcb8a1f75515eaecf38a74",
-        "tax": "f53feeb24e38984b15abe146e2e9c6b20ba5021ecc8783b1a52c53baf05e6738",
-        "insurance": "e4f583745bf01c107917f9cd01f45c3b7a0b679cb63a0b188d726171931a7178"
-      }
+      ]
     },
     {
       "slug": "eastbridge_logistics",
@@ -517,23 +458,16 @@
         "tax": "02_gst_registration_certificate.pdf",
         "insurance": "03_certificate_of_liability_insurance.pdf"
       },
-      "extraction_expectations": {
-        "registration": {
-          "supplier_name": "Eastbridge Logistics and Warehousing Private Limited",
-          "registration_number": "U63030WB2017PTC221706",
-          "issuing_registry": "Registrar of Companies, India",
-          "registration_date": "2017-07-14",
-          "status": "Active"
-        },
-        "tax": {
-          "supplier_name": "Eastbridge Logistics and Warehousing Private Limited",
-          "tax_identifier": "AACCE8765M",
-          "gst_status_registered_or_not_registered": "Registered",
-          "gstin_when_registered": "19AACCE8765M1Z4"
-        }
-      },
-      "rag_only_documents": {
-        "insurance": "Supplementary liability evidence for RAG; the legacy insurance type has no current policy extraction contract."
+      "expected_fields": {
+        "supplier_name": "Eastbridge Logistics and Warehousing Private Limited",
+        "address": "Warehouse 7, Jalan Logistics Park, Dankuni, Hooghly, West Bengal 712311",
+        "country": "India",
+        "tax_identifier": "19AACCE8765M1Z4",
+        "contact_name": "Souvik Banerjee",
+        "contact_email": "souvik.banerjee@example.com",
+        "insurance_provider": "AtlasGuard General Insurance Company Limited",
+        "insurance_expiry_date": "30 SEP 2027",
+        "payment_terms": "Net 15 days after monthly service acceptance"
       },
       "questions": [
         {
@@ -578,9 +512,8 @@
           "id": "insurance_expiry",
           "question_type": "date_interpretation",
           "question": "When does the supplier's liability insurance expire?",
-          "expected_terms": [],
-          "expected_dates": [
-            "2027-09-30"
+          "expected_terms": [
+            "30 SEP 2027"
           ],
           "expected_sources": [
             "03_certificate_of_liability_insurance.pdf"
@@ -616,14 +549,9 @@
         {
           "id": "registered_address_paraphrase",
           "question_type": "paraphrased_fact",
-          "question": "At what complete street address is this business registered? Include the locality, city, state and postal code.",
+          "question": "Where is this business officially registered?",
           "expected_terms": [
-            "Warehouse 7",
-            "Jalan Logistics Park",
-            "Dankuni",
-            "Hooghly",
-            "West Bengal",
-            "712311"
+            "Warehouse 7, Jalan Logistics Park, Dankuni, Hooghly, West Bengal 712311"
           ],
           "expected_sources": [
             "01_supplier_registration_form.pdf",
@@ -636,10 +564,8 @@
           "question_type": "multi_fact",
           "question": "Give me both the liability insurer and the policy expiry date.",
           "expected_terms": [
-            "AtlasGuard General Insurance Company Limited"
-          ],
-          "expected_dates": [
-            "2027-09-30"
+            "AtlasGuard General Insurance Company Limited",
+            "30 SEP 2027"
           ],
           "expected_sources": [
             "03_certificate_of_liability_insurance.pdf"
@@ -666,12 +592,7 @@
           "expected_sources": [],
           "information_found": false
         }
-      ],
-      "document_sha256": {
-        "registration": "0b9d96763645510d3f7bf7c5518f9ab4bcf1da1ad0d17e68a7e4371130cde15d",
-        "tax": "47b1b0109870c611b15b0c4dd0b3cd772562e1c4297685e7aa88363d37caf0a0",
-        "insurance": "d8465338893fbc4c9204cf74aa564c858c9584d4a663614294243640161707b3"
-      }
+      ]
     },
     {
       "slug": "sahyadri_renewable_components",
@@ -685,23 +606,16 @@
         "tax": "02_gst_registration_certificate.pdf",
         "insurance": "03_certificate_of_liability_insurance.pdf"
       },
-      "extraction_expectations": {
-        "registration": {
-          "supplier_name": "Sahyadri Renewable Components Private Limited",
-          "registration_number": "U31909PN2021PTC204716",
-          "issuing_registry": "Registrar of Companies, India",
-          "registration_date": "2021-10-08",
-          "status": "Active"
-        },
-        "tax": {
-          "supplier_name": "Sahyadri Renewable Components Private Limited",
-          "tax_identifier": "AALCS2468R",
-          "gst_status_registered_or_not_registered": "Registered",
-          "gstin_when_registered": "27AALCS2468R1Z5"
-        }
-      },
-      "rag_only_documents": {
-        "insurance": "Supplementary liability evidence for RAG; the legacy insurance type has no current policy extraction contract."
+      "expected_fields": {
+        "supplier_name": "Sahyadri Renewable Components Private Limited",
+        "address": "Unit 14, Chakan Green Industrial Park, Pune, Maharashtra 410501",
+        "country": "India",
+        "tax_identifier": "27AALCS2468R1Z5",
+        "contact_name": "Neha Patil",
+        "contact_email": "neha.patil@example.com",
+        "insurance_provider": "SummitShield General Insurance Company Limited",
+        "insurance_expiry_date": "14 AUG 2027",
+        "payment_terms": "Net 30 days after goods receipt and quality acceptance"
       },
       "questions": [
         {
@@ -746,9 +660,8 @@
           "id": "insurance_expiry",
           "question_type": "date_interpretation",
           "question": "When does the supplier's liability insurance expire?",
-          "expected_terms": [],
-          "expected_dates": [
-            "2027-08-14"
+          "expected_terms": [
+            "14 AUG 2027"
           ],
           "expected_sources": [
             "03_certificate_of_liability_insurance.pdf"
@@ -784,13 +697,9 @@
         {
           "id": "registered_address_paraphrase",
           "question_type": "paraphrased_fact",
-          "question": "At what complete street address is this business registered? Include the locality, city, state and postal code.",
+          "question": "Where is this business officially registered?",
           "expected_terms": [
-            "Unit 14",
-            "Chakan Green Industrial Park",
-            "Pune",
-            "Maharashtra",
-            "410501"
+            "Unit 14, Chakan Green Industrial Park, Pune, Maharashtra 410501"
           ],
           "expected_sources": [
             "01_supplier_registration_form.pdf",
@@ -803,10 +712,8 @@
           "question_type": "multi_fact",
           "question": "Give me both the liability insurer and the policy expiry date.",
           "expected_terms": [
-            "SummitShield General Insurance Company Limited"
-          ],
-          "expected_dates": [
-            "2027-08-14"
+            "SummitShield General Insurance Company Limited",
+            "14 AUG 2027"
           ],
           "expected_sources": [
             "03_certificate_of_liability_insurance.pdf"
@@ -833,12 +740,7 @@
           "expected_sources": [],
           "information_found": false
         }
-      ],
-      "document_sha256": {
-        "registration": "7cab00a878d079b2d5abec70867163efd1d74eed9494939a5d83ff5dbefd130d",
-        "tax": "47746e6ce2325569f5f560d9daf1d2768cf10272b9a6649b9c25b9f48718c476",
-        "insurance": "d726f7b762b3240370ac739256d4f7e73605c4d82434e017a652d997ef6f77b3"
-      }
+      ]
     }
   ]
 }

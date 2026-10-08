@@ -10,16 +10,23 @@
     "tax": "02_gst_registration_certificate.pdf",
     "insurance": "03_certificate_of_liability_insurance.pdf"
   },
-  "expected_fields": {
-    "supplier_name": "Eastbridge Logistics and Warehousing Private Limited",
-    "address": "Warehouse 7, Jalan Logistics Park, Dankuni, Hooghly, West Bengal 712311",
-    "country": "India",
-    "tax_identifier": "19AACCE8765M1Z4",
-    "contact_name": "Souvik Banerjee",
-    "contact_email": "souvik.banerjee@example.com",
-    "insurance_provider": "AtlasGuard General Insurance Company Limited",
-    "insurance_expiry_date": "30 SEP 2027",
-    "payment_terms": "Net 15 days after monthly service acceptance"
+  "extraction_expectations": {
+    "registration": {
+      "supplier_name": "Eastbridge Logistics and Warehousing Private Limited",
+      "registration_number": "U63030WB2017PTC221706",
+      "issuing_registry": "Registrar of Companies, India",
+      "registration_date": "2017-07-14",
+      "status": "Active"
+    },
+    "tax": {
+      "supplier_name": "Eastbridge Logistics and Warehousing Private Limited",
+      "tax_identifier": "AACCE8765M",
+      "gst_status_registered_or_not_registered": "Registered",
+      "gstin_when_registered": "19AACCE8765M1Z4"
+    }
+  },
+  "rag_only_documents": {
+    "insurance": "Supplementary liability evidence for RAG; the legacy insurance type has no current policy extraction contract."
   },
   "questions": [
     {
@@ -64,8 +71,9 @@
       "id": "insurance_expiry",
       "question_type": "date_interpretation",
       "question": "When does the supplier's liability insurance expire?",
-      "expected_terms": [
-        "30 SEP 2027"
+      "expected_terms": [],
+      "expected_dates": [
+        "2027-09-30"
       ],
       "expected_sources": [
         "03_certificate_of_liability_insurance.pdf"
@@ -101,9 +109,14 @@
     {
       "id": "registered_address_paraphrase",
       "question_type": "paraphrased_fact",
-      "question": "Where is this business officially registered?",
+      "question": "At what complete street address is this business registered? Include the locality, city, state and postal code.",
       "expected_terms": [
-        "Warehouse 7, Jalan Logistics Park, Dankuni, Hooghly, West Bengal 712311"
+        "Warehouse 7",
+        "Jalan Logistics Park",
+        "Dankuni",
+        "Hooghly",
+        "West Bengal",
+        "712311"
       ],
       "expected_sources": [
         "01_supplier_registration_form.pdf",
@@ -116,8 +129,10 @@
       "question_type": "multi_fact",
       "question": "Give me both the liability insurer and the policy expiry date.",
       "expected_terms": [
-        "AtlasGuard General Insurance Company Limited",
-        "30 SEP 2027"
+        "AtlasGuard General Insurance Company Limited"
+      ],
+      "expected_dates": [
+        "2027-09-30"
       ],
       "expected_sources": [
         "03_certificate_of_liability_insurance.pdf"
@@ -144,5 +159,10 @@
       "expected_sources": [],
       "information_found": false
     }
-  ]
+  ],
+  "document_sha256": {
+    "registration": "0b9d96763645510d3f7bf7c5518f9ab4bcf1da1ad0d17e68a7e4371130cde15d",
+    "tax": "47b1b0109870c611b15b0c4dd0b3cd772562e1c4297685e7aa88363d37caf0a0",
+    "insurance": "d8465338893fbc4c9204cf74aa564c858c9584d4a663614294243640161707b3"
+  }
 }

@@ -96,6 +96,9 @@ services:
     user: "${LOCAL_UID:-1000}:${LOCAL_GID:-1000}"
     entrypoint: ["python", "scripts/run_quality_evaluation.py"]
     command: ["--base-url", "http://backend:8000/api"]
+    environment:
+      EVALUATION_REVIEWER_EMAIL: "${EVALUATION_REVIEWER_EMAIL:-}"
+      EVALUATION_REVIEWER_PASSWORD: "${EVALUATION_REVIEWER_PASSWORD:-}"
     depends_on:
       backend:
         condition: service_healthy

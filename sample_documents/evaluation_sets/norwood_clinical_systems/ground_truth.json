@@ -10,16 +10,23 @@
     "tax": "02_gst_registration_certificate.pdf",
     "insurance": "03_certificate_of_liability_insurance.pdf"
   },
-  "expected_fields": {
-    "supplier_name": "Norwood Clinical Systems Private Limited",
-    "address": "48, KIADB Health Technology Park, Whitefield, Bengaluru, Karnataka 560066",
-    "country": "India",
-    "tax_identifier": "29AABCN5678K1Z2",
-    "contact_name": "Rohan Kulkarni",
-    "contact_email": "rohan.kulkarni@example.com",
-    "insurance_provider": "CedarSure Commercial Insurance Company Limited",
-    "insurance_expiry_date": "15 DEC 2026",
-    "payment_terms": "Net 45 days from accepted delivery"
+  "extraction_expectations": {
+    "registration": {
+      "supplier_name": "Norwood Clinical Systems Private Limited",
+      "registration_number": "U33110KA2020PTC141208",
+      "issuing_registry": "Registrar of Companies, India",
+      "registration_date": "2020-12-03",
+      "status": "Active"
+    },
+    "tax": {
+      "supplier_name": "Norwood Clinical Systems Private Limited",
+      "tax_identifier": "AABCN5678K",
+      "gst_status_registered_or_not_registered": "Registered",
+      "gstin_when_registered": "29AABCN5678K1Z2"
+    }
+  },
+  "rag_only_documents": {
+    "insurance": "Supplementary liability evidence for RAG; the legacy insurance type has no current policy extraction contract."
   },
   "questions": [
     {
@@ -64,8 +71,9 @@
       "id": "insurance_expiry",
       "question_type": "date_interpretation",
       "question": "When does the supplier's liability insurance expire?",
-      "expected_terms": [
-        "15 DEC 2026"
+      "expected_terms": [],
+      "expected_dates": [
+        "2026-12-15"
       ],
       "expected_sources": [
         "03_certificate_of_liability_insurance.pdf"
@@ -101,9 +109,14 @@
     {
       "id": "registered_address_paraphrase",
       "question_type": "paraphrased_fact",
-      "question": "Where is this business officially registered?",
+      "question": "At what complete street address is this business registered? Include the locality, city, state and postal code.",
       "expected_terms": [
-        "48, KIADB Health Technology Park, Whitefield, Bengaluru, Karnataka 560066"
+        "48",
+        "KIADB Health Technology Park",
+        "Whitefield",
+        "Bengaluru",
+        "Karnataka",
+        "560066"
       ],
       "expected_sources": [
         "01_supplier_registration_form.pdf",
@@ -116,8 +129,10 @@
       "question_type": "multi_fact",
       "question": "Give me both the liability insurer and the policy expiry date.",
       "expected_terms": [
-        "CedarSure Commercial Insurance Company Limited",
-        "15 DEC 2026"
+        "CedarSure Commercial Insurance Company Limited"
+      ],
+      "expected_dates": [
+        "2026-12-15"
       ],
       "expected_sources": [
         "03_certificate_of_liability_insurance.pdf"
@@ -144,5 +159,10 @@
       "expected_sources": [],
       "information_found": false
     }
-  ]
+  ],
+  "document_sha256": {
+    "registration": "8623d3afbc581e48b7aafe1efbb08d97af92e34e7a896cb48729eb3912cb1a91",
+    "tax": "3ecb51c81deb7b93e15e75f9f854db6830556d0291d4ece84db3762565d7b255",
+    "insurance": "2a8f5f895c535f22e2297560e9b1424d8a3d7723151c1600dd93d3fc55883d93"
+  }
 }
