@@ -295,6 +295,11 @@ class ProcessSupplierResponse(BaseModel):
 
 class SupplierQuestionRequest(BaseModel):
     question: str = Field(min_length=3, max_length=1000)
+    capture_evaluation_evidence: bool = False
+
+
+class EvaluationJudgeRequest(BaseModel):
+    run_id: uuid.UUID
 
 
 class QuestionCitation(BaseModel):

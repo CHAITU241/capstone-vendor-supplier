@@ -1,44 +1,37 @@
-# Evaluator calibration and latest saved-run reassessment
+# Latest evaluator calibration and evidence metrics
 
-Active corpus: manifest v5, scoring revision 2, `rag-evaluator-v4`. The corpus contains 15 suppliers, 45 PDFs / 73 pages, 150 questions and 135 registration/tax field checks. The separate stress cohort contains five suppliers and 50 questions. Calibration controls are tests of the grader, not model accuracy.
+Active corpus: manifest v5, scoring revision 3, `rag-evaluator-v5`. It contains 15 suppliers, 45 PDFs / 73 pages, 150 questions and 135 registration/tax field checks. Calibration tests assess the grader, never model accuracy.
 
-## Scoring corrections
+## Confirmed grading corrections
 
-The owner-provided live run `a76c7315-b13a-4d78-8d87-cf72a0df3723`, captured at `2026-10-08T07:38:39.818420+00:00`, was reassessed without model/API calls. Original JSON SHA-256: `6aa89e5ae84120f7d25911664a26c519d2626147abd85aa2e9a02645f6d2fdf2`.
+The latest owner live run is `e5aa6ed4-d4e3-4e8d-8762-591150096673`, captured at `2026-10-08T08:53:30.673632+00:00`. Source JSON SHA-256: `ebdf5b012cb26f74d6ff90f032f93ccb6e886de0cc0fec6c094c518b6e870410`.
 
-| Case | Corrected grading rule | Guard retained |
+| Case | Correction | Guard retained |
 |---|---|---|
-| Dakshin `transit_limit` | Allow insurance page 3 for the requested storage/transit distinction | Transit page 2 remains required; unrelated pages fail |
-| Amrutha `before_e2_effective` | Allow page 3 for the applicable E1 limit alongside E2 page 4 | E2 page 4, correct INR 30 lakh and 1 August 2027 remain required |
-| Chitra `pickup_depot` | Allow tax page 2 corroborating the pickup location | Registration page 2 and the correct depot/address remain required |
-| Amrutha `original_aggregate` | Accept a standalone currency-qualified INR 20 lakh answer | Wrong values, unqualified numbers and answers labelling another financial basis fail; explanatory answers retain annual/aggregate assertions |
-| Varsha `height_without_permit` | Accept an unambiguous coverage denial without repeating the condition supplied in the question | Clause page 3 remains required; affirmative, uncertain and contradictory coverage statements fail |
-| Udaya `permit_without_watch` | Same decision-only rule for this direct coverage question | Clause page 3 and an unambiguous denial remain required |
+| Coromandel `conflict_review_note` | Recognise “these discrepancies necessitate clarification” as an explicit need for clarification | Both conflicting addresses and payment terms, both source citations, conflict acknowledgement and refusal to choose an unsupported winner remain required; negated necessity fails |
+| Dakshin `dock_and_payment` | Permit tax page 2, which correctly corroborates the warehouse address | Registration pages 2 and 3 remain mandatory; tax page 1 or corroboration without primary evidence fails |
 
-This is post-run evaluator calibration, not a held-out result. Exactly six contracts changed. Supplier identities, question wording/types, answerability, expected monetary values/dates, required primary sources, required citation-page groups, all PDF hashes and the first ten supplier records are unchanged. The original contract is preserved in `sample_documents/evaluation_sets/evaluation_manifest_v5_scoring_v1.json`. The authoring generator reproduces revision 2; no PDF regeneration was needed.
+Only the Dakshin gold contract changes between scoring revisions 2 and 3. No supplier identities, questions, answerability, expected values, original bytes or primary evidence requirements change. Prior contracts are preserved in `evaluation_manifest_v5_scoring_v1.json` and `evaluation_manifest_v5_scoring_v2.json`; the authoring generator reproduces the active contract. The pinned first ten suppliers remain unchanged. The Coromandel correction is a lexical guard change, not a gold-answer edit.
 
-## Latest findings
+## Same-run corrected findings
 
-The corrected **automatic strict score is 145/150 (96.67%)**, including **47/50 (94%) stress** and 98/100 core. Answer accuracy is 146/150 (97.33%), citation accuracy 118/120 (98.33%), found/not-found decisions 149/150 (99.33%), safe fallback 29/30 (96.67%), and supplier isolation 150/150. Source-scoped field checks remain 135/135.
+Offline reassessment of the recorded observations gives **145/150 (96.67%) end-to-end pass rate**, **98/100 core**, **47/50 (94%) stress**. Answer accuracy stays **147/150 (98%)**; citation accuracy becomes **117/120 (97.5%)**; decisions stay **148/150 (98.67%)**; safe fallback stays **29/30 (96.67%)**; isolation stays **150/150**; field checks stay **135/135**. Exactly two automatic pass decisions change. No model rerun or change to observed answers, citations, retrieval, latency or tokens is represented by this correction.
 
-Five cases remain failed:
+Five failed cases remain:
 
-- Coromandel insurer/expiry: conflicting registration evidence is additionally cited without explaining the discrepancy.
-- Tungabhadra insurance diary: the requested insurer is omitted.
-- Amrutha recall limit: the response substitutes a product-liability aggregate for an unsupported recall limit instead of falling back safely.
-- Varsha operating site/property: the property sublimit is omitted and the relevant insurance clause is not cited.
-- Chitra claims routing: `Claims Desk 2` becomes `Claims Desk at 2`, potentially changing a desk identifier into a street number. This ambiguity remains failed and requires human adjudication; no broad alias was added.
+- Aravali and Coromandel insurer/expiry: the answer additionally cites a registration original with a conflicting expiry date without explaining it. These are not valid corroborating citations.
+- Amrutha recall limit: a product-liability aggregate is incorrectly substituted for an absent recall-expense limit.
+- Varsha operating site/property: the response abstains although the originals contain the requested site and sublimit.
+- Chitra claims routing: “Claims Desk 2” becomes “Claims Desk at 2”, potentially moving a desk identifier into the street address. This ambiguity remains failed pending human judgment.
 
-Observed Q&A latency remains average 2,780 ms, P50 2,754 ms, P95 3,952 ms and maximum 5,011 ms. Q&A token use remains 118,984. Model/prompt remain `openai/gpt-4o-mini` / `rag-answer-v3`. This is correction of scoring on the same run, not evidence of model improvement.
+All 50 stress cases still require human semantic audit. Lexical components and page identity are not complete claim entailment or a production guarantee. The source/live latest files remain protected against offline overwrite; generated reassessments need separate paths.
 
-## Verification and limits
+## Reproducible additional metrics
 
-Regression controls exercise the six actual response forms, monetary equivalents, incorrect monetary bases/values, affirmative or uncertain coverage claims, missing primary evidence, unrelated extra pages and all five retained failures. Existing independently authored controls cover all 50 stress cases, answerless/wrong-page variants, cross-supplier evidence, malformed retrieval and incomplete intake. Preflight validates all 45 PDFs and actual OCR through the backend extractor.
+Default evaluation now captures full redacted generation context and a separate raw top-ten retrieval audit, without changing the answer-generation top-k or making a second embedding call. Optional `--judge` records semantic relevance labels and atomic claim support with exact quotations, model/provider/prompt identity, context hashes and separate usage/latency. `--metrics-from-report` calculates metrics from those saved observations and judgments with no backend/model calls. Missing or invalid judgments remain pending; a partial mean is never promoted to a complete suite score. The old JSON cannot reconstruct missing top-ten results or exact context and needs a new evidence-enabled run for these metrics.
 
-All answers, citations, retrieved IDs/distances, processing observations, latency and token usage are preserved in the separate offline reassessment. The source and live-latest reports are protected against overwrite. The Markdown report records scoring revision, source identity and each changed component.
+The deterministic scorer and optional semantic judge are different assessments. The model-based judge is not an independently completed human audit. Faithfulness is actual-context support, not a synonym for answer correctness. Fixed-denominator Precision@10 is limited by short supplier pools; returned precision is also shown. See `RAG_METRICS.md` for the complete contract and commands in the corpus README.
 
-All 50 stress cases remain in the **pending human semantic audit** queue, including automatic passes. Exact page identity and lexical decisions cannot prove every role/value binding, negation or inferred condition. The ambiguous routing case must not be silently converted into a pass. Supplementary insurance policy annotations remain unscored diagnostics; registration/tax extraction accuracy establishes neither insurance compliance nor supplier approval. OCR-pack Q&A latency excludes initial document upload/OCR.
+Docker and provider credentials are unavailable in this authoring environment. Local tests, source/PDF preflight, same-run offline reassessment and report recomputation can be verified without them. No live semantic scores or placeholder reports are committed.
 
-Docker and provider credentials are unavailable in this authoring environment. No new live evaluation is claimed or required for a scoring-only correction. Run the documented offline reassessment locally against the saved JSON, or a fresh full evaluation if new model observations are wanted.
-
-Latest validation: **356 backend tests passed** (including 52 grading regressions and five evaluation-isolation checks); full manifest/PDF/hash/actual-OCR preflight passed; whitespace checks passed. Frontend and production RAG code are unchanged.
+Validation: **392 backend tests passed**; frontend production build passed; all 45 PDF/hash/actual-OCR preflight and Compose YAML/wiring checks passed. Docker execution and credentialed live semantic judging remain pending owner execution.

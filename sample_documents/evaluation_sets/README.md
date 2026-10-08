@@ -1,6 +1,6 @@
 # Supplier evaluation corpus
 
-Active **manifest v5 / evaluator `rag-evaluator-v3`**: **15 synthetic suppliers, 45 source PDFs, 73 pages, 150 RAG questions, 135 registration/tax field checks**. The final five packs form a separate **50-question stress cohort**. Their 15 PDFs contain 43 pages, including three mixed native/OCR originals with one lightly skewed, JPEG-compressed scanned page each.
+Active **manifest v5 / scoring revision 3 / evaluator `rag-evaluator-v5`**: **15 synthetic suppliers, 45 source PDFs, 73 pages, 150 RAG questions, 135 registration/tax field checks**. The final five packs form a separate **50-question stress cohort**. Their 15 PDFs contain 43 pages, including three mixed native/OCR originals with one lightly skewed, JPEG-compressed scanned page each.
 
 | Group | Suppliers | PDFs | Questions |
 |---|---:|---:|---:|
@@ -18,6 +18,34 @@ docker compose up -d --build backend
 docker compose run --rm --build evaluation --validate-only
 docker compose run --rm --build evaluation
 ```
+
+The default run captures complete redacted generation context and an independent raw top-10 retrieval snapshot for every question. The deterministic end-to-end pass rate is scored immediately. **Precision@10 and faithfulness remain pending until semantic relevance/claim judgments exist.** To capture and judge in one run:
+
+```bash
+docker compose run --rm --build evaluation --judge
+```
+
+The judge uses backend provider credentials; no keys are copied to the evaluation container. Optionally set `EVALUATION_JUDGE_MODEL` in `backend/.env` to a different supported model/deployment, then rebuild the backend. A blank value reuses the answer model and the report identifies this potential correlation. Judge tokens and latency are separate from answering. Failed/incomplete judgments remain pending with reasons and `--judge` exits nonzero after writing the diagnostic report. No invented metric values are substituted.
+
+All inputs and verdicts needed for offline calculation are in JSON: ranked full-text chunks with hashes, supplier pool size, actual generation context, relevance labels, atomic claims, support quotes, rationales and judge provenance. To judge an already captured report without asking new RAG questions (the source backend evaluation records must still exist):
+
+```bash
+docker compose run --rm --build evaluation \
+  --judge-report /app/sample_documents/evaluation_sets/latest_results.json \
+  --output /app/sample_documents/evaluation_sets/judged_results.json \
+  --report-output /app/sample_documents/evaluation_sets/judged_results.md
+```
+
+To recompute scores from a judged report, with **no backend/model calls**:
+
+```bash
+docker compose run --rm --build evaluation \
+  --metrics-from-report /app/sample_documents/evaluation_sets/judged_results.json \
+  --output /app/sample_documents/evaluation_sets/recalculated_metrics.json \
+  --report-output /app/sample_documents/evaluation_sets/recalculated_metrics.md
+```
+
+Old reports that contain only IDs/distances and truncated excerpts cannot retroactively supply a top-10/context snapshot. They retain pending metrics and require a new evidence-enabled run. Existing answers are never replaced by judging. See `RAG_METRICS.md` at the repository root for formulas, coverage and the short-corpus caveat: a three-chunk supplier can score at most 30% on fixed-denominator Precision@10 even when every returned chunk is relevant. Returned-chunk precision is reported alongside it. Answer generation remains top-4 by default; top-10 is a separate retrieval audit.
 
 The full live run writes host files:
 
@@ -50,4 +78,4 @@ python scripts/generate_stress_evaluation_documents.py
 
 It preserves the pinned ten packs and writes only the five new packs plus active manifest. Keep PDF hashes, transcripts, per-supplier ground truth and the combined manifest together. Authoring transcripts are never uploaded or indexed. Their checksum tolerates only Windows CRLF-to-LF conversion; PDF hashes remain byte-exact.
 
-See `QUALITY_EVALUATION.md` and `EVALUATOR_CALIBRATION.md` for the fixed rubric, fair-stress design, validations and limits. Live v5 results remain pending execution; no placeholder results are committed.
+See `QUALITY_EVALUATION.md`, `EVALUATOR_CALIBRATION.md` and `RAG_METRICS.md` for the fixed rubric, fair-stress design, validations and limits. Owner live reports are not committed; no placeholder results are committed.

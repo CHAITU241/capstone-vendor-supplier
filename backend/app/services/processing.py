@@ -663,7 +663,10 @@ def _answer_supplier_question(
     settings: Settings,
     ai: OpenAIService,
     collection: Collection,
+    capture_evaluation_evidence: bool = False,
 ) -> QuestionOutcome:
+    if capture_evaluation_evidence and not supplier.is_evaluation:
+        raise ValueError("Metric evidence capture is restricted to evaluation suppliers.")
     run = _start_run(
         db,
         supplier,
@@ -684,6 +687,7 @@ def _answer_supplier_question(
         )
         input_tokens = query_embedding.input_tokens
         output_tokens = 0
+        evidence = ""
 
         if not retrieved:
             answer = NOT_FOUND_ANSWER
@@ -739,6 +743,32 @@ def _answer_supplier_question(
                 model_result.value.cited_chunk_ids if retrieved else []
             ),
         }
+        if capture_evaluation_evidence:
+            from app.services.rag_evaluation import EVIDENCE_VERSION, chunk_snapshot
+
+            audit_started = time.perf_counter()
+            # Independent raw top-10 audit. The model still receives the original
+            # top-k, distance-filtered context above; no extra embedding/model call.
+            candidates = query_supplier_chunks(
+                collection=collection, supplier_id=str(supplier.id),
+                query_embedding=query_embedding.embeddings[0], limit=10,
+                max_distance=float("inf"),
+            )
+            indexed_ids = collection.get(where={"supplier_id": str(supplier.id)}, include=[])["ids"]
+            run.details["evaluation_evidence"] = {
+                "version": EVIDENCE_VERSION, "question": redaction.text,
+                "answer": answer, "information_found": information_found,
+                "retrieval_k": 10, "retrieval_distance_filter": None,
+                "supplier_chunk_count": len(indexed_ids),
+                "generation_top_k": settings.rag_top_k,
+                "generation_max_distance": settings.rag_max_distance,
+                "generation_context": [chunk_snapshot(chunk, rank) for rank, chunk in enumerate(retrieved, 1)],
+                "generation_evidence_text": evidence,
+                "retrieval_top_10": [chunk_snapshot(chunk, rank) for rank, chunk in enumerate(candidates, 1)],
+                "embedding_model": settings.active_embedding_model,
+                "context_scope": "Exact redacted indexed text; authoring transcripts are not used.",
+            }
+            run.details["retrieval_audit_latency_ms"] = round((time.perf_counter() - audit_started) * 1000)
         db.add(
             AuditEvent(
                 supplier_id=supplier.id,
@@ -773,6 +803,7 @@ def answer_supplier_question(
     settings: Settings,
     ai: OpenAIService,
     collection: Collection,
+    capture_evaluation_evidence: bool = False,
 ) -> QuestionOutcome:
     """Answer inside one correlated retrieval-and-generation Langfuse trace."""
 
@@ -798,6 +829,7 @@ def answer_supplier_question(
             settings=settings,
             ai=ai,
             collection=collection,
+            capture_evaluation_evidence=capture_evaluation_evidence,
         )
         citation_count = len(outcome.citations)
         grounded = not outcome.information_found or citation_count > 0

@@ -1,3 +1,12 @@
+## 2026-10-08 — Evaluator v5 and reproducible evidence metrics
+
+- Corrected two confirmed false negatives from owner run `e5aa6ed4-d4e3-4e8d-8762-591150096673`: Coromandel's “necessitate clarification” and Dakshin's valid warehouse corroboration on tax page 2. Kept both required registration pages, all facts and all original hashes. Scoring revision 2 is pinned; revision 3 changes only one gold contract.
+- Same-run offline reassessment is 145/150 (96.67%), with 98/100 core and 47/50 stress. No observed answer, citation, retrieval, latency or token changed. Five failures remain; semantic stress review remains pending.
+- Evaluation-only full-context capture records exact redacted generation text and a separate raw top-ten retrieval audit with the same embedding. Normal top-four answer generation and reviewer worklist isolation remain intact.
+- Optional `--judge` / `--judge-report` records semantic relevance and atomic claim support, exact support quotes (whitespace layout tolerated), rationales, hashes and judge model/prompt/usage. `--metrics-from-report` recalculates Precision@10 and faithfulness from saved evidence/labels without backend/model calls. Full metrics remain N/A until all eligible judgments validate; short-corpus ceilings, abstention scope and separate judge cost/latency are documented.
+- Validation: 392 backend tests passed, frontend production build passed, all 45 PDFs/manifest hashes/actual OCR preflight passed, Compose YAML/container/network/report wiring and whitespace checks passed. API tests exercise real supplier-scoped Chroma retrieval, four-context versus ten-audit capture, optional structured judging, reviewer authorization and normal-supplier rejection. Tests reject fabricated quotes, foreign evidence, invalid/partial labels and overwritten context, and verify offline arithmetic and resume behavior.
+- Docker and provider credentials are unavailable here. No live Precision@10/faithfulness scores or replacement live reports are claimed or committed. Existing owner report bytes are unchanged.
+
 ## 2026-10-08 — Isolate evaluation suppliers from the reviewer worklist
 
 - Added a non-null `Supplier.is_evaluation` flag, default false, set explicitly by the evaluator through the existing reviewer-authenticated creation API. Normal portal applications and reviewer-created suppliers retain their default visibility. The reviewer list excludes evaluation records, so its list-derived counts remain clean.

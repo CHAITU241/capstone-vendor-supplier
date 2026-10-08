@@ -86,8 +86,8 @@ def allow_corroboration(case, evidence):
 
 
 def apply_scoring_revision(case):
-    """Revision 2 changes scoring only: never rewrite questions, originals or primary evidence."""
-    corroboration = {"transit_limit": [(INS,3)], "before_e2_effective": [(INS,3)], "pickup_depot": [(TAX,2)]}
+    """Revision 3 changes scoring only: never rewrite questions, originals or primary evidence."""
+    corroboration = {"transit_limit": [(INS,3)], "before_e2_effective": [(INS,3)], "pickup_depot": [(TAX,2)], "dock_and_payment": [(TAX,2)]}
     if case["id"] in corroboration:
         allow_corroboration(case, corroboration[case["id"]])
         case["gold_rationale"] += " The additional declared page supports the requested distinction or corroborates the answer; primary evidence remains mandatory."
@@ -343,7 +343,7 @@ def main():
     ]
     entries.extend(build_pack(*definition) for definition in definitions)
     counts = Counter(q["question_type"] for s in entries for q in s["questions"])
-    manifest = {"version":5,"scoring_revision":2,
+    manifest = {"version":5,"scoring_revision":3,
         "description":"Pinned 100-question core plus a separate 50-question multi-page stress cohort. Synthetic evidence authored before live calls; complex stress answers require human audit.",
         "expected_counts":{"suppliers":15,"documents":45,"questions":150,"question_types":dict(sorted(counts.items()))},
         "suppliers":entries}

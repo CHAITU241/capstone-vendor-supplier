@@ -24,7 +24,10 @@ DEFAULT_MANIFEST = (
     ROOT / "sample_documents" / "evaluation_sets" / "evaluation_manifest.json"
 )
 NOT_FOUND_ANSWER = "Information not found in uploaded supplier documents."
-EVALUATOR_VERSION = "rag-evaluator-v4"
+EVALUATOR_VERSION = "rag-evaluator-v5"
+
+sys.path.insert(0, str(ROOT / "backend" if (ROOT / "backend").is_dir() else ROOT))
+from app.services.rag_evaluation import metric_summary, question_metrics
 
 
 def normalized(value: str) -> str:
@@ -124,6 +127,11 @@ def conflict_checks(answer: str, case: dict) -> dict[str, bool | None]:
         r"\b(need\w*|require\w*|should|must)\b.{0,55}\b(clarif\w*|confirm\w*|verif\w*)\b",
         value,
     ))
+    # "These discrepancies necessitate clarification" explicitly requests
+    # clarification, without requiring one exact verb. Do not accept a denial.
+    uncertainty = uncertainty or bool(re.search(
+        r"\bnecessitat\w*\b.{0,35}\b(clarif\w*|confirm\w*|verif\w*)\b", value,
+    ) and not re.search(r"\b(not|never|doesn t|don t|didn t) necessitat\w*\b", value))
     # A direct "No" to a question asking whether there is one agreed value
     # is an explicit refusal to treat the conflict as resolved. Bind this
     # interpretation to the question and require conflict acknowledgement.
@@ -508,7 +516,7 @@ def evaluate_question(
     body = request_json(
         "POST",
         f"{base_url}/suppliers/{supplier_id}/questions",
-        json={"question": case["question"]},
+        json={"question": case["question"], "capture_evaluation_evidence": True},
         headers=headers,
         timeout=180,
     )
@@ -516,6 +524,7 @@ def evaluate_question(
     checks = score_response(body, supplier_id, case, other_supplier_names, documents)
     retrieved_ids = body["run"].get("details", {}).get("retrieved_chunk_ids", [])
     return {
+        "run_id": body["run"].get("id"),
         "id": case["id"],
         "question_type": case["question_type"],
         "question": case["question"],
@@ -543,6 +552,8 @@ def evaluate_question(
         "retrieval_count": body["run"]["retrieval_count"],
         "retrieved_chunk_ids": retrieved_ids,
         "retrieval_distances": body["run"].get("details", {}).get("retrieval_distances", []),
+        "metric_evidence": body["run"].get("details", {}).get("evaluation_evidence"),
+        "retrieval_audit_latency_ms": body["run"].get("details", {}).get("retrieval_audit_latency_ms"),
         "api_latency_ms": api_latency_ms,
         "recorded_latency_ms": body["run"]["latency_ms"],
         "input_tokens": body["run"]["input_tokens"],
@@ -708,6 +719,7 @@ def build_summary(results: list[dict], elapsed_ms: int) -> dict:
             "average_chunks": round(statistics.mean(retrieval_counts), 2) if retrieval_counts else None,
             "maximum_chunks": max(retrieval_counts) if retrieval_counts else None,
         },
+        "evidence_metrics": metric_summary(results),
         "models": sorted({question["model"] for question in questions if question.get("model")}),
         "prompt_versions": sorted({
             question["prompt_version"] for question in questions if question.get("prompt_version")
@@ -938,6 +950,64 @@ def percentage(value: float | None) -> str:
     return "N/A" if value is None else f"{value * 100:.1f}%"
 
 
+def judge_report(result: dict, base_url: str, headers: dict) -> None:
+    """Add independent semantic judgments; never change recorded answers or scores."""
+    for supplier in result["suppliers"]:
+        for question in supplier["questions"]:
+            if not question["expected_information_found"] and not question["information_found"]:
+                continue
+            existing = question_metrics(question, supplier["supplier_id"], supplier.get("documents", []))
+            if all(existing[key] in {"completed", "not_applicable"} for key in ("precision_status", "faithfulness_status")):
+                continue
+            try:
+                if not question.get("metric_evidence") or not question.get("run_id"):
+                    raise ValueError("This run lacks full metric evidence/run IDs; rebuild the backend and run a new evaluation.")
+                question["metric_judgment"] = request_json(
+                    "POST", f"{base_url}/suppliers/{supplier['supplier_id']}/evaluation/judge",
+                    json={"run_id":question["run_id"]}, headers=headers, timeout=240,
+                )
+                checked = question_metrics(question, supplier["supplier_id"], supplier["documents"])
+                if checked.get("validation_error"):
+                    raise ValueError(checked["reason"])
+            except (ValueError, RuntimeError, requests.RequestException) as exc:
+                question["metric_judgment"] = {"status":"error", "reason":str(exc)}
+        print(f"Metric judgments recorded: {supplier['slug']}", flush=True)
+    refresh_evidence_metrics(result)
+
+
+def refresh_evidence_metrics(result: dict) -> None:
+    for supplier in result.get("suppliers", []):
+        for question in supplier["questions"]:
+            question["evidence_metrics"] = question_metrics(question, supplier.get("supplier_id", ""), supplier.get("documents", []))
+    result["summary"]["evidence_metrics"] = metric_summary(result.get("suppliers", []))
+
+
+def render_evidence_metrics(result: dict) -> list[str]:
+    metrics = result["summary"].get("evidence_metrics") or metric_summary(result.get("suppliers", []))
+    lines = ["", "## Retrieval precision and faithfulness", "",
+             "These are separate evidence metrics, not aliases for answer accuracy, citation accuracy or the deterministic pass rate.", "",
+             "| Metric | Full eligible-set score | Coverage | Status |", "|---|---:|---:|---|"]
+    for key, label in (("precision_at_10", "Retrieval Precision@10"), ("faithfulness", "Faithfulness (claim support)")):
+        metric = metrics[key]
+        lines.append(f"| {label} | {percentage(metric.get('value'))} | {metric.get('scored_questions',0)}/{metric.get('eligible_questions',0)} | {metric['status']} |")
+    lines.extend(["", "Precision@10 is relevant chunks / 10, macro-averaged over answerable questions. It uses an independent raw top-10 supplier-filtered retrieval audit with the same query embedding, before the distance filter. Answer generation keeps its configured top-k and distance threshold. When a supplier has fewer than ten chunks, unfilled positions contribute zero; this limits its maximum Precision@10. Returned-chunk precision is also shown to distinguish relevance from corpus size. Unsupported questions are excluded from this retrieval metric and assessed through fallback safety.",
+                  "", "Faithfulness is supported factual claims / all factual claims in each asserted answer, macro-averaged across asserted answers, including incorrect assertions on unsupported questions. Support is judged against the exact context given to the answering model, not all original PDFs or the wider top-10 audit. Abstentions have no claim denominator and are excluded; safe fallback is reported separately. This does not measure answer completeness, real-world truth or causal reliance on context.",
+                  "", "A full-set score is N/A until every eligible question is judged. The JSON retains full ranked chunk text and hashes, actual generation context, relevance verdicts, atomic claims, verbatim support quotes, rationales, judge identity/version and usage. It can be recalculated without querying the backend or model. Judge labels are semantic judgments, not ground truth; review disagreements and calibrate against human labels."])
+    precision, faithfulness = metrics["precision_at_10"], metrics["faithfulness"]
+    lines.extend(["", f"Scored-subset Precision@10: {percentage(precision.get('scored_subset_value'))}; scored-subset returned-chunk precision: {percentage(precision.get('returned_precision'))}; answerable questions with fewer than ten indexed chunks: {precision.get('short_corpus_questions') if precision.get('short_corpus_questions') is not None else 'not recorded'}.",
+                  f"Scored-subset faithfulness: {percentage(faithfulness.get('scored_subset_value'))}; supported/total claims: {faithfulness.get('supported_claims',0)}/{faithfulness.get('claims_total',0)}; micro claim support: {percentage(faithfulness.get('micro_claim_support'))}; fully supported asserted answers: {faithfulness.get('fully_supported_answers',0)}."])
+    judging = metrics.get("judging", {})
+    lines.extend(["", f"Semantic judging methods: {', '.join(judging.get('methods',[])) or 'Pending'}; judge(s): {', '.join(judging.get('models_or_reviewers',[])) or 'Pending'}; prompt(s): {', '.join(judging.get('prompt_versions',[])) or 'Pending'}. Judge input/output tokens: {judging.get('input_tokens',0)}/{judging.get('output_tokens',0)}; judge latency: {judging.get('latency_ms',0)} ms. These calls are excluded from Q&A latency/token totals. Using the answer model as judge can introduce correlated errors; this is not independent human validation."])
+    if result.get("suppliers"):
+        lines.extend(["", "### Per-question evidence metrics", "", "| Supplier / case | Precision@10 | Faithfulness | Supported / claims | Status or reason |", "|---|---:|---:|---:|---|"])
+        for supplier in result["suppliers"]:
+            for question in supplier["questions"]:
+                metric = question_metrics(question, supplier.get("supplier_id", ""), supplier.get("documents", []))
+                reason = metric.get("reason", f"{metric['precision_status']} / {metric['faithfulness_status']}")
+                lines.append(f"| {supplier['slug']} / {question['id']} | {percentage(metric['precision_at_10'])} | {percentage(metric['faithfulness'])} | {metric['supported_claims']}/{metric['claims_total']} | {reason.replace('|','/').replace(chr(10),' ')} |")
+    return lines
+
+
 def render_markdown_report(result: dict) -> str:
     summary = result["summary"]
     dataset = summary["dataset"]
@@ -961,7 +1031,7 @@ def render_markdown_report(result: dict) -> str:
         "",
         "| Metric | Result | Definition |",
         "|---|---:|---|",
-        f"| End-to-end RAG accuracy | {summary['questions_passed']}/{summary['questions_total']} ({percentage(summary['question_accuracy'])}) | Answer, decision, citation, isolation and applicable conflict/uncertainty checks must all pass |",
+        f"| End-to-end RAG pass rate | {summary['questions_passed']}/{summary['questions_total']} ({percentage(summary['question_accuracy'])}) | Deterministic rubric: answer, decision, citation, isolation and applicable conflict/uncertainty checks must all pass |",
         f"| Answer accuracy | {percentage(summary['answer_accuracy'])} | All expected answer terms are present |",
         f"| Found/not-found decision accuracy | {percentage(summary['information_found_accuracy'])} | The response correctly decides whether the evidence contains the answer |",
         f"| Citation accuracy | {percentage(summary['citation_accuracy'])} | Allowed source/page identity and all required evidence groups pass |",
@@ -975,7 +1045,7 @@ def render_markdown_report(result: dict) -> str:
         "|---:|---:|---:|---:|",
         f"| {latency_text['average']} | {latency_text['p50']} | {latency_text['p95']} | {latency_text['maximum']} |",
         "",
-        f"Model-recorded average: {latency_text['average_model_recorded']}. End-to-end API latency is used for the headline because it includes retrieval and application overhead.",
+        f"Model-recorded average: {latency_text['average_model_recorded']}. End-to-end API latency is used for the headline because it includes retrieval and application overhead. Evidence-enabled runs also include the top-10 audit in HTTP latency; its per-question duration is recorded separately. The model-recorded Q&A duration ends before that audit. Post-hoc semantic judging is excluded from both.",
         "",
         "## Results by question type",
         "",
@@ -991,10 +1061,17 @@ def render_markdown_report(result: dict) -> str:
             f"Source run: `{provenance['source_run_id']}`; source report SHA-256: `{provenance['source_report_sha256']}`; rescored at: `{provenance['rescored_at']}`.",
             "",
         ]
+    if result.get("metric_reassessment"):
+        provenance = result["metric_reassessment"]
+        lines[lines.index("## Executive results"):lines.index("## Executive results")] = [
+            "Metric-only reassessment of saved answers; this is not a new RAG answer run. The deterministic pass rate, observed answers, retrieval, latency and Q&A tokens are unchanged.",
+            f"Source report SHA-256: `{provenance['source_report_sha256']}`; assessed at: `{provenance['assessed_at']}`.", "",
+        ]
     for name, metrics in summary["by_question_type"].items():
         lines.append(
             f"| {name.replace('_', ' ').title()} | {metrics['passed']}/{metrics['total']} | {percentage(metrics['accuracy'])} |"
         )
+    lines.extend(render_evidence_metrics(result))
     lines.extend([
         "",
         "## Results by supplier",
@@ -1105,6 +1182,9 @@ def main() -> None:
     mode.add_argument("--validate-only", action="store_true", help="Validate the PDF corpus, checksums and policy contract without API calls or writing reports.")
     parser.add_argument("--cohort", choices=["baseline","ocr","conflicting_evidence","scenario_questions","stress"], help="Run one cohort; default runs all packs. Full manifest is always validated first.")
     mode.add_argument("--rescore", type=Path, help="Reassess a saved live report offline; requires separate output/report paths.")
+    mode.add_argument("--judge-report", type=Path, help="Judge captured saved runs through the backend without generating new answers; requires separate output paths.")
+    mode.add_argument("--metrics-from-report", type=Path, help="Recalculate evidence metrics from saved text and judgments, without backend/model calls; requires separate output paths.")
+    parser.add_argument("--judge", action="store_true", help="After a live run (or rescore), request semantic relevance/faithfulness judgments using backend provider credentials. Adds separately reported model calls.")
     parser.add_argument(
         "--reviewer-email",
         default=os.getenv("EVALUATION_REVIEWER_EMAIL"),
@@ -1128,29 +1208,48 @@ def main() -> None:
     args = parser.parse_args()
     if args.output.resolve() == args.report_output.resolve():
         parser.error("JSON and Markdown report output paths must be distinct.")
+    if args.judge and (args.validate_only or args.metrics_from_report or args.judge_report):
+        parser.error("--judge applies to a live run or rescore; omit it for other modes.")
     if args.validate_only:
         manifest = validate_manifest(args.manifest.resolve())
         suppliers = manifest["suppliers"]
         print(f"Validated manifest v{manifest['version']}: {len(suppliers)} suppliers, {sum(len(s['documents']) for s in suppliers)} PDFs, {sum(len(s['questions']) for s in suppliers)} questions, {sum(len(f) for s in suppliers for f in s['extraction_expectations'].values())} source-scoped extraction checks.")
         return
-    if args.rescore:
+    source_path = args.rescore or args.judge_report or args.metrics_from_report
+    if source_path:
         if args.cohort:
-            parser.error("Offline rescoring uses the complete source manifest; omit --cohort.")
-        protected = {args.rescore.resolve(), DEFAULT_MANIFEST.parent / "latest_results.json", DEFAULT_MANIFEST.parent / "latest_results.md"}
+            parser.error("Saved-report modes preserve the source scope; omit --cohort.")
+        protected = {source_path.resolve(), DEFAULT_MANIFEST.parent / "latest_results.json", DEFAULT_MANIFEST.parent / "latest_results.md"}
         if args.output.resolve() in protected or args.report_output.resolve() in protected:
-            parser.error("Offline rescoring requires separate --output and --report-output paths; preserve the source and live latest reports.")
-        result = rescore_evaluation(args.rescore.resolve(), args.manifest.resolve())
+            parser.error("Saved-report modes require separate --output and --report-output paths; preserve the source and live latest reports.")
+        if args.rescore:
+            result = rescore_evaluation(args.rescore.resolve(), args.manifest.resolve())
+        else:
+            source_bytes = source_path.read_bytes()
+            result = json.loads(source_bytes)
+            result["metric_reassessment"] = {"source_report_sha256":hashlib.sha256(source_bytes).hexdigest(),
+                                            "assessed_at":datetime.now(UTC).isoformat(),
+                                            "method":"LLM judgment of captured runs" if args.judge_report else "Deterministic recomputation of saved semantic labels"}
+            result["evaluation_mode"] = "offline_metric_judging" if args.judge_report else "offline_metrics"
     else:
         result = run_evaluation(
             args.base_url.rstrip("/"), args.manifest.resolve(),
             args.reviewer_email, args.reviewer_password, args.cohort,
         )
+    refresh_evidence_metrics(result)
+    if args.judge or args.judge_report:
+        judge_report(result, args.base_url.rstrip("/"), reviewer_headers(
+            args.base_url.rstrip("/"), args.reviewer_email, args.reviewer_password,
+        ))
     write_reports(result, args.output, args.report_output)
     print("summary=" + json.dumps(result["summary"]), flush=True)
     print(f"results={args.output.resolve()}", flush=True)
     print(f"report={args.report_output.resolve()}", flush=True)
     if result["summary"].get("run_status") == "incomplete":
         raise SystemExit(1)
+    if args.judge or args.judge_report:
+        if any(result["summary"]["evidence_metrics"][key]["status"] == "pending" for key in ("precision_at_10", "faithfulness")):
+            raise SystemExit(1)
 
 
 def write_reports(result: dict, output: Path, report_output: Path) -> None:

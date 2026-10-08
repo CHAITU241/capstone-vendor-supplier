@@ -13,6 +13,7 @@ from app.models import AiRun, AiRunStatus, AiRunType, ProcessingStatus, Supplier
 from app.schemas import (
     AssistantHistoryMessage,
     AiRunRead,
+    EvaluationJudgeRequest,
     GeneralAssistantMessage,
     GeneralAssistantRequest,
     GeneralAssistantResponse,
@@ -322,6 +323,8 @@ def ask_supplier_question(
     settings: Settings = Depends(get_settings),
 ) -> SupplierQuestionResponse:
     supplier = _get_supplier_with_documents(db, supplier_id)
+    if payload.capture_evaluation_evidence and not supplier.is_evaluation:
+        raise HTTPException(status_code=400, detail="Metric evidence capture requires an evaluation supplier.")
     collection = get_chunk_collection()
     indexed = collection.get(where={"supplier_id": str(supplier.id)}, limit=1)
     if not indexed.get("ids"):
@@ -338,6 +341,7 @@ def ask_supplier_question(
             settings=settings,
             ai=_get_ai_service(),
             collection=collection,
+            capture_evaluation_evidence=payload.capture_evaluation_evidence,
         )
     except HTTPException:
         raise
@@ -361,3 +365,48 @@ def ask_supplier_question(
         ],
         run=AiRunRead.model_validate(outcome.run),
     )
+
+
+@router.post("/{supplier_id}/evaluation/judge")
+def judge_saved_evaluation(
+    supplier_id: uuid.UUID, payload: EvaluationJudgeRequest,
+    db: Session = Depends(get_db), settings: Settings = Depends(get_settings),
+) -> dict:
+    """Judge only a captured evaluation run, never regenerate its answer."""
+    import hashlib
+    from datetime import UTC, datetime
+    from app.services.rag_evaluation import (
+        JUDGE_PROMPT, JUDGE_PROMPT_VERSION, fingerprint, validate_evidence, validate_judgment,
+    )
+
+    supplier = _get_supplier_with_documents(db, supplier_id)
+    if not supplier.is_evaluation:
+        raise HTTPException(status_code=400, detail="Metric judging requires an evaluation supplier.")
+    run = db.scalar(select(AiRun).where(AiRun.id == payload.run_id,
+                    AiRun.supplier_id == supplier_id, AiRun.run_type == AiRunType.QUESTION,
+                    AiRun.status == AiRunStatus.SUCCEEDED))
+    evidence = (run.details or {}).get("evaluation_evidence") if run else None
+    if not evidence:
+        raise HTTPException(status_code=409, detail="This run has no captured metric evidence; run a new evaluation.")
+    try:
+        validate_evidence(evidence, str(supplier_id), [
+            {"id":str(d.id), "filename":d.filename, "page_count":d.page_count}
+            for d in supplier.documents
+        ])
+        started = time.perf_counter()
+        result = _get_ai_service().judge_rag_evidence(evidence)
+        labels = validate_judgment(result.value.model_dump(), evidence)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail="Metric judging failed; no metric score was accepted.") from exc
+    return {"status":"completed", "method":"llm_judge", "provider":settings.ai_provider,
+            "model_or_reviewer":settings.evaluation_judge_model or settings.active_answer_model,
+            "same_model_as_answer":(settings.evaluation_judge_model or settings.active_answer_model) == run.model,
+            "prompt_version":JUDGE_PROMPT_VERSION,
+            "prompt_sha256":hashlib.sha256(JUDGE_PROMPT.encode()).hexdigest(),
+            "evidence_sha256":fingerprint(evidence), "assessed_at":datetime.now(UTC).isoformat(),
+            "input_tokens":result.input_tokens, "output_tokens":result.output_tokens,
+            "latency_ms":round((time.perf_counter()-started)*1000), "labels":labels.model_dump()}

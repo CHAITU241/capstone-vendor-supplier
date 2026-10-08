@@ -390,6 +390,32 @@ class OpenAIService:
                 )
                 return result
 
+    def judge_rag_evidence(self, evidence: dict):
+        """Optional post-hoc metric judge; independent of answer generation."""
+        import json
+        from app.services.rag_evaluation import JUDGE_PROMPT, MetricJudgment
+
+        model = self.settings.evaluation_judge_model or self.settings.active_answer_model
+        # No gold answer or original transcript is supplied to the judge.
+        payload = {key: evidence[key] for key in (
+            "question", "answer", "information_found", "retrieval_top_10", "generation_context",
+        )}
+        with observe_ai_call("evaluation.rag.judge", model) as metrics:
+            response = self.client.beta.chat.completions.parse(
+                model=model, temperature=0, max_completion_tokens=8192,
+                messages=[{"role": "system", "content": JUDGE_PROMPT},
+                          {"role": "user", "content": json.dumps(payload, ensure_ascii=False)}],
+                response_format=MetricJudgment, **self._structured_output_options(),
+            )
+            parsed = response.choices[0].message.parsed
+            if parsed is None:
+                raise AIResponseError("The metric judge returned no structured result.")
+            usage = response.usage
+            metrics.input_tokens = int(getattr(usage, "prompt_tokens", 0) or 0)
+            metrics.output_tokens = int(getattr(usage, "completion_tokens", 0) or 0)
+            return ModelResult(value=parsed, input_tokens=metrics.input_tokens,
+                               output_tokens=metrics.output_tokens)
+
     def answer_general_question(
         self,
         messages: list[dict[str, str]],

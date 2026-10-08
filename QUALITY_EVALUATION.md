@@ -28,13 +28,13 @@ Each new supplier has ten questions: two straightforward controls, three harder 
 | Stress conditional | 5 |
 | Total | 150 |
 
-The set contains 120 answerable and 30 unsupported questions. At the default 500-token chunk size, the new packs produce eight or nine chunks per supplier, while retrieval returns at most four. Questions require no more than three distinct evidence pages, so the mandatory evidence fits within top-k. Pages contain coherent task evidence and administrative context, rather than arbitrary filler or deliberately unreadable scans. Sources, questions, reference answers and the original citation-page contracts were authored before the live run. Scoring revision 2 corrects six contracts after inspecting saved responses; this calibration is documented and is not a held-out evaluation. The aim is to test difficult supported answers, without choosing a desired score or weakening ground truth after failures.
+The set contains 120 answerable and 30 unsupported questions. At the default 500-token chunk size, the new packs produce eight or nine chunks per supplier, while retrieval returns at most four. Questions require no more than three distinct evidence pages, so the mandatory evidence fits within top-k. Pages contain coherent task evidence and administrative context, rather than arbitrary filler or deliberately unreadable scans. Sources, questions, reference answers and the original citation-page contracts were authored before the live run. Scoring revision 3 additionally permits the valid Dakshin warehouse corroboration; the evaluator also recognises “necessitate clarification”. These scoring corrections were made after inspecting saved responses; this calibration is documented and is not a held-out evaluation. The aim is to test difficult supported answers, without choosing a desired score or weakening ground truth after failures.
 
 Supported registration, tax and supplementary liability upload slots are used. Category labels describe the test scenarios; the suite does not claim complete category-specific onboarding or compliance. Intake rejections and processing failures are reported separately from RAG answer failures.
 
 ## Evaluator contract
 
-`rag-evaluator-v4` uses the same pure scoring function for live evaluation and offline reassessment. A strict automatic RAG pass requires expected answer components, dates and applicable currency amounts; correct information-found decision; valid allowed citations and every required evidence-page group; and supplier-owned retrieved/cited chunk IDs. Existing conflict cases retain source-attributed values, mandatory source citations, conflict acknowledgement and uncertainty guards. Safe-not-found requires the exact guarded fallback with no citations.
+`rag-evaluator-v5` uses the same pure scoring function for live evaluation and offline reassessment. The deterministic end-to-end RAG pass rate requires expected answer components, dates and applicable currency amounts; correct information-found decision; valid allowed citations and every required evidence-page group; and supplier-owned retrieved/cited chunk IDs. Existing conflict cases retain source-attributed values, mandatory source citations, conflict acknowledgement and uncertainty guards. Safe-not-found requires the exact guarded fallback with no citations.
 
 Dates accept equivalent calendar formats, ordinals and PDF line wrapping. Currency-qualified INR amounts accept Indian/international comma grouping, lakh/crore/million equivalents and rupee symbols; wrong amounts and unqualified numbers fail. Common equivalent payment-trigger phrases are declared in the gold. Revision 2 also accepts a standalone currency-qualified amount for the original-aggregate single-value question and explicit coverage denials for the two decision-only conditions. It rejects wrong monetary bases, affirmative coverage, uncertain decisions and contradictory coverage assertions. Source names and financial roles remain distinct. Extra corroborating citations are allowed only on declared pages containing relevant facts; required primary evidence remains mandatory.
 
@@ -75,7 +75,9 @@ The pinned v4 manifest permits offline reassessment of the captured 100-question
 
 ## Closure status and limits
 
-The owner's complete 150-question live run has been reassessed with scoring revision 2: **145/150 (96.67%) strict automatic accuracy**, including **47/50 (94%) stress**. Exactly six evaluator false negatives were corrected; five failures remain. No model calls or source observations changed. All 50 stress semantic reviews remain pending. See `EVALUATOR_CALIBRATION.md` for the exact rules, provenance and retained failures.
+The latest owner run `e5aa6ed4-d4e3-4e8d-8762-591150096673` (2026-10-08 08:53:30 UTC) has two confirmed evaluator false negatives: valid additional Dakshin tax-page warehouse support and Coromandel's explicit “necessitate clarification” wording. Reassessing those same recorded answers under revision 3 gives **145/150 (96.67%) end-to-end pass rate**, including **47/50 (94%) stress** and **98/100 core**. Answer accuracy remains 147/150 (98%); citation accuracy becomes 117/120 (97.5%); found/not-found decisions remain 148/150 (98.67%); safe fallback remains 29/30 (96.67%); isolation remains 150/150. This is grading correction, not model improvement. Five failures remain, including the ambiguous claims-desk wording awaiting human judgment. All 50 stress semantic reviews remain pending. No replacement live results are committed.
+
+The new evidence capture and optional semantic judging need a fresh run before **Precision@10 or faithfulness** can be reported for this corpus. The existing saved report has only top-four retrieval IDs/distances and truncated citation excerpts. The JSON now retains full ranked top-ten text, exact generation context, semantic verdicts and provenance, so judged new reports can be recalculated offline. See `RAG_METRICS.md` and the corpus README for formulas, small-corpus ceilings, judging commands and pending coverage. These metrics are not inferred from citation or answer accuracy.
 
 This is a bounded controlled stress evaluation, not an absolute production guarantee. It covers multi-page English evidence, moderate skew/compression, mixed OCR, explicit temporal precedence, address roles and conditions. It does not cover severe scan damage, handwriting, exhaustive injection/leakage attacks, arbitrary citation entailment or independently sampled real-world supplier records. A final live run plus review of all 50 stress answers closes the evaluation; a lower genuine model score is an acceptable finding.
 
@@ -86,8 +88,13 @@ After pulling this commit, use distinct output paths to preserve the original JS
 ```bash
 docker compose run --rm --build evaluation \
   --rescore /app/sample_documents/evaluation_sets/latest_results.json \
-  --output /app/sample_documents/evaluation_sets/rescored_results_v4.json \
-  --report-output /app/sample_documents/evaluation_sets/rescored_results_v4.md
+  --output /app/sample_documents/evaluation_sets/rescored_results_v5.json \
+  --report-output /app/sample_documents/evaluation_sets/rescored_results_v5.md
 ```
 
 This command scores the saved observations against the current rubric; it does not request new model answers. The JSON and Markdown outputs appear in the mounted host evaluation directory. Keep the original report with the corrected report for project records. The active v5 corpus must match every original document hash and question identity in the source run.
+
+
+## Optional semantic metrics
+
+The normal evaluation command captures evidence and scores the deterministic rubric; semantic metrics remain pending. Run `docker compose run --rm --build evaluation --judge` to add separately reported model judgments using backend credentials. Optionally configure `EVALUATION_JUDGE_MODEL` before rebuilding the backend. Returned-chunk relevance and fixed-denominator Precision@10 are distinct: short supplier corpora cap P@10, even with perfect relevance. Faithfulness checks atomic claim support in the actual generation context; abstentions are excluded and fallback safety remains separate. A full-set semantic score stays N/A until every eligible question is validly judged. Same-model judging and incomplete human calibration are disclosed. Evidence capture is restricted to evaluation suppliers; normal portal question responses do not gain full context.

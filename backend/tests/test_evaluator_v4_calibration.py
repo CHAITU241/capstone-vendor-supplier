@@ -88,9 +88,9 @@ def test_remaining_saved_failures_are_not_relaxed(slug,qid,answer,pages):
     assert not grade(slug,qid,answer,pages)['passed']
 
 
-def test_revision_changes_only_six_rubrics_and_no_documents_or_questions():
+def test_revision_changes_only_seven_rubrics_and_no_documents_or_questions():
     previous = json.loads((MANIFEST_PATH.parent/'evaluation_manifest_v5_scoring_v1.json').read_text())
-    assert MANIFEST['scoring_revision'] == 2
+    assert MANIFEST['scoring_revision'] == 3
     changed = []
     for before, after in zip(previous['suppliers'], MANIFEST['suppliers'], strict=True):
         assert {k:v for k,v in before.items() if k!='questions'} == {k:v for k,v in after.items() if k!='questions'}
@@ -103,5 +103,41 @@ def test_revision_changes_only_six_rubrics_and_no_documents_or_questions():
                 reproduced=copy.deepcopy(old)
                 apply_scoring_revision(reproduced)
                 assert reproduced == new
-    assert set(changed) == {(s,q) for s,q,_,_ in CALIBRATED}
+    assert set(changed) == {(s,q) for s,q,_,_ in CALIBRATED} | {('dakshin_logistics','dock_and_payment')}
     validate_manifest(MANIFEST_PATH)
+
+
+def test_dock_payment_corroboration_preserves_both_primary_pages():
+    answer = 'Dock 4, Hoskote Freight Park, Bengaluru, Karnataka 562114. Net 45 days from accepted invoice.'
+    assert grade('dakshin_logistics','dock_and_payment',answer,[(REG,2),(REG,3),(TAX,2)])['passed']
+    for pages in ([(TAX,2)], [(REG,2),(TAX,2)], [(REG,3),(TAX,2)], [(REG,2),(REG,3),(TAX,1)]):
+        assert not grade('dakshin_logistics','dock_and_payment',answer,pages)['citation_match']
+
+
+@pytest.mark.parametrize('phrase,expected', [
+    ('These discrepancies necessitate clarification.',True),
+    ('These discrepancies necessitated verification.',True),
+    ('These discrepancies do not necessitate clarification.',False),
+    ("These discrepancies don't necessitate clarification.",False),
+    ('These discrepancies never necessitate clarification.',False),
+    ('These discrepancies necessitate clarification. I will choose the tax address.',False),
+])
+def test_necessitate_clarification_is_recognised_but_negation_and_winner_are_rejected(phrase,expected):
+    from scripts.run_quality_evaluation import conflict_checks
+    _,case=case_for('coromandel_sensor_systems','conflict_review_note')
+    assert conflict_checks(phrase,case)['uncertainty_match'] is expected
+
+
+def test_revision3_changes_only_dock_gold_and_keeps_sources_and_question_wording():
+    previous=json.loads((MANIFEST_PATH.parent/'evaluation_manifest_v5_scoring_v2.json').read_text())
+    changed=[]
+    for before,after in zip(previous['suppliers'],MANIFEST['suppliers'],strict=True):
+        assert {k:v for k,v in before.items() if k!='questions'}=={k:v for k,v in after.items() if k!='questions'}
+        for old,new in zip(before['questions'],after['questions'],strict=True):
+            if old != new:
+                changed.append((after['slug'],new['id']))
+                assert old['question']==new['question']
+                assert old['expected_terms']==new['expected_terms']
+                assert old['required_sources']==new['required_sources']
+                assert old['citation_requirements']==new['citation_requirements']
+    assert changed==[('dakshin_logistics','dock_and_payment')]
