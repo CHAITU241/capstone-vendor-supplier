@@ -125,6 +125,9 @@ def scenario_cases(s):
 
 
 def main():
+    active = ROOT / "evaluation_manifest.json"
+    if active.exists() and json.loads(active.read_text())["version"] >= 5:
+        raise ValueError("The active v5 corpus pins these ten packs. Use generate_stress_evaluation_documents.py; do not downgrade or rewrite pinned originals.")
     baseline = json.loads((ROOT / "baseline_manifest_v3.json").read_text())
     entries = list(baseline["suppliers"])
     definitions = [

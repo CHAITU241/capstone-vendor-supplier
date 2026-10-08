@@ -10,7 +10,7 @@ import pytest
 from scripts.run_quality_evaluation import answer_matches, conflict_checks, evaluate_question, validate_manifest, verify_ocr_execution
 
 ROOT = Path(__file__).resolve().parents[2]
-MANIFEST = ROOT / "sample_documents/evaluation_sets/evaluation_manifest.json"
+MANIFEST = ROOT / "sample_documents/evaluation_sets/baseline_manifest_v4.json"
 
 
 def test_extended_sources_are_image_only_and_cohorts_cover_requested_cases():
@@ -50,7 +50,7 @@ def test_ocr_preflight_rejects_a_scan_replaced_with_selectable_text(tmp_path):
 def test_windows_transcript_newlines_pass_but_changed_source_content_fails(tmp_path):
     corpus = tmp_path / "corpus"
     shutil.copytree(MANIFEST.parent, corpus)
-    transcripts = sorted(corpus.glob("*/*.source.txt"))
+    transcripts = sorted(path for entry in json.loads(MANIFEST.read_text())["suppliers"] for path in (corpus / entry["slug"]).glob("*.source.txt"))
     assert len(transcripts) == 6
     for path in transcripts:
         path.write_bytes(path.read_bytes().replace(b"\r\n", b"\n").replace(b"\n", b"\r\n"))

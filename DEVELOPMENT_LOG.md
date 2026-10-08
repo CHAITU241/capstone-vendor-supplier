@@ -1,3 +1,11 @@
+## 2026-10-08 — Final fair stress cohort and evaluator calibration
+
+Added five independently authored synthetic multi-page packs for logistics limits, dated food-liability endorsements, mixed OCR facilities evidence, manufacturing address roles and maintenance conditions/exclusions. Active v5: 15 suppliers, 45 PDFs, 73 pages, 150 questions, 135 registration/tax fields; the added 50 questions are separately reported as stress. Pinned the unchanged ten-pack v4 manifest for audit and offline replay.
+
+Evaluator v3 adds equivalent INR values, PDF-wrapped/ordinal date handling, clause-page citation contracts, declared payment-trigger aliases, duplicate/malformed retrieval rejection, distinct JSON/Markdown destinations and a mandatory human-review queue for all stress answers. Upload/OCR HTTP timing is separated from processing and Q&A. Supplementary liability annotations are unscored diagnostics, not insurance compliance or full supplier approval. Upload/processing failures produce incomplete pipeline reporting without charging unexecuted questions as wrong RAG answers. Existing records and production prompts remain unchanged.
+
+Validation: 299 full backend tests passed; frontend production build passed; v5 preflight validated all 45 PDFs and actual OCR; all 43 new pages rendered/inspected. Static Compose/Docker wiring verified. The owner-run replay retains 99/100 strict passes and the real citation failure without changing source observations. Docker/provider execution and live v5 results remain pending the owner's environment; no model scores or latest reports fabricated.
+
 # SourceSure AI — Development Handoff Log
 
 This file is the short resumption context for future AI or developer sessions.

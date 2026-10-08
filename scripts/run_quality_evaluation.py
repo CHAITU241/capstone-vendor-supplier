@@ -13,6 +13,7 @@ import sys
 import time
 import uuid
 from datetime import UTC, datetime
+from decimal import Decimal
 from pathlib import Path
 
 import requests
@@ -23,7 +24,7 @@ DEFAULT_MANIFEST = (
     ROOT / "sample_documents" / "evaluation_sets" / "evaluation_manifest.json"
 )
 NOT_FOUND_ANSWER = "Information not found in uploaded supplier documents."
-EVALUATOR_VERSION = "rag-evaluator-v2"
+EVALUATOR_VERSION = "rag-evaluator-v3"
 
 
 def normalized(value: str) -> str:
@@ -32,6 +33,8 @@ def normalized(value: str) -> str:
 
 def dates_in(value: str) -> set[str]:
     """Accept equivalent calendar dates without accepting a different date."""
+    value = re.sub(r"\s+", " ", value)
+    value = re.sub(r"(?<=\d)(?:st|nd|rd|th)\b", "", value, flags=re.I)
     patterns = (
         (r"\b\d{4}-\d{1,2}-\d{1,2}\b", ("%Y-%m-%d",)),
         (r"\b\d{1,2}[ /-][A-Za-z]{3,9}[ ,/-]+\d{4}\b", ("%d %b %Y", "%d %B %Y")),
@@ -49,6 +52,18 @@ def dates_in(value: str) -> set[str]:
                 except ValueError:
                     continue
     return dates
+
+
+def amounts_in(value: str) -> set[Decimal]:
+    """Currency-qualified INR values; commas and lakh/million are equivalent."""
+    multiplier = {None:1, "lakh":100000, "lakhs":100000, "lac":100000,
+                  "lacs":100000, "crore":10000000, "crores":10000000,
+                  "million":1000000, "thousand":1000}
+    number = r"(\d[\d,]*(?:\.\d+)?)\s*(lakhs?|lacs?|crores?|million|thousand)?"
+    matches = re.findall(r"(?:\bINR\b|\bRs\.?|₹|\brupees\b)\s*" + number + r"(?![\d,])", value, re.I)
+    matches += re.findall(r"\b" + number + r"\s*rupees\b", value, re.I)
+    return {Decimal(amount.replace(',', '')) * multiplier[unit.casefold() if unit else None]
+            for amount, unit in matches}
 
 
 def answer_matches(answer: str, case: dict) -> bool:
@@ -72,6 +87,7 @@ def answer_matches(answer: str, case: dict) -> bool:
         all(term_matches(term) for term in case["expected_terms"])
         and all(any(term_matches(term) for term in group) for group in case.get("expected_term_groups", []))
         and set(case.get("expected_dates", [])) <= dates_in(answer)
+        and set(case.get("expected_amounts", [])) <= amounts_in(answer)
     )
 
 
@@ -119,16 +135,17 @@ def validate_manifest(manifest_path: Path) -> dict:
 
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     version = manifest.get("version")
-    if version not in (3, 4):
-        raise ValueError("Use a policy-aligned version-3 or expanded version-4 manifest.")
+    if version not in (3, 4, 5):
+        raise ValueError("Use a pinned version-3, version-4 or version-5 manifest.")
     suppliers = manifest["suppliers"]
-    expected_suppliers = 5 if version == 3 else 10
+    expected_suppliers = {3:5, 4:10, 5:15}[version]
     if len(suppliers) != expected_suppliers or len({s["slug"] for s in suppliers}) != expected_suppliers:
         raise ValueError(f"The evaluation requires {expected_suppliers} distinct supplier packs.")
     type_counts = {}
     paths = set()
     for entry in suppliers:
         source_texts = {}
+        source_pages = {}
         documents = entry["documents"]
         expectations = entry["extraction_expectations"]
         rag_only = entry["rag_only_documents"]
@@ -145,8 +162,16 @@ def validate_manifest(manifest_path: Path) -> dict:
             with pymupdf.open(path) as doc:
                 if not doc.is_pdf or doc.is_encrypted or not doc.page_count:
                     raise ValueError(f"Unreadable evaluation PDF: {path}")
-                if mode == "ocr":
-                    if any(page.get_text().strip() or not page.get_images() for page in doc):
+                if mode in {"ocr", "mixed"}:
+                    expected_ocr = entry.get("expected_ocr_pages", {}).get(kind, list(range(1, doc.page_count + 1)))
+                    if (not expected_ocr or len(set(expected_ocr)) != len(expected_ocr)
+                        or any(page < 1 or page > doc.page_count for page in expected_ocr)):
+                        raise ValueError("Invalid declared OCR pages.")
+                    if mode == "ocr" and expected_ocr != list(range(1, doc.page_count + 1)):
+                        raise ValueError("Image-only originals require OCR on every page.")
+                    if mode == "mixed" and len(expected_ocr) == doc.page_count:
+                        raise ValueError("Mixed originals require both native and scanned pages.")
+                    if any(page.get_text().strip() or not page.get_images() for n,page in enumerate(doc,1) if n in expected_ocr):
                         raise ValueError(f"OCR original must contain only scanned page images: {path}")
                     transcript = path.with_suffix(".source.txt")
                     # Git may check out text as CRLF on Windows. The pinned
@@ -160,14 +185,23 @@ def validate_manifest(manifest_path: Path) -> dict:
                     from app.config import Settings
                     from app.services.documents import extract_document_text
                     extracted = extract_document_text(path, "application/pdf", Settings())
-                    if extracted.text_extraction_method != "ocr" or not extracted.text.strip():
+                    if extracted.text_extraction_method != mode or list(extracted.ocr_pages) != expected_ocr or not extracted.text.strip():
                         raise ValueError(f"OCR preflight did not exercise scanned pages: {path}")
+                    page_texts = re.split(r"\[Page \d+\]\n", source_text)[1:]
+                    if len(page_texts) != doc.page_count:
+                        if mode == "mixed":
+                            raise ValueError("Mixed authoring transcript needs every numbered page.")
+                        page_texts = [source_text]
+                    if mode == "mixed" and any(not page.get_text().strip() for n,page in enumerate(doc,1) if n not in expected_ocr):
+                        raise ValueError("Mixed original lost its native page text.")
                 elif mode == "native" and all(page.get_text().strip() for page in doc):
-                    source_text = " ".join(page.get_text() for page in doc)
+                    page_texts = [page.get_text() for page in doc]
+                    source_text = " ".join(page_texts)
                 else:
                     raise ValueError(f"Unreadable or unknown document mode: {path}")
             allowed = set(extraction_field_names(DocumentType(kind)))
             source_texts[filename] = source_text
+            source_pages[filename] = page_texts
             if kind in expectations:
                 if not expectations[kind] or set(expectations[kind]) != allowed:
                     raise ValueError(f"Extraction ground truth must cover the current policy fields: {entry['slug']}/{kind}")
@@ -183,15 +217,31 @@ def validate_manifest(manifest_path: Path) -> dict:
             kind = case["question_type"]
             type_counts[kind] = type_counts.get(kind, 0) + 1
             if case["information_found"]:
-                if not case["expected_sources"] or not (case["expected_terms"] or case.get("expected_dates")):
+                if not case["expected_sources"] or not (case["expected_terms"] or case.get("expected_dates") or case.get("expected_amounts") or case.get("expected_term_groups")):
                     raise ValueError("Answerable cases require evidence and answer assertions.")
                 if not set(case["expected_sources"]) <= set(documents.values()):
                     raise ValueError("Question cites an unknown corpus document.")
                 if not set(case.get("required_sources", [])) <= set(case["expected_sources"]):
                     raise ValueError("Required citations must be allowed source documents.")
                 evidence = " ".join(source_texts[name] for name in case["expected_sources"])
-                if any(normalized(term) not in normalized(evidence) for term in case["expected_terms"]) or not set(case.get("expected_dates", [])) <= dates_in(evidence):
+                if any(normalized(term) not in normalized(evidence) for term in case["expected_terms"]) or not set(case.get("expected_dates", [])) <= dates_in(evidence) or not set(case.get("expected_amounts", [])) <= amounts_in(evidence):
                     raise ValueError(f"Question ground truth absent from declared sources: {entry['slug']}/{case['id']}")
+                page_rules = case.get("allowed_citation_pages", {})
+                requirements = case.get("citation_requirements", [])
+                if entry.get("cohort") == "stress" and (not page_rules or not requirements or not case.get("reference_answer")):
+                    raise ValueError("Stress gold needs page evidence and an independently authored reference answer.")
+                if page_rules:
+                    if set(page_rules) != set(case["expected_sources"]) or any(not pages or len(set(pages)) != len(pages) or any(p < 1 or p > len(source_pages[name]) for p in pages) for name,pages in page_rules.items()):
+                        raise ValueError("Invalid citation-page contract.")
+                    if any(r["filename"] not in page_rules or not r["pages"] or not set(r["pages"]) <= set(page_rules[r["filename"]]) for r in requirements):
+                        raise ValueError("Required evidence pages must be allowed citation pages.")
+                    if len(requirements) > 4:
+                        raise ValueError("Required evidence exceeds the default top-k retrieval budget.")
+                    page_evidence = " ".join(source_pages[name][p-1] for name,pages in page_rules.items() for p in pages)
+                    if any(normalized(t) not in normalized(page_evidence) for t in case["expected_terms"]) or not set(case.get("expected_dates", [])) <= dates_in(page_evidence) or not set(case.get("expected_amounts", [])) <= amounts_in(page_evidence):
+                        raise ValueError("Question facts absent from allowed citation pages.")
+                if case.get("reference_answer") and not answer_matches(case["reference_answer"], case):
+                    raise ValueError(f"Reference answer rejected by rubric: {entry['slug']}/{case['id']}")
                 if kind == "conflict_resolution" and (
                     len(case.get("required_sources", [])) < 2
                     or not case.get("requires_conflict_acknowledgement")
@@ -207,16 +257,22 @@ def validate_manifest(manifest_path: Path) -> dict:
             raise ValueError(f"Supplier ground truth differs from combined manifest: {entry['slug']}")
     counts = ({"documents":15, "questions":50, "question_types":{"direct_fact":20,"paraphrased_fact":10,"date_interpretation":5,"multi_fact":5,"safe_not_found":10}}
               if version == 3 else {"documents":30, "questions":100, "question_types":{"direct_fact":32,"paraphrased_fact":16,"date_interpretation":7,"multi_fact":9,"safe_not_found":20,"conflict_resolution":8,"scenario_based":8}})
+    if version == 5:
+        counts = {"documents":45,"questions":150,"question_types":{"direct_fact":42,"paraphrased_fact":16,"date_interpretation":7,"multi_fact":9,"safe_not_found":30,"conflict_resolution":8,"scenario_based":8,"stress_retrieval":15,"stress_synthesis":10,"stress_conditional":5}}
     if len(paths) != counts["documents"] or type_counts != counts["question_types"]:
         raise ValueError("Corpus document/question counts differ from the pinned evaluation contract.")
-    if version == 4:
-        cohorts = {name:sum(s.get("cohort", "baseline") == name for s in suppliers) for name in ("baseline", "ocr", "conflicting_evidence", "scenario_questions")}
-        if cohorts != {"baseline":5,"ocr":2,"conflicting_evidence":2,"scenario_questions":1}:
+    if version in (4, 5):
+        cohorts = {name:sum(s.get("cohort", "baseline") == name for s in suppliers) for name in ("baseline", "ocr", "conflicting_evidence", "scenario_questions", "stress")}
+        if cohorts != {"baseline":5,"ocr":2,"conflicting_evidence":2,"scenario_questions":1,"stress":5 if version == 5 else 0}:
             raise ValueError("Expanded evaluation requires 5 baseline, 2 OCR, 2 conflict and 1 scenario supplier.")
         if any(set(s.get("document_modes", {}).values()) != {"ocr"} or len(s["document_modes"]) != 3 for s in suppliers if s.get("cohort") == "ocr"):
             raise ValueError("Both OCR supplier packs require three image-only originals.")
-        if manifest.get("expected_counts") != {"suppliers":10, **counts}:
+        if manifest.get("expected_counts") != {"suppliers":expected_suppliers, **counts}:
             raise ValueError("Declared expected counts differ from the pinned v4 contract.")
+    if version == 5:
+        pinned = json.loads((manifest_path.parent / "baseline_manifest_v4.json").read_text())
+        if suppliers[:10] != pinned["suppliers"]:
+            raise ValueError("The pinned first ten supplier packs must remain unchanged.")
     return manifest
 
 
@@ -276,13 +332,15 @@ def ensure_documents(
     documents: dict[str, str],
     headers: dict[str, str],
     document_sha256: dict[str, str],
-) -> None:
+) -> dict:
     detail = request_json("GET", f"{base_url}/suppliers/{supplier_id}", headers=headers)
     uploaded_types = {item["document_type"] for item in detail["documents"]}
+    timings = []
     for document_type, filename in documents.items():
         if document_type in uploaded_types:
             continue
         path = supplier_dir / filename
+        started = time.perf_counter()
         with path.open("rb") as handle:
             response = requests.post(
                 f"{base_url}/suppliers/{supplier_id}/documents",
@@ -291,6 +349,7 @@ def ensure_documents(
                 headers=headers,
                 timeout=60,
             )
+        timings.append({"document_type":document_type,"filename":filename, "api_latency_ms":round((time.perf_counter()-started)*1000)})
         if not response.ok:
             raise RuntimeError(
                 f"Upload {path} returned {response.status_code}: {response.text[:500]}"
@@ -300,6 +359,8 @@ def ensure_documents(
         matches = [doc for doc in detail["documents"] if doc["document_type"] == kind]
         if len(matches) != 1 or matches[0].get("sha256") != document_sha256[kind]:
             raise RuntimeError(f"Backend original differs from the evaluated corpus: {filename}")
+    return {"documents":timings,"api_latency_ms":sum(d["api_latency_ms"] for d in timings),
+            "scope":"Upload HTTP time includes text/OCR extraction, validation and persistence; not an isolated OCR benchmark."}
 
 
 def evaluate_fields(detail: dict, expectations: dict[str, dict[str, str]]) -> dict:
@@ -332,14 +393,17 @@ def evaluate_fields(detail: dict, expectations: dict[str, dict[str, str]]) -> di
 
 
 def verify_ocr_execution(entry: dict, documents: list[dict]) -> None:
-    if entry.get("cohort") != "ocr":
-        return
-    if len(documents) != len(entry["documents"]) or any(
-        doc.get("text_extraction_method") != "ocr"
-        or doc.get("ocr_pages") != list(range(1, doc["page_count"] + 1))
-        for doc in documents
-    ):
-        raise RuntimeError("Scanned originals did not pass through backend OCR. Enable OCR and rebuild the backend before evaluation.")
+    for kind, filename in entry["documents"].items():
+        mode = entry.get("document_modes", {}).get(kind, "ocr" if entry.get("cohort") == "ocr" else "native")
+        if mode not in {"ocr", "mixed"}:
+            continue
+        matches = [d for d in documents if d.get("filename") == filename or (len(documents) == 1 and "filename" not in d)]
+        if len(matches) != 1:
+            raise RuntimeError("Missing original for backend OCR verification.")
+        doc = matches[0]
+        expected = entry.get("expected_ocr_pages", {}).get(kind, list(range(1,doc["page_count"]+1)))
+        if doc.get("text_extraction_method") != mode or doc.get("ocr_pages") != expected:
+            raise RuntimeError("Scanned originals did not pass through backend OCR. Enable OCR and rebuild the backend before evaluation.")
 
 
 def score_response(body: dict, supplier_id: str, case: dict,
@@ -370,8 +434,10 @@ def score_response(body: dict, supplier_id: str, case: dict,
     isolation_match = (
         isolation_match
         and len(retrieved_ids) == body["run"]["retrieval_count"]
-        and all(belongs_to_supplier(cid) for cid in retrieved_ids)
+        and len(set(retrieved_ids)) == len(retrieved_ids)
+        and all(belongs_to_supplier(cid) and re.fullmatch(r"\d+", cid.split(":")[2]) for cid in retrieved_ids)
     )
+    page_rules = case.get("allowed_citation_pages", {})
     for citation in body["citations"]:
         chunk_id = citation["chunk_id"]
         owned = belongs_to_supplier(chunk_id)
@@ -384,7 +450,10 @@ def score_response(body: dict, supplier_id: str, case: dict,
             chunk_id in retrieved_ids
             and document["filename"] == citation["filename"]
             and 1 <= citation["page_number"] <= document["page_count"]
+            and (not page_rules or citation["page_number"] in page_rules.get(citation["filename"], []))
         )
+    for requirement in case.get("citation_requirements", []):
+        citation_match = citation_match and any(c["filename"] == requirement["filename"] and c["page_number"] in requirement["pages"] for c in body["citations"])
     safe_fallback_match = (
         body["information_found"] is False
         and body["answer"] == NOT_FOUND_ANSWER
@@ -426,6 +495,11 @@ def evaluate_question(
         "answer": body["answer"],
         "expected_terms": case["expected_terms"],
         "expected_dates": case.get("expected_dates", []),
+        "expected_amounts": case.get("expected_amounts", []),
+        "allowed_citation_pages": case.get("allowed_citation_pages", {}),
+        "citation_requirements": case.get("citation_requirements", []),
+        "manual_review_required": case.get("manual_review_required", False),
+        "reference_answer": case.get("reference_answer"),
         "expected_term_groups": case.get("expected_term_groups", []),
         "expected_sources": case["expected_sources"],
         "required_sources": case.get("required_sources", []),
@@ -515,7 +589,36 @@ def build_summary(results: list[dict], elapsed_ms: int) -> dict:
         for check in supplier["fields"].get("checks", [])
         if not check["passed"]
     ]
+    stage_timings = []
+    for supplier in results:
+        upload = supplier.get("upload") or {}
+        processing = supplier.get("processing") or {}
+        stage_timings.append({"supplier":supplier["slug"], "cohort":supplier.get("cohort","baseline"),
+            "upload_api_ms":upload.get("api_latency_ms"), "upload_documents":upload.get("documents", []),
+            "processing_api_ms":processing.get("api_latency_ms"), "processing_recorded_ms":processing.get("latency_ms")})
+    review_items = [{"supplier":s["slug"],"id":q["id"],"automatic_passed":q["passed"],
+                    "question":q["question"],"answer":q.get("answer"),"reference_answer":q.get("reference_answer"),
+                    "gold_rationale":q.get("gold_rationale"),"citation_requirements":q.get("citation_requirements", []),
+                    "citations":q.get("citations", []), "review_status":"pending"}
+                   for s in results for q in s["questions"] if q.get("manual_review_required")]
+    suites = {}
+    for suite in ("core", "stress"):
+        selected = [q for supplier in results if (supplier.get("cohort") == "stress") == (suite == "stress") for q in supplier["questions"]]
+        if selected:
+            suites[suite] = {"passed":sum(q["passed"] for q in selected), "total":len(selected),
+                             "accuracy":ratio(sum(q["passed"] for q in selected),len(selected))}
     return {
+        "run_status":"incomplete" if any(s.get("setup_failure") for s in results) else "completed",
+        "setup_failures":[{"supplier":s["slug"],**s["setup_failure"]} for s in results if s.get("setup_failure")],
+        "planned_questions":sum(s.get("planned_questions",len(s["questions"])) for s in results),
+        "unexecuted_questions":sum(s.get("planned_questions",len(s["questions"]))-len(s["questions"]) for s in results),
+        "by_suite":suites,
+        "stage_timings":stage_timings,
+        "human_review":{"required":len(review_items),"completed":0,"status":"pending" if review_items else "not_required", "items":review_items},
+        "unscored_policy_annotations":[{"supplier":s["slug"],"filename":d["filename"],
+            "document_id":d["id"],"document_type":d.get("document_type"), "scope":"Diagnostic only; no scored extraction or insurance-compliance contract.",
+            "annotations":[a for a in s.get("processing",{}).get("details",{}).get("policy_assessments",[]) if a.get("document_id")==d["id"]]}
+            for s in results for d in s.get("documents",[]) if isinstance(d,dict) and d.get("document_type") in s.get("rag_only_documents", {})],
         "dataset": {
             "suppliers": len(results),
             "documents": sum(len(supplier.get("documents", [])) for supplier in results),
@@ -525,7 +628,9 @@ def build_summary(results: list[dict], elapsed_ms: int) -> dict:
             "answerable_questions": len(found_questions),
             "safe_not_found_questions": len(not_found_questions),
             "ocr_suppliers": sum(s.get("cohort") == "ocr" for s in results),
-            "ocr_documents": sum(len(s.get("documents", [])) for s in results if s.get("cohort") == "ocr"),
+            "ocr_documents": sum(1 for s in results for d in s.get("documents", []) if isinstance(d,dict) and d.get("text_extraction_method") in {"ocr","mixed"}),
+            "stress_suppliers":sum(s.get("cohort") == "stress" for s in results),
+            "source_pages":sum(d.get("page_count",0) for s in results for d in s.get("documents",[]) if isinstance(d,dict)),
             "conflicting_evidence_suppliers": sum(s.get("cohort") == "conflicting_evidence" for s in results),
             "scenario_question_suppliers": sum(s.get("cohort") == "scenario_questions" for s in results),
             "question_types": {
@@ -555,11 +660,11 @@ def build_summary(results: list[dict], elapsed_ms: int) -> dict:
             sum(question["isolation_match"] for question in questions), len(questions),
         ),
         "latency_ms": {
-            "average": round(statistics.mean(latencies)),
+            "average": round(statistics.mean(latencies)) if latencies else None,
             "p50": percentile(latencies, 50),
             "p95": percentile(latencies, 95),
-            "maximum": max(latencies),
-            "average_model_recorded": round(statistics.mean(recorded_latencies)),
+            "maximum": max(latencies) if latencies else None,
+            "average_model_recorded": round(statistics.mean(recorded_latencies)) if recorded_latencies else None,
         },
         "tokens": {
             "input": sum(question["input_tokens"] for question in questions),
@@ -567,11 +672,11 @@ def build_summary(results: list[dict], elapsed_ms: int) -> dict:
             "total": sum(question["input_tokens"] + question["output_tokens"] for question in questions),
             "average_per_question": round(sum(
                 question["input_tokens"] + question["output_tokens"] for question in questions
-            ) / len(questions)),
+            ) / len(questions)) if questions else None,
         },
         "retrieval": {
-            "average_chunks": round(statistics.mean(retrieval_counts), 2),
-            "maximum_chunks": max(retrieval_counts),
+            "average_chunks": round(statistics.mean(retrieval_counts), 2) if retrieval_counts else None,
+            "maximum_chunks": max(retrieval_counts) if retrieval_counts else None,
         },
         "models": sorted({question["model"] for question in questions if question.get("model")}),
         "prompt_versions": sorted({
@@ -590,7 +695,7 @@ def build_summary(results: list[dict], elapsed_ms: int) -> dict:
             {"supplier":s["slug"], "filename":d["filename"], "method":d.get("text_extraction_method"),
              "pages":d.get("ocr_pages", []), "quality_score":d.get("ocr_quality_score"),
              "quality_status":d.get("ocr_quality_status"), "warnings":d.get("ocr_warnings", [])}
-            for s in results if s.get("cohort") == "ocr" for d in s.get("documents", [])
+            for s in results for d in s.get("documents", []) if isinstance(d,dict) and d.get("text_extraction_method") in {"ocr","mixed"}
         ],
         "failure_count": len(failures),
         "failures": failures,
@@ -603,6 +708,7 @@ def run_evaluation(
     manifest_path: Path,
     reviewer_email: str | None = None,
     reviewer_password: str | None = None,
+    cohort: str | None = None,
 ) -> dict:
     evaluation_started = time.perf_counter()
     manifest = validate_manifest(manifest_path)
@@ -614,18 +720,32 @@ def run_evaluation(
         raise RuntimeError(f"API health check did not pass: {health}")
     headers = reviewer_headers(base_url, reviewer_email, reviewer_password)
 
-    for entry in manifest["suppliers"]:
+    entries = [e for e in manifest["suppliers"] if cohort is None or e.get("cohort", "baseline") == cohort]
+    if not entries:
+        raise ValueError("Selected cohort is empty.")
+    for entry in entries:
         supplier = create_evaluation_supplier(base_url, entry["create_payload"], headers)
         supplier_id = supplier["id"]
         supplier_dir = manifest_path.parent / entry["slug"]
-        ensure_documents(
-            base_url,
-            supplier_id,
-            supplier_dir,
-            entry["documents"],
-            headers,
-            entry["document_sha256"],
-        )
+        try:
+            upload_timing = ensure_documents(
+                base_url,
+                supplier_id,
+                supplier_dir,
+                entry["documents"],
+                headers,
+                entry["document_sha256"],
+            )
+        except (RuntimeError, requests.RequestException) as exc:
+            results.append({"slug":entry["slug"],"cohort":entry.get("cohort","baseline"),
+                "supplier_id":supplier_id,"documents":[],"fields":{"passed":0,"total":0,"checks":[]},
+                "extraction_expectations":entry["extraction_expectations"],"rag_only_documents":entry["rag_only_documents"],
+                "planned_documents":len(entry["documents"]),"planned_questions":len(entry["questions"]),"questions":[],
+                "setup_failure":{"stage":"upload","reason":str(exc)[:1000]},
+                "processing":{}})
+            print(f"{entry['slug']}: upload/setup failed; RAG questions not run: {exc}", flush=True)
+            continue
+        processing_started = time.perf_counter()
         processing = request_json(
             "POST",
             f"{base_url}/suppliers/{supplier_id}/process",
@@ -633,6 +753,7 @@ def run_evaluation(
             params={"refresh": "true"},
             timeout=300,
         )
+        processing_api_ms = round((time.perf_counter() - processing_started) * 1000)
         if not processing["run"].get("details", {}).get("refresh_requested") or processing.get("processed_document_count") != len(entry["documents"]):
             raise RuntimeError("Backend did not perform a complete fresh processing run. Rebuild/start the backend before evaluation.")
         detail = request_json("GET", f"{base_url}/suppliers/{supplier_id}", headers=headers)
@@ -641,7 +762,8 @@ def run_evaluation(
             detail, entry["extraction_expectations"]
         )
         question_results = []
-        for case in entry["questions"]:
+        setup_failed = processing.get("failed_document_count", 0) > 0
+        for case in ([] if setup_failed else entry["questions"]):
             question_results.append(
                 evaluate_question(
                     base_url,
@@ -655,12 +777,18 @@ def run_evaluation(
         results.append(
             {
                 "slug": entry["slug"],
+                "planned_documents":len(entry["documents"]),
+                "planned_questions":len(entry["questions"]),
+                "setup_failure":{"stage":"processing","reason":"One or more original extraction/indexing stages failed; RAG not run for this supplier."} if setup_failed else None,
                 "cohort": entry.get("cohort", "baseline"),
                 "supplier_id": supplier_id,
                 "documents": detail["documents"],
                 "extraction_expectations": entry["extraction_expectations"],
                 "rag_only_documents": entry["rag_only_documents"],
+                "upload": upload_timing,
+                "stress_category": entry.get("stress_category"),
                 "processing": {
+                    "api_latency_ms": processing_api_ms,
                     "field_count": processing["field_count"],
                     "chunk_count": processing["chunk_count"],
                     "latency_ms": processing["run"]["latency_ms"],
@@ -682,7 +810,7 @@ def run_evaluation(
         passed_questions = sum(item["passed"] for item in question_results)
         print(
             f"{entry['slug']}: fields {field_result['passed']}/{field_result['total']}, "
-            f"questions {passed_questions}/{len(question_results)}",
+            f"questions {passed_questions}/{len(question_results)}" + ("; processing/setup failed, RAG not run" if setup_failed else ""),
             flush=True,
         )
 
@@ -696,9 +824,10 @@ def run_evaluation(
         "manifest_version": manifest["version"],
         "evaluator_version": EVALUATOR_VERSION,
         "evaluation_mode": "live",
+        "selected_cohort": cohort,
         "manifest_sha256": hashlib.sha256(manifest_path.read_bytes()).hexdigest(),
-        "evaluation_scope": ("Policy extraction on registration and tax originals; grounded RAG on all originals. Six image-only scans, two conflicting-evidence suppliers and procurement-style scenarios are included. Full onboarding approval is outside scope."
-                             if manifest["version"] == 4 else "Policy extraction on registration and tax documents; grounded RAG across all three documents. Not full onboarding approval or OCR coverage."),
+        "evaluation_scope": ("Policy extraction on registration and tax originals; grounded RAG on all originals. OCR, conflicting evidence and procurement-style scenarios are included. v5 adds a separately reported multi-page stress cohort. Supplementary liability originals and their model policy annotations are RAG-only diagnostics, not a scored insurance-compliance result. Field accuracy does not establish full supplier compliance or onboarding approval."
+                             if manifest["version"] in (4, 5) else "Policy extraction on registration and tax documents; grounded RAG across all three documents. Not full onboarding approval or OCR coverage."),
         "base_url": base_url,
         "summary": summary,
         "suppliers": results,
@@ -745,9 +874,12 @@ def rescore_evaluation(source_path: Path, manifest_path: Path) -> dict:
             checks = score_response(body, supplier["supplier_id"], case,
                                     [name for slug, name in names.items() if slug != supplier["slug"]], documents)
             question.update(checks)
-            for key in ("expected_terms", "expected_dates", "expected_term_groups", "expected_sources", "required_sources"):
+            for key in ("expected_terms", "expected_dates", "expected_amounts", "expected_term_groups", "expected_sources", "required_sources", "citation_requirements"):
                 question[key] = case.get(key, [])
             question["gold_rationale"] = case.get("gold_rationale")
+            question["allowed_citation_pages"] = case.get("allowed_citation_pages", {})
+            question["manual_review_required"] = case.get("manual_review_required", False)
+            question["reference_answer"] = case.get("reference_answer")
             after = {key: question.get(key) for key in component_names}
             if before != after:
                 changes.append({"supplier": supplier["slug"], "id": question["id"], "before": before, "after": after})
@@ -778,6 +910,7 @@ def render_markdown_report(result: dict) -> str:
     latency = summary["latency_ms"]
     tokens = summary["tokens"]
     retrieval = summary["retrieval"]
+    latency_text = {key: f"{value} ms" if value is not None else "N/A" for key,value in latency.items()}
     lines = [
         "# SourceSure AI — Controlled RAG Quality Evaluation",
         "",
@@ -796,7 +929,7 @@ def render_markdown_report(result: dict) -> str:
         f"| End-to-end RAG accuracy | {summary['questions_passed']}/{summary['questions_total']} ({percentage(summary['question_accuracy'])}) | Answer, decision, citation, isolation and applicable conflict/uncertainty checks must all pass |",
         f"| Answer accuracy | {percentage(summary['answer_accuracy'])} | All expected answer terms are present |",
         f"| Found/not-found decision accuracy | {percentage(summary['information_found_accuracy'])} | The response correctly decides whether the evidence contains the answer |",
-        f"| Citation accuracy | {percentage(summary['citation_accuracy'])} | Answerable questions cite an expected source document |",
+        f"| Citation accuracy | {percentage(summary['citation_accuracy'])} | Allowed source/page identity and all required evidence groups pass |",
         f"| Safe fallback accuracy | {percentage(summary['safe_fallback_accuracy'])} | Unsupported questions return the exact fallback with zero citations |",
         f"| Supplier isolation | {percentage(summary['supplier_isolation_accuracy'])} | Retrieved/cited chunk IDs belong to this supplier's originals; no other evaluation supplier name appears |",
         f"| Field extraction accuracy | {summary['fields_passed']}/{summary['fields_total']} ({percentage(summary['field_accuracy'])}) | Each expected policy field matches within its source document; equivalent dates accepted |",
@@ -805,15 +938,17 @@ def render_markdown_report(result: dict) -> str:
         "",
         "| Average | P50 | P95 | Maximum |",
         "|---:|---:|---:|---:|",
-        f"| {latency['average']} ms | {latency['p50']} ms | {latency['p95']} ms | {latency['maximum']} ms |",
+        f"| {latency_text['average']} | {latency_text['p50']} | {latency_text['p95']} | {latency_text['maximum']} |",
         "",
-        f"Model-recorded average: {latency['average_model_recorded']} ms. End-to-end API latency is used for the headline because it includes retrieval and application overhead.",
+        f"Model-recorded average: {latency_text['average_model_recorded']}. End-to-end API latency is used for the headline because it includes retrieval and application overhead.",
         "",
         "## Results by question type",
         "",
         "| Question type | Passed | Accuracy |",
         "|---|---:|---:|",
     ]
+    if summary.get("run_status") == "incomplete":
+        lines[lines.index("## Executive results"):lines.index("## Executive results")] = ["**INCOMPLETE RUN**: setup/intake failures prevented some RAG questions from executing. These are pipeline failures, not wrong RAG answers. Reported accuracy covers executed questions only and must not be advertised as the complete suite score.",f"Executed {summary['questions_total']} of {summary['planned_questions']} planned questions.",json.dumps(summary["setup_failures"]),""]
     if result.get("evaluation_mode") == "offline_rescore":
         provenance = result["rescoring"]
         lines[lines.index("## Executive results"):lines.index("## Executive results")] = [
@@ -836,6 +971,15 @@ def render_markdown_report(result: dict) -> str:
         lines.append(
             f"| {name.replace('_', ' ').title()} | {metrics['passed']}/{metrics['total']} | {percentage(metrics['accuracy'])} |"
         )
+    lines.extend(["", "## Core and stress results", "", "| Suite | Automatic passes | Accuracy |", "|---|---:|---:|"])
+    for name, metrics in summary.get("by_suite", {}).items():
+        lines.append(f"| {name.title()} | {metrics['passed']}/{metrics['total']} | {percentage(metrics['accuracy'])} |")
+    review = summary.get("human_review", {})
+    lines.extend(["", f"Stress answer audit: **{review.get('status','not recorded')}**; {review.get('completed',0)}/{review.get('required',0)} required human reviews completed. Automatic passes test declared components and evidence-page identity; they do not establish semantic correctness of role/value attribution, temporal precedence or every conditional claim.",
+                  "", "## Upload and processing latency", "", "| Supplier | Upload HTTP (ms) | Processing HTTP (ms) | Processing recorded (ms) |", "|---|---:|---:|---:|"])
+    for stage in summary.get("stage_timings", []):
+        lines.append(f"| {stage['supplier']} | {stage.get('upload_api_ms') if stage.get('upload_api_ms') is not None else 'Not recorded'} | {stage.get('processing_api_ms') if stage.get('processing_api_ms') is not None else 'Not recorded'} | {stage.get('processing_recorded_ms') if stage.get('processing_recorded_ms') is not None else 'Not recorded'} |")
+    lines.extend(["", "Upload HTTP time includes reading/OCR, validation, transfer and persistence. Processing time covers redaction, indexing/embeddings and model extraction after upload. Q&A latency is measured after indexing and excludes both stages. An isolated OCR duration is not instrumented; do not describe OCR-pack Q&A latency as upload-to-answer latency."])
     lines.extend([
         "",
         "## Usage",
@@ -843,7 +987,7 @@ def render_markdown_report(result: dict) -> str:
         f"- Input tokens: **{tokens['input']:,}**",
         f"- Output tokens: **{tokens['output']:,}**",
         f"- Total tokens: **{tokens['total']:,}**",
-        f"- Average tokens per question: **{tokens['average_per_question']:,}**",
+        f"- Average tokens per question: **{tokens['average_per_question']}**",
         f"- Average/max retrieved chunks: **{retrieval['average_chunks']} / {retrieval['maximum_chunks']}**",
         f"- Answer model(s): **{', '.join(summary['models']) or 'Not reported'}**",
         f"- Prompt version(s): **{', '.join(summary['prompt_versions']) or 'Not reported'}**",
@@ -877,6 +1021,7 @@ def render_markdown_report(result: dict) -> str:
         f"Extraction documents: {dataset.get('extraction_documents', 'Not recorded')}; supplementary RAG-only documents: {dataset.get('rag_only_documents', 'Not recorded')}.",
         "",
     ])
+    lines.extend(["Supplementary liability originals are RAG-only. Their model-generated policy annotations may be inconsistent; they are retained in JSON as unscored diagnostics and do not establish insurance compliance. Registration/tax field checks do not establish full supplier compliance or approval.", ""])
     field_failures = summary.get("field_failures", [])
     if field_failures:
         lines.extend(["| Supplier | Document | Field | Expected | Actual |", "|---|---|---|---|---|"])
@@ -889,7 +1034,7 @@ def render_markdown_report(result: dict) -> str:
         lines.append("No failed extraction checks.")
     for processing in summary.get("processing_runs", []):
         lines.append(f"- Processing: status={processing.get('status', 'unknown')}; failed documents={processing.get('failed_document_count', 'unknown')}; model={processing.get('model', 'unknown')}; prompt={processing.get('prompt_version', 'unknown')}; input/output tokens={processing.get('input_tokens', 0)}/{processing.get('output_tokens', 0)}.")
-    if result.get("manifest_version") == 4:
+    if result.get("manifest_version") in (4, 5):
         lines.extend(["", "## Results by evaluation cohort", "", "| Cohort | Passed | Accuracy |", "|---|---:|---:|"])
         for name, metrics in summary["by_cohort"].items():
             lines.append(f"| {name.replace('_', ' ').title()} | {metrics['passed']}/{metrics['total']} | {percentage(metrics['accuracy'])} |")
@@ -897,6 +1042,11 @@ def render_markdown_report(result: dict) -> str:
         for doc in summary["ocr_documents"]:
             lines.append(f"| {doc['supplier']} | {doc['filename']} | {doc['method']} | {doc['pages']} | {doc['quality_score']} ({doc['quality_status']}) |")
         lines.extend(["", "Conflict cases additionally require every declared source citation, both disagreeing values, source attribution, explicit conflict acknowledgement and a lexical uncertainty/clarification guard. Recognition errors and incorrect conflict answers remain failed cases. OCR authoring transcripts are used only for offline ground-truth validation and are never uploaded as evidence."])
+    review_items = summary.get("human_review", {}).get("items", [])
+    if review_items:
+        lines.extend(["", "## Required stress-answer review", "", "Check role/value attribution, effective-date precedence, every condition/exclusion, missing facts and complete source support. Review failures and all stress passes against the originals; retain the automatic score and report the audited score separately."])
+        for item in review_items:
+            lines.extend(["", f"### {item['supplier']} / {item['id']}", "", f"Automatic result: {'pass' if item['automatic_passed'] else 'fail'}; human review: pending.", "", item['question'], "", "Reference: " + str(item.get('reference_answer')), "", "Observed: " + str(item.get('answer')), "", "Evidence-page requirements: `" + json.dumps(item.get('citation_requirements',[])) + "`", "", "Rationale: " + str(item.get('gold_rationale'))])
     lines.extend([
         "",
         "## Method and interpretation",
@@ -906,7 +1056,7 @@ def render_markdown_report(result: dict) -> str:
         "## Limitations",
         "",
         ("This remains a small synthetic English corpus, not a production guarantee. Scans cover clean rasterization and JPEG compression, not the full range of real scanning defects. Procurement-style questions are authored scenarios, not independently sampled real user traffic. Component matching and conflict guards are lexical, not semantic entailment checks. Future calibration needs held-out real documents, more scan defects, multi-page evidence and independently labelled user questions."
-         if result.get("manifest_version") == 4 else "This is a controlled synthetic regression evaluation, not a production guarantee. The corpus uses text-native, one-page English PDFs and exact expected facts. Results should be labelled as controlled evaluation results; production calibration would require a larger held-out corpus containing scans, OCR noise, multi-page evidence, conflicting values and real user paraphrases."),
+         if result.get("manifest_version") == 4 else ("This controlled synthetic English stress corpus includes multi-page evidence, moderately skewed/compressed mixed OCR inserts, dated endorsements, address-role ambiguity and conditional exclusions. It is not independently sampled real traffic or a production guarantee. Automated component/page checks cannot establish semantic entailment; all 50 stress answers need manual audit. Handwriting, severe scan damage, exhaustive prompt-injection testing and independently labelled real supplier records remain outside scope." if result.get("manifest_version") == 5 else "This is a controlled synthetic regression evaluation, not a production guarantee. The corpus uses text-native, one-page English PDFs and exact expected facts. Results should be labelled as controlled evaluation results; production calibration would require a larger held-out corpus containing scans, OCR noise, multi-page evidence, conflicting values and real user paraphrases.")),
         "",
     ])
     return "\n".join(lines)
@@ -914,10 +1064,11 @@ def render_markdown_report(result: dict) -> str:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--base-url", default="http://127.0.0.1:8000/api")
+    parser.add_argument("--base-url", default=os.getenv("EVALUATION_BASE_URL", "http://127.0.0.1:8000/api"))
     parser.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST)
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--validate-only", action="store_true", help="Validate the PDF corpus, checksums and policy contract without API calls or writing reports.")
+    parser.add_argument("--cohort", choices=["baseline","ocr","conflicting_evidence","scenario_questions","stress"], help="Run one cohort; default runs all packs. Full manifest is always validated first.")
     mode.add_argument("--rescore", type=Path, help="Reassess a saved live report offline; requires separate output/report paths.")
     parser.add_argument(
         "--reviewer-email",
@@ -940,12 +1091,16 @@ def main() -> None:
         default=DEFAULT_MANIFEST.parent / "latest_results.md",
     )
     args = parser.parse_args()
+    if args.output.resolve() == args.report_output.resolve():
+        parser.error("JSON and Markdown report output paths must be distinct.")
     if args.validate_only:
         manifest = validate_manifest(args.manifest.resolve())
         suppliers = manifest["suppliers"]
         print(f"Validated manifest v{manifest['version']}: {len(suppliers)} suppliers, {sum(len(s['documents']) for s in suppliers)} PDFs, {sum(len(s['questions']) for s in suppliers)} questions, {sum(len(f) for s in suppliers for f in s['extraction_expectations'].values())} source-scoped extraction checks.")
         return
     if args.rescore:
+        if args.cohort:
+            parser.error("Offline rescoring uses the complete source manifest; omit --cohort.")
         protected = {args.rescore.resolve(), DEFAULT_MANIFEST.parent / "latest_results.json", DEFAULT_MANIFEST.parent / "latest_results.md"}
         if args.output.resolve() in protected or args.report_output.resolve() in protected:
             parser.error("Offline rescoring requires separate --output and --report-output paths; preserve the source and live latest reports.")
@@ -953,16 +1108,20 @@ def main() -> None:
     else:
         result = run_evaluation(
             args.base_url.rstrip("/"), args.manifest.resolve(),
-            args.reviewer_email, args.reviewer_password,
+            args.reviewer_email, args.reviewer_password, args.cohort,
         )
     write_reports(result, args.output, args.report_output)
     print("summary=" + json.dumps(result["summary"]), flush=True)
     print(f"results={args.output.resolve()}", flush=True)
     print(f"report={args.report_output.resolve()}", flush=True)
+    if result["summary"].get("run_status") == "incomplete":
+        raise SystemExit(1)
 
 
 def write_reports(result: dict, output: Path, report_output: Path) -> None:
     """Stage a complete run before replacing latest; preserve previous report bytes."""
+    if output.resolve() == report_output.resolve():
+        raise ValueError("JSON and Markdown report output paths must be distinct.")
     outputs = {output: json.dumps(result, indent=2), report_output: render_markdown_report(result)}
     stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%S") + "_" + str(uuid.uuid4())
     temporary = []

@@ -1,18 +1,22 @@
 {
-  "version": 4,
-  "description": "Baseline facts plus image-only scans, contradictory originals and procurement-style scenarios; all synthetic.",
+  "version": 5,
+  "scoring_revision": 1,
+  "description": "Pinned 100-question core plus a separate 50-question multi-page stress cohort. Synthetic evidence authored before live calls; complex stress answers require human audit.",
   "expected_counts": {
-    "suppliers": 10,
-    "documents": 30,
-    "questions": 100,
+    "suppliers": 15,
+    "documents": 45,
+    "questions": 150,
     "question_types": {
-      "direct_fact": 32,
-      "paraphrased_fact": 16,
-      "date_interpretation": 7,
-      "multi_fact": 9,
-      "safe_not_found": 20,
       "conflict_resolution": 8,
-      "scenario_based": 8
+      "date_interpretation": 7,
+      "direct_fact": 42,
+      "multi_fact": 9,
+      "paraphrased_fact": 16,
+      "safe_not_found": 30,
+      "scenario_based": 8,
+      "stress_conditional": 5,
+      "stress_retrieval": 15,
+      "stress_synthesis": 10
     }
   },
   "suppliers": [
@@ -1894,7 +1898,2113 @@
         "tax": "27d37300c2c42f37e8bdab1d1e58d04fd4d65730c8f4ab010fc8527ae51e45b6",
         "insurance": "46afddcba19d1edd0b50f6b548a6283e5ffb300a7487c5086a9a6f5adcb5402f"
       }
+    },
+    {
+      "slug": "dakshin_logistics",
+      "create_payload": {
+        "name": "Dakshin Freight Services Private Limited",
+        "country": "India",
+        "contact_email": "evaluation.dakshin_logistics@example.com"
+      },
+      "documents": {
+        "registration": "01_supplier_registration_form.pdf",
+        "tax": "02_gst_registration_certificate.pdf",
+        "insurance": "03_certificate_of_liability_insurance.pdf"
+      },
+      "extraction_expectations": {
+        "registration": {
+          "supplier_name": "Dakshin Freight Services Private Limited",
+          "registration_number": "U74999KA2020PTC190001",
+          "issuing_registry": "Registrar of Companies, India",
+          "registration_date": "2020-09-12",
+          "status": "Active"
+        },
+        "tax": {
+          "supplier_name": "Dakshin Freight Services Private Limited",
+          "tax_identifier": "AABCS6201F",
+          "gst_status_registered_or_not_registered": "Registered",
+          "gstin_when_registered": "29AABCS6201F1Z8"
+        }
+      },
+      "rag_only_documents": {
+        "insurance": "Supplementary liability evidence for RAG; the legacy insurance type has no current policy extraction contract."
+      },
+      "questions": [
+        {
+          "id": "legal_name_control",
+          "question_type": "direct_fact",
+          "question": "What legal name does the supplier registration form state?",
+          "expected_terms": [
+            "Dakshin Freight Services Private Limited"
+          ],
+          "expected_term_groups": [],
+          "expected_dates": [],
+          "expected_amounts": [],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf",
+            "02_gst_registration_certificate.pdf",
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "required_sources": [
+            "01_supplier_registration_form.pdf"
+          ],
+          "allowed_citation_pages": {
+            "01_supplier_registration_form.pdf": [
+              1
+            ],
+            "02_gst_registration_certificate.pdf": [
+              1
+            ],
+            "03_certificate_of_liability_insurance.pdf": [
+              1
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "01_supplier_registration_form.pdf",
+              "pages": [
+                1
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "The registration form states the legal name as Dakshin Freight Services Private Limited."
+        },
+        {
+          "id": "insurer_control",
+          "question_type": "direct_fact",
+          "question": "Which insurance provider is named on the liability certificate?",
+          "expected_terms": [
+            "HarborPoint General Insurance Company Limited"
+          ],
+          "expected_term_groups": [],
+          "expected_dates": [],
+          "expected_amounts": [],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "required_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "allowed_citation_pages": {
+            "03_certificate_of_liability_insurance.pdf": [
+              1
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "03_certificate_of_liability_insurance.pdf",
+              "pages": [
+                1
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "The liability certificate names HarborPoint General Insurance Company Limited as the provider."
+        },
+        {
+          "id": "transit_limit",
+          "question_type": "stress_retrieval",
+          "question": "What is the road-transit limit per consignment? Distinguish it from storage cover.",
+          "expected_terms": [
+            "consignment"
+          ],
+          "expected_term_groups": [],
+          "expected_dates": [],
+          "expected_amounts": [
+            2000000
+          ],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "required_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "allowed_citation_pages": {
+            "03_certificate_of_liability_insurance.pdf": [
+              2
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "03_certificate_of_liability_insurance.pdf",
+              "pages": [
+                2
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "Road transit is limited to INR 20 lakh per consignment; this is the transit limit, separate from storage cover."
+        },
+        {
+          "id": "storage_limit",
+          "question_type": "stress_retrieval",
+          "question": "What cover limit applies to goods already received into an approved warehouse, and on what basis?",
+          "expected_terms": [
+            "occurrence"
+          ],
+          "expected_term_groups": [],
+          "expected_dates": [],
+          "expected_amounts": [
+            5000000
+          ],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "required_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "allowed_citation_pages": {
+            "03_certificate_of_liability_insurance.pdf": [
+              3
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "03_certificate_of_liability_insurance.pdf",
+              "pages": [
+                3
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "At an approved warehouse, the storage limit is INR 50 lakh per occurrence."
+        },
+        {
+          "id": "subcontract_limit",
+          "question_type": "stress_retrieval",
+          "question": "What is the subcontracted-carriage sublimit and what register condition must be met before dispatch?",
+          "expected_terms": [
+            "consignment"
+          ],
+          "expected_term_groups": [
+            [
+              "approved-carrier register",
+              "approved carrier register"
+            ],
+            [
+              "before dispatch",
+              "prior to dispatch"
+            ]
+          ],
+          "expected_dates": [],
+          "expected_amounts": [
+            1000000
+          ],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "required_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "allowed_citation_pages": {
+            "03_certificate_of_liability_insurance.pdf": [
+              4
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "03_certificate_of_liability_insurance.pdf",
+              "pages": [
+                4
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "Subcontracted carriage is limited to INR 10 lakh per consignment and requires the carrier to be on the approved-carrier register before dispatch."
+        },
+        {
+          "id": "transit_and_storage",
+          "question_type": "stress_synthesis",
+          "question": "Compare the road-transit and warehouse-storage limits, labelling which basis belongs to each operation.",
+          "expected_terms": [
+            "transit",
+            "storage",
+            "consignment",
+            "occurrence"
+          ],
+          "expected_term_groups": [],
+          "expected_dates": [],
+          "expected_amounts": [
+            2000000,
+            5000000
+          ],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "required_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "allowed_citation_pages": {
+            "03_certificate_of_liability_insurance.pdf": [
+              2,
+              3
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "03_certificate_of_liability_insurance.pdf",
+              "pages": [
+                2
+              ]
+            },
+            {
+              "filename": "03_certificate_of_liability_insurance.pdf",
+              "pages": [
+                3
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "Road transit: INR 20 lakh per consignment. Warehouse storage: INR 50 lakh per occurrence."
+        },
+        {
+          "id": "dock_and_payment",
+          "question_type": "stress_synthesis",
+          "question": "For AP and dispatch handover, give the warehouse receiving location and payment days with the payment-clock trigger.",
+          "expected_terms": [
+            "Dock 4",
+            "Hoskote Freight Park",
+            "562114",
+            "45"
+          ],
+          "expected_term_groups": [
+            [
+              "accepted invoice",
+              "invoice acceptance",
+              "acceptance of the invoice",
+              "invoice is accepted",
+              "invoice has been accepted",
+              "invoice accepted"
+            ]
+          ],
+          "expected_dates": [],
+          "expected_amounts": [],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf"
+          ],
+          "required_sources": [
+            "01_supplier_registration_form.pdf"
+          ],
+          "allowed_citation_pages": {
+            "01_supplier_registration_form.pdf": [
+              2,
+              3
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "01_supplier_registration_form.pdf",
+              "pages": [
+                2
+              ]
+            },
+            {
+              "filename": "01_supplier_registration_form.pdf",
+              "pages": [
+                3
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "Receive at Dock 4, Hoskote Freight Park, Bengaluru, Karnataka 562114. AP terms are Net 45 days from accepted invoice."
+        },
+        {
+          "id": "unlisted_carrier",
+          "question_type": "stress_conditional",
+          "question": "A carrier is not named on the approved-carrier register before dispatch. Does the submitted subcontracted-carriage clause cover that journey? Explain the condition.",
+          "expected_terms": [
+            "carrier",
+            "register"
+          ],
+          "expected_term_groups": [
+            [
+              "not covered",
+              "outside",
+              "no cover",
+              "not apply",
+              "does not apply"
+            ]
+          ],
+          "expected_dates": [],
+          "expected_amounts": [],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "required_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "allowed_citation_pages": {
+            "03_certificate_of_liability_insurance.pdf": [
+              4
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "03_certificate_of_liability_insurance.pdf",
+              "pages": [
+                4
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "No cover applies: a carrier not named on the approved-carrier register before dispatch is outside the subcontracted-carriage clause."
+        },
+        {
+          "id": "missing_carrier_approval",
+          "question_type": "safe_not_found",
+          "question": "Which subcontracted carrier has actually been approved on this supplier's approved-carrier register?",
+          "expected_terms": [
+            "Information not found in uploaded supplier documents."
+          ],
+          "expected_sources": [],
+          "information_found": false,
+          "manual_review_required": true,
+          "gold_rationale": "No original supplies this requested value. Related information does not establish it.",
+          "reference_answer": "Information not found in uploaded supplier documents."
+        },
+        {
+          "id": "missing_credit_rating",
+          "question_type": "safe_not_found",
+          "question": "What external credit rating has been assigned to this supplier?",
+          "expected_terms": [
+            "Information not found in uploaded supplier documents."
+          ],
+          "expected_sources": [],
+          "information_found": false,
+          "manual_review_required": true,
+          "gold_rationale": "No original supplies this requested value. Related information does not establish it.",
+          "reference_answer": "Information not found in uploaded supplier documents."
+        }
+      ],
+      "cohort": "stress",
+      "stress_category": "logistics",
+      "document_modes": {
+        "registration": "native",
+        "tax": "native",
+        "insurance": "native"
+      },
+      "expected_ocr_pages": {
+        "registration": [],
+        "tax": [],
+        "insurance": []
+      },
+      "source_transcript_sha256": {},
+      "document_sha256": {
+        "registration": "34024b802cddf9e89ccc9e4d792f2a3e0afcabc9538d30b27fa3b7d12639ca5f",
+        "tax": "efb81b77e928c275ba81781774c5ad25e9be0056edadec3e7a66276ffc2c8637",
+        "insurance": "073884a40b84703bd50eeff1f7d3d60b3f6366efac4efa7fdb6eb81a386c8a62"
+      }
+    },
+    {
+      "slug": "amrutha_food",
+      "create_payload": {
+        "name": "Amrutha Meal Services Private Limited",
+        "country": "India",
+        "contact_email": "evaluation.amrutha_food@example.com"
+      },
+      "documents": {
+        "registration": "01_supplier_registration_form.pdf",
+        "tax": "02_gst_registration_certificate.pdf",
+        "insurance": "03_certificate_of_liability_insurance.pdf"
+      },
+      "extraction_expectations": {
+        "registration": {
+          "supplier_name": "Amrutha Meal Services Private Limited",
+          "registration_number": "U74999KA2020PTC190002",
+          "issuing_registry": "Registrar of Companies, India",
+          "registration_date": "2020-09-12",
+          "status": "Active"
+        },
+        "tax": {
+          "supplier_name": "Amrutha Meal Services Private Limited",
+          "tax_identifier": "AABCS6202F",
+          "gst_status_registered_or_not_registered": "Registered",
+          "gstin_when_registered": "29AABCS6202F1Z8"
+        }
+      },
+      "rag_only_documents": {
+        "insurance": "Supplementary liability evidence for RAG; the legacy insurance type has no current policy extraction contract."
+      },
+      "questions": [
+        {
+          "id": "legal_name_control",
+          "question_type": "direct_fact",
+          "question": "What legal name does the supplier registration form state?",
+          "expected_terms": [
+            "Amrutha Meal Services Private Limited"
+          ],
+          "expected_term_groups": [],
+          "expected_dates": [],
+          "expected_amounts": [],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf",
+            "02_gst_registration_certificate.pdf",
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "required_sources": [
+            "01_supplier_registration_form.pdf"
+          ],
+          "allowed_citation_pages": {
+            "01_supplier_registration_form.pdf": [
+              1
+            ],
+            "02_gst_registration_certificate.pdf": [
+              1
+            ],
+            "03_certificate_of_liability_insurance.pdf": [
+              1
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "01_supplier_registration_form.pdf",
+              "pages": [
+                1
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "The registration form states the legal name as Amrutha Meal Services Private Limited."
+        },
+        {
+          "id": "insurer_control",
+          "question_type": "direct_fact",
+          "question": "Which insurance provider is named on the liability certificate?",
+          "expected_terms": [
+            "HarborPoint General Insurance Company Limited"
+          ],
+          "expected_term_groups": [],
+          "expected_dates": [],
+          "expected_amounts": [],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "required_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "allowed_citation_pages": {
+            "03_certificate_of_liability_insurance.pdf": [
+              1
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "03_certificate_of_liability_insurance.pdf",
+              "pages": [
+                1
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "The liability certificate names HarborPoint General Insurance Company Limited as the provider."
+        },
+        {
+          "id": "original_aggregate",
+          "question_type": "stress_retrieval",
+          "question": "What annual aggregate was stated in the original product-liability schedule, before either amendment becomes effective?",
+          "expected_terms": [
+            "annual",
+            "aggregate"
+          ],
+          "expected_term_groups": [],
+          "expected_dates": [],
+          "expected_amounts": [
+            2000000
+          ],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "required_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "allowed_citation_pages": {
+            "03_certificate_of_liability_insurance.pdf": [
+              2
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "03_certificate_of_liability_insurance.pdf",
+              "pages": [
+                2
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "The original annual product-liability aggregate is INR 20 lakh."
+        },
+        {
+          "id": "renewal_expiry",
+          "question_type": "stress_retrieval",
+          "question": "What expiry does endorsement E1 establish for the renewal period?",
+          "expected_terms": [],
+          "expected_term_groups": [],
+          "expected_dates": [
+            "2028-06-30"
+          ],
+          "expected_amounts": [],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "required_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "allowed_citation_pages": {
+            "03_certificate_of_liability_insurance.pdf": [
+              3
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "03_certificate_of_liability_insurance.pdf",
+              "pages": [
+                3
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "Endorsement E1 establishes renewal expiry on 30 June 2028."
+        },
+        {
+          "id": "e2_preserved_expiry",
+          "question_type": "stress_retrieval",
+          "question": "What annual aggregate does amendment E2 set, and which expiry does it explicitly leave unchanged?",
+          "expected_terms": [
+            "annual",
+            "aggregate"
+          ],
+          "expected_term_groups": [],
+          "expected_dates": [
+            "2028-06-30"
+          ],
+          "expected_amounts": [
+            4000000
+          ],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "required_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "allowed_citation_pages": {
+            "03_certificate_of_liability_insurance.pdf": [
+              4
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "03_certificate_of_liability_insurance.pdf",
+              "pages": [
+                4
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "E2 sets the annual aggregate at INR 40 lakh and leaves the expiry of 30 June 2028 unchanged."
+        },
+        {
+          "id": "july_vs_august",
+          "question_type": "stress_synthesis",
+          "question": "Compare the applicable annual product-liability aggregate on 15 July 2027 and on 15 August 2027. Label each date and limit.",
+          "expected_terms": [],
+          "expected_term_groups": [
+            [
+              "July",
+              "JUL"
+            ],
+            [
+              "August",
+              "AUG"
+            ]
+          ],
+          "expected_dates": [],
+          "expected_amounts": [
+            3000000,
+            4000000
+          ],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "required_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "allowed_citation_pages": {
+            "03_certificate_of_liability_insurance.pdf": [
+              3,
+              4
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "03_certificate_of_liability_insurance.pdf",
+              "pages": [
+                3
+              ]
+            },
+            {
+              "filename": "03_certificate_of_liability_insurance.pdf",
+              "pages": [
+                4
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "On 15 July 2027, the annual aggregate is INR 30 lakh under E1. On 15 August 2027, INR 40 lakh applies under E2."
+        },
+        {
+          "id": "ap_and_renewal",
+          "question_type": "stress_synthesis",
+          "question": "For the procurement handover, state the payment days and trigger, plus the renewed insurance expiry.",
+          "expected_terms": [
+            "30"
+          ],
+          "expected_term_groups": [
+            [
+              "accepted delivery",
+              "delivery acceptance",
+              "acceptance of delivery",
+              "delivery is accepted",
+              "delivery has been accepted",
+              "delivery accepted"
+            ]
+          ],
+          "expected_dates": [
+            "2028-06-30"
+          ],
+          "expected_amounts": [],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf",
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "required_sources": [
+            "01_supplier_registration_form.pdf",
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "allowed_citation_pages": {
+            "01_supplier_registration_form.pdf": [
+              2
+            ],
+            "03_certificate_of_liability_insurance.pdf": [
+              3
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "01_supplier_registration_form.pdf",
+              "pages": [
+                2
+              ]
+            },
+            {
+              "filename": "03_certificate_of_liability_insurance.pdf",
+              "pages": [
+                3
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "Payment is Net 30 days after accepted delivery. The renewed insurance expiry is 30 June 2028."
+        },
+        {
+          "id": "before_e2_effective",
+          "question_type": "stress_conditional",
+          "question": "As of 20 July 2027, may AP record E2's higher annual aggregate just because E2 was issued in May? Give the applicable limit and E2's effective date.",
+          "expected_terms": [],
+          "expected_term_groups": [
+            [
+              "not yet",
+              "no",
+              "not effective",
+              "does not apply"
+            ]
+          ],
+          "expected_dates": [
+            "2027-08-01"
+          ],
+          "expected_amounts": [
+            3000000
+          ],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "required_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "allowed_citation_pages": {
+            "03_certificate_of_liability_insurance.pdf": [
+              4
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "03_certificate_of_liability_insurance.pdf",
+              "pages": [
+                4
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "No. On 20 July 2027, the applicable annual aggregate is INR 30 lakh. E2 is not yet effective; its effective date is 01 August 2027."
+        },
+        {
+          "id": "missing_recall_limit",
+          "question_type": "safe_not_found",
+          "question": "What monetary recall-expense limit has been approved for this supplier?",
+          "expected_terms": [
+            "Information not found in uploaded supplier documents."
+          ],
+          "expected_sources": [],
+          "information_found": false,
+          "manual_review_required": true,
+          "gold_rationale": "No original supplies this requested value. Related information does not establish it.",
+          "reference_answer": "Information not found in uploaded supplier documents."
+        },
+        {
+          "id": "missing_food_score",
+          "question_type": "safe_not_found",
+          "question": "What numerical food-safety inspection score did the authority give this supplier?",
+          "expected_terms": [
+            "Information not found in uploaded supplier documents."
+          ],
+          "expected_sources": [],
+          "information_found": false,
+          "manual_review_required": true,
+          "gold_rationale": "No original supplies this requested value. Related information does not establish it.",
+          "reference_answer": "Information not found in uploaded supplier documents."
+        }
+      ],
+      "cohort": "stress",
+      "stress_category": "food",
+      "document_modes": {
+        "registration": "native",
+        "tax": "native",
+        "insurance": "native"
+      },
+      "expected_ocr_pages": {
+        "registration": [],
+        "tax": [],
+        "insurance": []
+      },
+      "source_transcript_sha256": {},
+      "document_sha256": {
+        "registration": "6e669a861db59576e56942e1d6db4290c9d3f2e4c46703bc74a1ad8744ea598d",
+        "tax": "6955a50702ec74be8f2a3c4f44bd85b49542d2405b025ab5e0c251ff93e7e31b",
+        "insurance": "e13f598a16c37c69b9c9f502be8cf48746860281996c4af03b4ba14a93a8f1e1"
+      }
+    },
+    {
+      "slug": "varsha_facilities",
+      "create_payload": {
+        "name": "Varsha Facilities Services Private Limited",
+        "country": "India",
+        "contact_email": "evaluation.varsha_facilities@example.com"
+      },
+      "documents": {
+        "registration": "01_supplier_registration_form.pdf",
+        "tax": "02_gst_registration_certificate.pdf",
+        "insurance": "03_certificate_of_liability_insurance.pdf"
+      },
+      "extraction_expectations": {
+        "registration": {
+          "supplier_name": "Varsha Facilities Services Private Limited",
+          "registration_number": "U74999KA2020PTC190003",
+          "issuing_registry": "Registrar of Companies, India",
+          "registration_date": "2020-09-12",
+          "status": "Active"
+        },
+        "tax": {
+          "supplier_name": "Varsha Facilities Services Private Limited",
+          "tax_identifier": "AABCS6203F",
+          "gst_status_registered_or_not_registered": "Registered",
+          "gstin_when_registered": "29AABCS6203F1Z8"
+        }
+      },
+      "rag_only_documents": {
+        "insurance": "Supplementary liability evidence for RAG; the legacy insurance type has no current policy extraction contract."
+      },
+      "questions": [
+        {
+          "id": "legal_name_control",
+          "question_type": "direct_fact",
+          "question": "What legal name does the supplier registration form state?",
+          "expected_terms": [
+            "Varsha Facilities Services Private Limited"
+          ],
+          "expected_term_groups": [],
+          "expected_dates": [],
+          "expected_amounts": [],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf",
+            "02_gst_registration_certificate.pdf",
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "required_sources": [
+            "01_supplier_registration_form.pdf"
+          ],
+          "allowed_citation_pages": {
+            "01_supplier_registration_form.pdf": [
+              1
+            ],
+            "02_gst_registration_certificate.pdf": [
+              1
+            ],
+            "03_certificate_of_liability_insurance.pdf": [
+              1
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "01_supplier_registration_form.pdf",
+              "pages": [
+                1
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "The registration form states the legal name as Varsha Facilities Services Private Limited."
+        },
+        {
+          "id": "insurer_control",
+          "question_type": "direct_fact",
+          "question": "Which insurance provider is named on the liability certificate?",
+          "expected_terms": [
+            "HarborPoint General Insurance Company Limited"
+          ],
+          "expected_term_groups": [],
+          "expected_dates": [],
+          "expected_amounts": [],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "required_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "allowed_citation_pages": {
+            "03_certificate_of_liability_insurance.pdf": [
+              1
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "03_certificate_of_liability_insurance.pdf",
+              "pages": [
+                1
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "The liability certificate names HarborPoint General Insurance Company Limited as the provider."
+        },
+        {
+          "id": "helpdesk_window",
+          "question_type": "stress_retrieval",
+          "question": "What hours and weekdays are stated for the emergency facilities helpdesk, rather than housekeeping?",
+          "expected_terms": [
+            "Monday",
+            "Saturday"
+          ],
+          "expected_term_groups": [
+            [
+              "06:00",
+              "6:00",
+              "6 am",
+              "6am"
+            ],
+            [
+              "22:00",
+              "10 pm",
+              "10pm"
+            ]
+          ],
+          "expected_dates": [],
+          "expected_amounts": [],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf"
+          ],
+          "required_sources": [
+            "01_supplier_registration_form.pdf"
+          ],
+          "allowed_citation_pages": {
+            "01_supplier_registration_form.pdf": [
+              2
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "01_supplier_registration_form.pdf",
+              "pages": [
+                2
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "The emergency helpdesk operates 06:00 to 22:00, Monday to Saturday; these are not the housekeeping hours."
+        },
+        {
+          "id": "acknowledgement_target",
+          "question_type": "stress_retrieval",
+          "question": "What is the priority-one incident acknowledgement target, and is it an onsite-arrival or resolution deadline?",
+          "expected_terms": [
+            "45"
+          ],
+          "expected_term_groups": [
+            [
+              "acknowledgement",
+              "acknowledgment"
+            ],
+            [
+              "not",
+              "neither"
+            ]
+          ],
+          "expected_dates": [],
+          "expected_amounts": [],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf"
+          ],
+          "required_sources": [
+            "01_supplier_registration_form.pdf"
+          ],
+          "allowed_citation_pages": {
+            "01_supplier_registration_form.pdf": [
+              3
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "01_supplier_registration_form.pdf",
+              "pages": [
+                3
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "The priority-one target is acknowledgement within 45 minutes of a logged ticket during the service window. It is not an onsite-arrival or resolution deadline."
+        },
+        {
+          "id": "public_liability",
+          "question_type": "stress_retrieval",
+          "question": "Give the public-liability occurrence limit and its deductible, keeping the two roles separate.",
+          "expected_terms": [
+            "occurrence",
+            "deductible"
+          ],
+          "expected_term_groups": [],
+          "expected_dates": [],
+          "expected_amounts": [
+            1500000,
+            20000
+          ],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "required_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "allowed_citation_pages": {
+            "03_certificate_of_liability_insurance.pdf": [
+              2
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "03_certificate_of_liability_insurance.pdf",
+              "pages": [
+                2
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "Public liability: INR 15 lakh per occurrence. Deductible: INR 20,000 per claim."
+        },
+        {
+          "id": "service_and_payment",
+          "question_type": "stress_synthesis",
+          "question": "Summarise the emergency helpdesk window and the invoice payment days and trigger.",
+          "expected_terms": [
+            "Monday",
+            "Saturday",
+            "30"
+          ],
+          "expected_term_groups": [
+            [
+              "06:00",
+              "6:00",
+              "6 am",
+              "6am"
+            ],
+            [
+              "22:00",
+              "10 pm",
+              "10pm"
+            ],
+            [
+              "accepted monthly service sheet",
+              "acceptance of the monthly service sheet",
+              "monthly service sheet acceptance",
+              "monthly service sheet is accepted",
+              "monthly service sheet has been accepted"
+            ]
+          ],
+          "expected_dates": [],
+          "expected_amounts": [],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf"
+          ],
+          "required_sources": [
+            "01_supplier_registration_form.pdf"
+          ],
+          "allowed_citation_pages": {
+            "01_supplier_registration_form.pdf": [
+              2,
+              3
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "01_supplier_registration_form.pdf",
+              "pages": [
+                2
+              ]
+            },
+            {
+              "filename": "01_supplier_registration_form.pdf",
+              "pages": [
+                3
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "Emergency helpdesk: 06:00 to 22:00, Monday to Saturday. Payment: Net 30 days from accepted monthly service sheet."
+        },
+        {
+          "id": "operating_site_and_property",
+          "question_type": "stress_synthesis",
+          "question": "What is the service-establishment address, and what sublimit applies to customer property in the supplier's care, custody and control?",
+          "expected_terms": [
+            "Suite 6",
+            "Yelahanka Service Centre",
+            "560064"
+          ],
+          "expected_term_groups": [],
+          "expected_dates": [],
+          "expected_amounts": [
+            300000
+          ],
+          "expected_sources": [
+            "02_gst_registration_certificate.pdf",
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "required_sources": [
+            "02_gst_registration_certificate.pdf",
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "allowed_citation_pages": {
+            "02_gst_registration_certificate.pdf": [
+              2
+            ],
+            "03_certificate_of_liability_insurance.pdf": [
+              2
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "02_gst_registration_certificate.pdf",
+              "pages": [
+                2
+              ]
+            },
+            {
+              "filename": "03_certificate_of_liability_insurance.pdf",
+              "pages": [
+                2
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "The service establishment is Suite 6, Yelahanka Service Centre, Bengaluru, Karnataka 560064. Customer property in care, custody and control has an INR 3 lakh sublimit."
+        },
+        {
+          "id": "height_without_permit",
+          "question_type": "stress_conditional",
+          "question": "A job is above three metres and no site permit was issued before work. Does the declared working-at-height extension cover it?",
+          "expected_terms": [
+            "permit"
+          ],
+          "expected_term_groups": [
+            [
+              "excluded",
+              "not covered",
+              "does not cover",
+              "no cover"
+            ]
+          ],
+          "expected_dates": [],
+          "expected_amounts": [],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "required_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "allowed_citation_pages": {
+            "03_certificate_of_liability_insurance.pdf": [
+              3
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "03_certificate_of_liability_insurance.pdf",
+              "pages": [
+                3
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "It is excluded: work above three metres needs a site permit issued before work starts, and this job lacks that permit."
+        },
+        {
+          "id": "missing_sunday_hours",
+          "question_type": "safe_not_found",
+          "question": "What exact standard Sunday hours has the customer contracted for the emergency helpdesk?",
+          "expected_terms": [
+            "Information not found in uploaded supplier documents."
+          ],
+          "expected_sources": [],
+          "information_found": false,
+          "manual_review_required": true,
+          "gold_rationale": "No original supplies this requested value. Related information does not establish it.",
+          "reference_answer": "Information not found in uploaded supplier documents."
+        },
+        {
+          "id": "missing_permit_number",
+          "question_type": "safe_not_found",
+          "question": "What is the number of the site permit actually issued for the next working-at-height job?",
+          "expected_terms": [
+            "Information not found in uploaded supplier documents."
+          ],
+          "expected_sources": [],
+          "information_found": false,
+          "manual_review_required": true,
+          "gold_rationale": "No original supplies this requested value. Related information does not establish it.",
+          "reference_answer": "Information not found in uploaded supplier documents."
+        }
+      ],
+      "cohort": "stress",
+      "stress_category": "facilities",
+      "document_modes": {
+        "registration": "mixed",
+        "tax": "mixed",
+        "insurance": "mixed"
+      },
+      "expected_ocr_pages": {
+        "registration": [
+          2
+        ],
+        "tax": [
+          2
+        ],
+        "insurance": [
+          2
+        ]
+      },
+      "source_transcript_sha256": {
+        "registration": "3d6c01aefd03b1e1c03dd39c1f85d3029a4a7e3774fc5d7f1f2e0eb177efcece",
+        "tax": "939b6111d8b6a894b060e3c86976fc166f6f64031360e1062dd0e9086ac91ce8",
+        "insurance": "0bf967e88fae00733b68eb3bafadf061671891680e325ed13873e131a157fc79"
+      },
+      "document_sha256": {
+        "registration": "1ee4d17959396684db45ccbe1bd033d044f844c575d62d524831c709d99fc7c6",
+        "tax": "1e0b4db901968ce24c378df9bdc3fbfb6b0c4531a62f6c6bba2f81988b8ebeb2",
+        "insurance": "2abb5d4689f6c39229f36d6b1d213df54c7244812fa76fdbac7e1ff237c95b04"
+      }
+    },
+    {
+      "slug": "chitra_components",
+      "create_payload": {
+        "name": "Chitra Industrial Components Private Limited",
+        "country": "India",
+        "contact_email": "evaluation.chitra_components@example.com"
+      },
+      "documents": {
+        "registration": "01_supplier_registration_form.pdf",
+        "tax": "02_gst_registration_certificate.pdf",
+        "insurance": "03_certificate_of_liability_insurance.pdf"
+      },
+      "extraction_expectations": {
+        "registration": {
+          "supplier_name": "Chitra Industrial Components Private Limited",
+          "registration_number": "U74999KA2020PTC190004",
+          "issuing_registry": "Registrar of Companies, India",
+          "registration_date": "2020-09-12",
+          "status": "Active"
+        },
+        "tax": {
+          "supplier_name": "Chitra Industrial Components Private Limited",
+          "tax_identifier": "AABCS6204F",
+          "gst_status_registered_or_not_registered": "Registered",
+          "gstin_when_registered": "29AABCS6204F1Z8"
+        }
+      },
+      "rag_only_documents": {
+        "insurance": "Supplementary liability evidence for RAG; the legacy insurance type has no current policy extraction contract."
+      },
+      "questions": [
+        {
+          "id": "legal_name_control",
+          "question_type": "direct_fact",
+          "question": "What legal name does the supplier registration form state?",
+          "expected_terms": [
+            "Chitra Industrial Components Private Limited"
+          ],
+          "expected_term_groups": [],
+          "expected_dates": [],
+          "expected_amounts": [],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf",
+            "02_gst_registration_certificate.pdf",
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "required_sources": [
+            "01_supplier_registration_form.pdf"
+          ],
+          "allowed_citation_pages": {
+            "01_supplier_registration_form.pdf": [
+              1
+            ],
+            "02_gst_registration_certificate.pdf": [
+              1
+            ],
+            "03_certificate_of_liability_insurance.pdf": [
+              1
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "01_supplier_registration_form.pdf",
+              "pages": [
+                1
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "The registration form states the legal name as Chitra Industrial Components Private Limited."
+        },
+        {
+          "id": "insurer_control",
+          "question_type": "direct_fact",
+          "question": "Which insurance provider is named on the liability certificate?",
+          "expected_terms": [
+            "HarborPoint General Insurance Company Limited"
+          ],
+          "expected_term_groups": [],
+          "expected_dates": [],
+          "expected_amounts": [],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "required_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "allowed_citation_pages": {
+            "03_certificate_of_liability_insurance.pdf": [
+              1
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "03_certificate_of_liability_insurance.pdf",
+              "pages": [
+                1
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "The liability certificate names HarborPoint General Insurance Company Limited as the provider."
+        },
+        {
+          "id": "registered_office",
+          "question_type": "stress_retrieval",
+          "question": "Which address should be entered as the registered office for statutory correspondence, rather than plant, depot or claims desk?",
+          "expected_terms": [
+            "Unit 71",
+            "Jigani Business Centre",
+            "560105"
+          ],
+          "expected_term_groups": [],
+          "expected_dates": [],
+          "expected_amounts": [],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf",
+            "02_gst_registration_certificate.pdf"
+          ],
+          "required_sources": [
+            "01_supplier_registration_form.pdf"
+          ],
+          "allowed_citation_pages": {
+            "01_supplier_registration_form.pdf": [
+              1
+            ],
+            "02_gst_registration_certificate.pdf": [
+              1
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "01_supplier_registration_form.pdf",
+              "pages": [
+                1
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "Use Unit 71, Jigani Business Centre, Bengaluru, Karnataka 560105 as the registered office for statutory correspondence."
+        },
+        {
+          "id": "pickup_depot",
+          "question_type": "stress_retrieval",
+          "question": "Where should a customer collect finished goods? Give the dispatch location, not the manufacturing plant.",
+          "expected_terms": [
+            "Bay 9",
+            "Nelamangala Freight Yard",
+            "562123"
+          ],
+          "expected_term_groups": [],
+          "expected_dates": [],
+          "expected_amounts": [],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf"
+          ],
+          "required_sources": [
+            "01_supplier_registration_form.pdf"
+          ],
+          "allowed_citation_pages": {
+            "01_supplier_registration_form.pdf": [
+              2
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "01_supplier_registration_form.pdf",
+              "pages": [
+                2
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "Collect from the dispatch depot: Bay 9, Nelamangala Freight Yard, Bengaluru, Karnataka 562123."
+        },
+        {
+          "id": "claims_routing",
+          "question_type": "stress_retrieval",
+          "question": "Where is insurance claims correspondence routed, and whose routing address is it?",
+          "expected_terms": [
+            "Claims Desk 2",
+            "Residency Road",
+            "560025",
+            "insurer"
+          ],
+          "expected_term_groups": [],
+          "expected_dates": [],
+          "expected_amounts": [],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "required_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "allowed_citation_pages": {
+            "03_certificate_of_liability_insurance.pdf": [
+              2
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "03_certificate_of_liability_insurance.pdf",
+              "pages": [
+                2
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "Insurance claims correspondence goes to Claims Desk 2, Residency Road, Bengaluru, Karnataka 560025. This is the insurer's routing address."
+        },
+        {
+          "id": "entity_and_trading",
+          "question_type": "stress_synthesis",
+          "question": "For ERP, separate the full invoice legal name from the trading name, and state the payment period and its trigger.",
+          "expected_terms": [
+            "Chitra Industrial Components Private Limited",
+            "Chitra Components",
+            "60"
+          ],
+          "expected_term_groups": [
+            [
+              "quality acceptance",
+              "acceptance after quality inspection",
+              "accepted after quality inspection",
+              "quality approval"
+            ]
+          ],
+          "expected_dates": [],
+          "expected_amounts": [],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf",
+            "02_gst_registration_certificate.pdf",
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "required_sources": [
+            "01_supplier_registration_form.pdf"
+          ],
+          "allowed_citation_pages": {
+            "01_supplier_registration_form.pdf": [
+              1,
+              3
+            ],
+            "02_gst_registration_certificate.pdf": [
+              1
+            ],
+            "03_certificate_of_liability_insurance.pdf": [
+              1
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "01_supplier_registration_form.pdf",
+              "pages": [
+                1
+              ]
+            },
+            {
+              "filename": "01_supplier_registration_form.pdf",
+              "pages": [
+                3
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "Invoice legal name: Chitra Industrial Components Private Limited. Trading name: Chitra Components. Payment is Net 60 days after quality acceptance."
+        },
+        {
+          "id": "factory_and_cover",
+          "question_type": "stress_synthesis",
+          "question": "For a plant audit, give the manufacturing location and the declared insured activity at that plant.",
+          "expected_terms": [
+            "Shed 18",
+            "Doddaballapur Industrial Area",
+            "561203",
+            "precision machining",
+            "assembly"
+          ],
+          "expected_term_groups": [],
+          "expected_dates": [],
+          "expected_amounts": [],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf",
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "required_sources": [
+            "01_supplier_registration_form.pdf",
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "allowed_citation_pages": {
+            "01_supplier_registration_form.pdf": [
+              2
+            ],
+            "03_certificate_of_liability_insurance.pdf": [
+              2
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "01_supplier_registration_form.pdf",
+              "pages": [
+                2
+              ]
+            },
+            {
+              "filename": "03_certificate_of_liability_insurance.pdf",
+              "pages": [
+                2
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "The manufacturing location is Shed 18, Doddaballapur Industrial Area, Bengaluru, Karnataka 561203. The insured activity is precision machining and assembly of industrial components."
+        },
+        {
+          "id": "canada_claim",
+          "question_type": "stress_conditional",
+          "question": "A component is supplied into Canada. Does the declared India product-liability territory cover the resulting product claim? Explain the stated exclusion.",
+          "expected_terms": [
+            "Canada",
+            "India"
+          ],
+          "expected_term_groups": [
+            [
+              "excluded",
+              "excludes",
+              "not covered",
+              "does not cover"
+            ]
+          ],
+          "expected_dates": [],
+          "expected_amounts": [],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "required_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "allowed_citation_pages": {
+            "03_certificate_of_liability_insurance.pdf": [
+              3
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "03_certificate_of_liability_insurance.pdf",
+              "pages": [
+                3
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "No. The declared territory is India; product claims arising from supply into Canada are excluded."
+        },
+        {
+          "id": "missing_export_endorsement",
+          "question_type": "safe_not_found",
+          "question": "What is the number of an issued export endorsement that extends this supplier's product cover to Canada?",
+          "expected_terms": [
+            "Information not found in uploaded supplier documents."
+          ],
+          "expected_sources": [],
+          "information_found": false,
+          "manual_review_required": true,
+          "gold_rationale": "No original supplies this requested value. Related information does not establish it.",
+          "reference_answer": "Information not found in uploaded supplier documents."
+        },
+        {
+          "id": "missing_bank_account",
+          "question_type": "safe_not_found",
+          "question": "Which beneficiary bank account number should AP use for this supplier?",
+          "expected_terms": [
+            "Information not found in uploaded supplier documents."
+          ],
+          "expected_sources": [],
+          "information_found": false,
+          "manual_review_required": true,
+          "gold_rationale": "No original supplies this requested value. Related information does not establish it.",
+          "reference_answer": "Information not found in uploaded supplier documents."
+        }
+      ],
+      "cohort": "stress",
+      "stress_category": "components",
+      "document_modes": {
+        "registration": "native",
+        "tax": "native",
+        "insurance": "native"
+      },
+      "expected_ocr_pages": {
+        "registration": [],
+        "tax": [],
+        "insurance": []
+      },
+      "source_transcript_sha256": {},
+      "document_sha256": {
+        "registration": "fe29ac05452c5d2631bb67047643863124db57db2bcc4542ad7aab0028e2b952",
+        "tax": "984f21b1a1ba06b577016e1859510f22008d910dab716cf3e06bb4e3544d8370",
+        "insurance": "e46f8e695de6cb8c99f2d23f4fb48aa13152ed81217abf6090e6464aa3a3e4d2"
+      }
+    },
+    {
+      "slug": "udaya_maintenance",
+      "create_payload": {
+        "name": "Udaya Equipment Maintenance Private Limited",
+        "country": "India",
+        "contact_email": "evaluation.udaya_maintenance@example.com"
+      },
+      "documents": {
+        "registration": "01_supplier_registration_form.pdf",
+        "tax": "02_gst_registration_certificate.pdf",
+        "insurance": "03_certificate_of_liability_insurance.pdf"
+      },
+      "extraction_expectations": {
+        "registration": {
+          "supplier_name": "Udaya Equipment Maintenance Private Limited",
+          "registration_number": "U74999KA2020PTC190005",
+          "issuing_registry": "Registrar of Companies, India",
+          "registration_date": "2020-09-12",
+          "status": "Active"
+        },
+        "tax": {
+          "supplier_name": "Udaya Equipment Maintenance Private Limited",
+          "tax_identifier": "AABCS6205F",
+          "gst_status_registered_or_not_registered": "Registered",
+          "gstin_when_registered": "29AABCS6205F1Z8"
+        }
+      },
+      "rag_only_documents": {
+        "insurance": "Supplementary liability evidence for RAG; the legacy insurance type has no current policy extraction contract."
+      },
+      "questions": [
+        {
+          "id": "legal_name_control",
+          "question_type": "direct_fact",
+          "question": "What legal name does the supplier registration form state?",
+          "expected_terms": [
+            "Udaya Equipment Maintenance Private Limited"
+          ],
+          "expected_term_groups": [],
+          "expected_dates": [],
+          "expected_amounts": [],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf",
+            "02_gst_registration_certificate.pdf",
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "required_sources": [
+            "01_supplier_registration_form.pdf"
+          ],
+          "allowed_citation_pages": {
+            "01_supplier_registration_form.pdf": [
+              1
+            ],
+            "02_gst_registration_certificate.pdf": [
+              1
+            ],
+            "03_certificate_of_liability_insurance.pdf": [
+              1
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "01_supplier_registration_form.pdf",
+              "pages": [
+                1
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "The registration form states the legal name as Udaya Equipment Maintenance Private Limited."
+        },
+        {
+          "id": "insurer_control",
+          "question_type": "direct_fact",
+          "question": "Which insurance provider is named on the liability certificate?",
+          "expected_terms": [
+            "HarborPoint General Insurance Company Limited"
+          ],
+          "expected_term_groups": [],
+          "expected_dates": [],
+          "expected_amounts": [],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "required_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "allowed_citation_pages": {
+            "03_certificate_of_liability_insurance.pdf": [
+              1
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "03_certificate_of_liability_insurance.pdf",
+              "pages": [
+                1
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "The liability certificate names HarborPoint General Insurance Company Limited as the provider."
+        },
+        {
+          "id": "acknowledgement_vs_repair",
+          "question_type": "stress_retrieval",
+          "question": "What telephone acknowledgement target applies to a critical breakdown, and does it guarantee repair completion?",
+          "expected_terms": [
+            "30"
+          ],
+          "expected_term_groups": [
+            [
+              "acknowledgement",
+              "acknowledgment"
+            ],
+            [
+              "not",
+              "no",
+              "does not"
+            ]
+          ],
+          "expected_dates": [],
+          "expected_amounts": [],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf"
+          ],
+          "required_sources": [
+            "01_supplier_registration_form.pdf"
+          ],
+          "allowed_citation_pages": {
+            "01_supplier_registration_form.pdf": [
+              2
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "01_supplier_registration_form.pdf",
+              "pages": [
+                2
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "Telephone acknowledgement for a critical breakdown is within 30 minutes of a logged ticket during service hours. It is not a repair-completion guarantee."
+        },
+        {
+          "id": "limit_and_deductible",
+          "question_type": "stress_retrieval",
+          "question": "State the public-liability occurrence limit and per-claim deductible with their roles labelled.",
+          "expected_terms": [
+            "occurrence",
+            "deductible"
+          ],
+          "expected_term_groups": [],
+          "expected_dates": [],
+          "expected_amounts": [
+            3500000,
+            50000
+          ],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "required_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "allowed_citation_pages": {
+            "03_certificate_of_liability_insurance.pdf": [
+              2
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "03_certificate_of_liability_insurance.pdf",
+              "pages": [
+                2
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "Public liability limit: INR 35 lakh per occurrence. The deductible is INR 50,000 per claim."
+        },
+        {
+          "id": "electrical_condition",
+          "question_type": "stress_retrieval",
+          "question": "What does the schedule say about live electrical work and the records needed for de-energised work?",
+          "expected_terms": [
+            "live",
+            "excluded",
+            "isolation",
+            "lockout"
+          ],
+          "expected_term_groups": [],
+          "expected_dates": [],
+          "expected_amounts": [],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "required_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "allowed_citation_pages": {
+            "03_certificate_of_liability_insurance.pdf": [
+              4
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "03_certificate_of_liability_insurance.pdf",
+              "pages": [
+                4
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "Live electrical work is excluded. De-energised work needs documented isolation and a verified lockout record."
+        },
+        {
+          "id": "hot_work_conditions",
+          "question_type": "stress_synthesis",
+          "question": "For a maintenance handover, give both mandatory hot-work cover conditions and the policy occurrence limit.",
+          "expected_terms": [
+            "permit",
+            "fire watch",
+            "60"
+          ],
+          "expected_term_groups": [
+            [
+              "before work",
+              "prior to work"
+            ],
+            [
+              "after completion",
+              "after work",
+              "post-work"
+            ]
+          ],
+          "expected_dates": [],
+          "expected_amounts": [
+            3500000
+          ],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "required_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "allowed_citation_pages": {
+            "03_certificate_of_liability_insurance.pdf": [
+              2,
+              3
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "03_certificate_of_liability_insurance.pdf",
+              "pages": [
+                3
+              ]
+            },
+            {
+              "filename": "03_certificate_of_liability_insurance.pdf",
+              "pages": [
+                2
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "Hot work needs a permit issued before work and a fire watch for 60 minutes after completion. The public-liability occurrence limit is INR 35 lakh."
+        },
+        {
+          "id": "hours_and_ap",
+          "question_type": "stress_synthesis",
+          "question": "State normal service weekdays and hours, and the payment period and completion-record trigger.",
+          "expected_terms": [
+            "Monday",
+            "Friday",
+            "30"
+          ],
+          "expected_term_groups": [
+            [
+              "08:00",
+              "8:00",
+              "8 am",
+              "8am"
+            ],
+            [
+              "18:00",
+              "6 pm",
+              "6pm"
+            ],
+            [
+              "signed service completion",
+              "signed completion record",
+              "service completion is signed",
+              "signing of service completion",
+              "signed completion of service"
+            ]
+          ],
+          "expected_dates": [],
+          "expected_amounts": [],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf"
+          ],
+          "required_sources": [
+            "01_supplier_registration_form.pdf"
+          ],
+          "allowed_citation_pages": {
+            "01_supplier_registration_form.pdf": [
+              3
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "01_supplier_registration_form.pdf",
+              "pages": [
+                3
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "Service is 08:00 to 18:00, Monday to Friday. Payment is Net 30 days after signed service completion."
+        },
+        {
+          "id": "permit_without_watch",
+          "question_type": "stress_conditional",
+          "question": "Hot work has a permit, but no fire watch remains after completion. Does the submitted hot-work extension cover this situation?",
+          "expected_terms": [
+            "fire watch"
+          ],
+          "expected_term_groups": [
+            [
+              "excluded",
+              "not covered",
+              "does not cover",
+              "no cover"
+            ]
+          ],
+          "expected_dates": [],
+          "expected_amounts": [],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "required_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "allowed_citation_pages": {
+            "03_certificate_of_liability_insurance.pdf": [
+              3
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "03_certificate_of_liability_insurance.pdf",
+              "pages": [
+                3
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "It is excluded from the hot-work extension: a permit alone is insufficient without the required fire watch after completion."
+        },
+        {
+          "id": "missing_restoration",
+          "question_type": "safe_not_found",
+          "question": "What exact guaranteed repair-completion time applies to a critical breakdown?",
+          "expected_terms": [
+            "Information not found in uploaded supplier documents."
+          ],
+          "expected_sources": [],
+          "information_found": false,
+          "manual_review_required": true,
+          "gold_rationale": "No original supplies this requested value. Related information does not establish it.",
+          "reference_answer": "Information not found in uploaded supplier documents."
+        },
+        {
+          "id": "missing_repair_success",
+          "question_type": "safe_not_found",
+          "question": "What audited repair success percentage has this supplier achieved?",
+          "expected_terms": [
+            "Information not found in uploaded supplier documents."
+          ],
+          "expected_sources": [],
+          "information_found": false,
+          "manual_review_required": true,
+          "gold_rationale": "No original supplies this requested value. Related information does not establish it.",
+          "reference_answer": "Information not found in uploaded supplier documents."
+        }
+      ],
+      "cohort": "stress",
+      "stress_category": "maintenance",
+      "document_modes": {
+        "registration": "native",
+        "tax": "native",
+        "insurance": "native"
+      },
+      "expected_ocr_pages": {
+        "registration": [],
+        "tax": [],
+        "insurance": []
+      },
+      "source_transcript_sha256": {},
+      "document_sha256": {
+        "registration": "697383738e25b05b59d4709860b29190140ab28b3ff54b0da2eb17581b99082d",
+        "tax": "eb4ede8417b7f3e1670d3ccee281af433df9ffe6576ad6885808eb0f34392e8c",
+        "insurance": "01cf547c46ec6c4bbb3ab60f2bc605f8dc075e55dfbf2ed9217e389d9677d2be"
+      }
     }
-  ],
-  "scoring_revision": 2
+  ]
 }

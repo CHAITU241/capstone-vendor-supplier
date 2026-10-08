@@ -1,0 +1,423 @@
+{
+  "slug": "udaya_maintenance",
+  "create_payload": {
+    "name": "Udaya Equipment Maintenance Private Limited",
+    "country": "India",
+    "contact_email": "evaluation.udaya_maintenance@example.com"
+  },
+  "documents": {
+    "registration": "01_supplier_registration_form.pdf",
+    "tax": "02_gst_registration_certificate.pdf",
+    "insurance": "03_certificate_of_liability_insurance.pdf"
+  },
+  "extraction_expectations": {
+    "registration": {
+      "supplier_name": "Udaya Equipment Maintenance Private Limited",
+      "registration_number": "U74999KA2020PTC190005",
+      "issuing_registry": "Registrar of Companies, India",
+      "registration_date": "2020-09-12",
+      "status": "Active"
+    },
+    "tax": {
+      "supplier_name": "Udaya Equipment Maintenance Private Limited",
+      "tax_identifier": "AABCS6205F",
+      "gst_status_registered_or_not_registered": "Registered",
+      "gstin_when_registered": "29AABCS6205F1Z8"
+    }
+  },
+  "rag_only_documents": {
+    "insurance": "Supplementary liability evidence for RAG; the legacy insurance type has no current policy extraction contract."
+  },
+  "questions": [
+    {
+      "id": "legal_name_control",
+      "question_type": "direct_fact",
+      "question": "What legal name does the supplier registration form state?",
+      "expected_terms": [
+        "Udaya Equipment Maintenance Private Limited"
+      ],
+      "expected_term_groups": [],
+      "expected_dates": [],
+      "expected_amounts": [],
+      "expected_sources": [
+        "01_supplier_registration_form.pdf",
+        "02_gst_registration_certificate.pdf",
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "required_sources": [
+        "01_supplier_registration_form.pdf"
+      ],
+      "allowed_citation_pages": {
+        "01_supplier_registration_form.pdf": [
+          1
+        ],
+        "02_gst_registration_certificate.pdf": [
+          1
+        ],
+        "03_certificate_of_liability_insurance.pdf": [
+          1
+        ]
+      },
+      "citation_requirements": [
+        {
+          "filename": "01_supplier_registration_form.pdf",
+          "pages": [
+            1
+          ]
+        }
+      ],
+      "information_found": true,
+      "manual_review_required": true,
+      "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+      "reference_answer": "The registration form states the legal name as Udaya Equipment Maintenance Private Limited."
+    },
+    {
+      "id": "insurer_control",
+      "question_type": "direct_fact",
+      "question": "Which insurance provider is named on the liability certificate?",
+      "expected_terms": [
+        "HarborPoint General Insurance Company Limited"
+      ],
+      "expected_term_groups": [],
+      "expected_dates": [],
+      "expected_amounts": [],
+      "expected_sources": [
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "required_sources": [
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "allowed_citation_pages": {
+        "03_certificate_of_liability_insurance.pdf": [
+          1
+        ]
+      },
+      "citation_requirements": [
+        {
+          "filename": "03_certificate_of_liability_insurance.pdf",
+          "pages": [
+            1
+          ]
+        }
+      ],
+      "information_found": true,
+      "manual_review_required": true,
+      "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+      "reference_answer": "The liability certificate names HarborPoint General Insurance Company Limited as the provider."
+    },
+    {
+      "id": "acknowledgement_vs_repair",
+      "question_type": "stress_retrieval",
+      "question": "What telephone acknowledgement target applies to a critical breakdown, and does it guarantee repair completion?",
+      "expected_terms": [
+        "30"
+      ],
+      "expected_term_groups": [
+        [
+          "acknowledgement",
+          "acknowledgment"
+        ],
+        [
+          "not",
+          "no",
+          "does not"
+        ]
+      ],
+      "expected_dates": [],
+      "expected_amounts": [],
+      "expected_sources": [
+        "01_supplier_registration_form.pdf"
+      ],
+      "required_sources": [
+        "01_supplier_registration_form.pdf"
+      ],
+      "allowed_citation_pages": {
+        "01_supplier_registration_form.pdf": [
+          2
+        ]
+      },
+      "citation_requirements": [
+        {
+          "filename": "01_supplier_registration_form.pdf",
+          "pages": [
+            2
+          ]
+        }
+      ],
+      "information_found": true,
+      "manual_review_required": true,
+      "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+      "reference_answer": "Telephone acknowledgement for a critical breakdown is within 30 minutes of a logged ticket during service hours. It is not a repair-completion guarantee."
+    },
+    {
+      "id": "limit_and_deductible",
+      "question_type": "stress_retrieval",
+      "question": "State the public-liability occurrence limit and per-claim deductible with their roles labelled.",
+      "expected_terms": [
+        "occurrence",
+        "deductible"
+      ],
+      "expected_term_groups": [],
+      "expected_dates": [],
+      "expected_amounts": [
+        3500000,
+        50000
+      ],
+      "expected_sources": [
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "required_sources": [
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "allowed_citation_pages": {
+        "03_certificate_of_liability_insurance.pdf": [
+          2
+        ]
+      },
+      "citation_requirements": [
+        {
+          "filename": "03_certificate_of_liability_insurance.pdf",
+          "pages": [
+            2
+          ]
+        }
+      ],
+      "information_found": true,
+      "manual_review_required": true,
+      "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+      "reference_answer": "Public liability limit: INR 35 lakh per occurrence. The deductible is INR 50,000 per claim."
+    },
+    {
+      "id": "electrical_condition",
+      "question_type": "stress_retrieval",
+      "question": "What does the schedule say about live electrical work and the records needed for de-energised work?",
+      "expected_terms": [
+        "live",
+        "excluded",
+        "isolation",
+        "lockout"
+      ],
+      "expected_term_groups": [],
+      "expected_dates": [],
+      "expected_amounts": [],
+      "expected_sources": [
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "required_sources": [
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "allowed_citation_pages": {
+        "03_certificate_of_liability_insurance.pdf": [
+          4
+        ]
+      },
+      "citation_requirements": [
+        {
+          "filename": "03_certificate_of_liability_insurance.pdf",
+          "pages": [
+            4
+          ]
+        }
+      ],
+      "information_found": true,
+      "manual_review_required": true,
+      "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+      "reference_answer": "Live electrical work is excluded. De-energised work needs documented isolation and a verified lockout record."
+    },
+    {
+      "id": "hot_work_conditions",
+      "question_type": "stress_synthesis",
+      "question": "For a maintenance handover, give both mandatory hot-work cover conditions and the policy occurrence limit.",
+      "expected_terms": [
+        "permit",
+        "fire watch",
+        "60"
+      ],
+      "expected_term_groups": [
+        [
+          "before work",
+          "prior to work"
+        ],
+        [
+          "after completion",
+          "after work",
+          "post-work"
+        ]
+      ],
+      "expected_dates": [],
+      "expected_amounts": [
+        3500000
+      ],
+      "expected_sources": [
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "required_sources": [
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "allowed_citation_pages": {
+        "03_certificate_of_liability_insurance.pdf": [
+          2,
+          3
+        ]
+      },
+      "citation_requirements": [
+        {
+          "filename": "03_certificate_of_liability_insurance.pdf",
+          "pages": [
+            3
+          ]
+        },
+        {
+          "filename": "03_certificate_of_liability_insurance.pdf",
+          "pages": [
+            2
+          ]
+        }
+      ],
+      "information_found": true,
+      "manual_review_required": true,
+      "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+      "reference_answer": "Hot work needs a permit issued before work and a fire watch for 60 minutes after completion. The public-liability occurrence limit is INR 35 lakh."
+    },
+    {
+      "id": "hours_and_ap",
+      "question_type": "stress_synthesis",
+      "question": "State normal service weekdays and hours, and the payment period and completion-record trigger.",
+      "expected_terms": [
+        "Monday",
+        "Friday",
+        "30"
+      ],
+      "expected_term_groups": [
+        [
+          "08:00",
+          "8:00",
+          "8 am",
+          "8am"
+        ],
+        [
+          "18:00",
+          "6 pm",
+          "6pm"
+        ],
+        [
+          "signed service completion",
+          "signed completion record",
+          "service completion is signed",
+          "signing of service completion",
+          "signed completion of service"
+        ]
+      ],
+      "expected_dates": [],
+      "expected_amounts": [],
+      "expected_sources": [
+        "01_supplier_registration_form.pdf"
+      ],
+      "required_sources": [
+        "01_supplier_registration_form.pdf"
+      ],
+      "allowed_citation_pages": {
+        "01_supplier_registration_form.pdf": [
+          3
+        ]
+      },
+      "citation_requirements": [
+        {
+          "filename": "01_supplier_registration_form.pdf",
+          "pages": [
+            3
+          ]
+        }
+      ],
+      "information_found": true,
+      "manual_review_required": true,
+      "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+      "reference_answer": "Service is 08:00 to 18:00, Monday to Friday. Payment is Net 30 days after signed service completion."
+    },
+    {
+      "id": "permit_without_watch",
+      "question_type": "stress_conditional",
+      "question": "Hot work has a permit, but no fire watch remains after completion. Does the submitted hot-work extension cover this situation?",
+      "expected_terms": [
+        "fire watch"
+      ],
+      "expected_term_groups": [
+        [
+          "excluded",
+          "not covered",
+          "does not cover",
+          "no cover"
+        ]
+      ],
+      "expected_dates": [],
+      "expected_amounts": [],
+      "expected_sources": [
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "required_sources": [
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "allowed_citation_pages": {
+        "03_certificate_of_liability_insurance.pdf": [
+          3
+        ]
+      },
+      "citation_requirements": [
+        {
+          "filename": "03_certificate_of_liability_insurance.pdf",
+          "pages": [
+            3
+          ]
+        }
+      ],
+      "information_found": true,
+      "manual_review_required": true,
+      "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+      "reference_answer": "It is excluded from the hot-work extension: a permit alone is insufficient without the required fire watch after completion."
+    },
+    {
+      "id": "missing_restoration",
+      "question_type": "safe_not_found",
+      "question": "What exact guaranteed repair-completion time applies to a critical breakdown?",
+      "expected_terms": [
+        "Information not found in uploaded supplier documents."
+      ],
+      "expected_sources": [],
+      "information_found": false,
+      "manual_review_required": true,
+      "gold_rationale": "No original supplies this requested value. Related information does not establish it.",
+      "reference_answer": "Information not found in uploaded supplier documents."
+    },
+    {
+      "id": "missing_repair_success",
+      "question_type": "safe_not_found",
+      "question": "What audited repair success percentage has this supplier achieved?",
+      "expected_terms": [
+        "Information not found in uploaded supplier documents."
+      ],
+      "expected_sources": [],
+      "information_found": false,
+      "manual_review_required": true,
+      "gold_rationale": "No original supplies this requested value. Related information does not establish it.",
+      "reference_answer": "Information not found in uploaded supplier documents."
+    }
+  ],
+  "cohort": "stress",
+  "stress_category": "maintenance",
+  "document_modes": {
+    "registration": "native",
+    "tax": "native",
+    "insurance": "native"
+  },
+  "expected_ocr_pages": {
+    "registration": [],
+    "tax": [],
+    "insurance": []
+  },
+  "source_transcript_sha256": {},
+  "document_sha256": {
+    "registration": "697383738e25b05b59d4709860b29190140ab28b3ff54b0da2eb17581b99082d",
+    "tax": "eb4ede8417b7f3e1670d3ccee281af433df9ffe6576ad6885808eb0f34392e8c",
+    "insurance": "01cf547c46ec6c4bbb3ab60f2bc605f8dc075e55dfbf2ed9217e389d9677d2be"
+  }
+}

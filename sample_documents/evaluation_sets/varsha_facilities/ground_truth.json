@@ -1,0 +1,443 @@
+{
+  "slug": "varsha_facilities",
+  "create_payload": {
+    "name": "Varsha Facilities Services Private Limited",
+    "country": "India",
+    "contact_email": "evaluation.varsha_facilities@example.com"
+  },
+  "documents": {
+    "registration": "01_supplier_registration_form.pdf",
+    "tax": "02_gst_registration_certificate.pdf",
+    "insurance": "03_certificate_of_liability_insurance.pdf"
+  },
+  "extraction_expectations": {
+    "registration": {
+      "supplier_name": "Varsha Facilities Services Private Limited",
+      "registration_number": "U74999KA2020PTC190003",
+      "issuing_registry": "Registrar of Companies, India",
+      "registration_date": "2020-09-12",
+      "status": "Active"
+    },
+    "tax": {
+      "supplier_name": "Varsha Facilities Services Private Limited",
+      "tax_identifier": "AABCS6203F",
+      "gst_status_registered_or_not_registered": "Registered",
+      "gstin_when_registered": "29AABCS6203F1Z8"
+    }
+  },
+  "rag_only_documents": {
+    "insurance": "Supplementary liability evidence for RAG; the legacy insurance type has no current policy extraction contract."
+  },
+  "questions": [
+    {
+      "id": "legal_name_control",
+      "question_type": "direct_fact",
+      "question": "What legal name does the supplier registration form state?",
+      "expected_terms": [
+        "Varsha Facilities Services Private Limited"
+      ],
+      "expected_term_groups": [],
+      "expected_dates": [],
+      "expected_amounts": [],
+      "expected_sources": [
+        "01_supplier_registration_form.pdf",
+        "02_gst_registration_certificate.pdf",
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "required_sources": [
+        "01_supplier_registration_form.pdf"
+      ],
+      "allowed_citation_pages": {
+        "01_supplier_registration_form.pdf": [
+          1
+        ],
+        "02_gst_registration_certificate.pdf": [
+          1
+        ],
+        "03_certificate_of_liability_insurance.pdf": [
+          1
+        ]
+      },
+      "citation_requirements": [
+        {
+          "filename": "01_supplier_registration_form.pdf",
+          "pages": [
+            1
+          ]
+        }
+      ],
+      "information_found": true,
+      "manual_review_required": true,
+      "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+      "reference_answer": "The registration form states the legal name as Varsha Facilities Services Private Limited."
+    },
+    {
+      "id": "insurer_control",
+      "question_type": "direct_fact",
+      "question": "Which insurance provider is named on the liability certificate?",
+      "expected_terms": [
+        "HarborPoint General Insurance Company Limited"
+      ],
+      "expected_term_groups": [],
+      "expected_dates": [],
+      "expected_amounts": [],
+      "expected_sources": [
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "required_sources": [
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "allowed_citation_pages": {
+        "03_certificate_of_liability_insurance.pdf": [
+          1
+        ]
+      },
+      "citation_requirements": [
+        {
+          "filename": "03_certificate_of_liability_insurance.pdf",
+          "pages": [
+            1
+          ]
+        }
+      ],
+      "information_found": true,
+      "manual_review_required": true,
+      "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+      "reference_answer": "The liability certificate names HarborPoint General Insurance Company Limited as the provider."
+    },
+    {
+      "id": "helpdesk_window",
+      "question_type": "stress_retrieval",
+      "question": "What hours and weekdays are stated for the emergency facilities helpdesk, rather than housekeeping?",
+      "expected_terms": [
+        "Monday",
+        "Saturday"
+      ],
+      "expected_term_groups": [
+        [
+          "06:00",
+          "6:00",
+          "6 am",
+          "6am"
+        ],
+        [
+          "22:00",
+          "10 pm",
+          "10pm"
+        ]
+      ],
+      "expected_dates": [],
+      "expected_amounts": [],
+      "expected_sources": [
+        "01_supplier_registration_form.pdf"
+      ],
+      "required_sources": [
+        "01_supplier_registration_form.pdf"
+      ],
+      "allowed_citation_pages": {
+        "01_supplier_registration_form.pdf": [
+          2
+        ]
+      },
+      "citation_requirements": [
+        {
+          "filename": "01_supplier_registration_form.pdf",
+          "pages": [
+            2
+          ]
+        }
+      ],
+      "information_found": true,
+      "manual_review_required": true,
+      "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+      "reference_answer": "The emergency helpdesk operates 06:00 to 22:00, Monday to Saturday; these are not the housekeeping hours."
+    },
+    {
+      "id": "acknowledgement_target",
+      "question_type": "stress_retrieval",
+      "question": "What is the priority-one incident acknowledgement target, and is it an onsite-arrival or resolution deadline?",
+      "expected_terms": [
+        "45"
+      ],
+      "expected_term_groups": [
+        [
+          "acknowledgement",
+          "acknowledgment"
+        ],
+        [
+          "not",
+          "neither"
+        ]
+      ],
+      "expected_dates": [],
+      "expected_amounts": [],
+      "expected_sources": [
+        "01_supplier_registration_form.pdf"
+      ],
+      "required_sources": [
+        "01_supplier_registration_form.pdf"
+      ],
+      "allowed_citation_pages": {
+        "01_supplier_registration_form.pdf": [
+          3
+        ]
+      },
+      "citation_requirements": [
+        {
+          "filename": "01_supplier_registration_form.pdf",
+          "pages": [
+            3
+          ]
+        }
+      ],
+      "information_found": true,
+      "manual_review_required": true,
+      "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+      "reference_answer": "The priority-one target is acknowledgement within 45 minutes of a logged ticket during the service window. It is not an onsite-arrival or resolution deadline."
+    },
+    {
+      "id": "public_liability",
+      "question_type": "stress_retrieval",
+      "question": "Give the public-liability occurrence limit and its deductible, keeping the two roles separate.",
+      "expected_terms": [
+        "occurrence",
+        "deductible"
+      ],
+      "expected_term_groups": [],
+      "expected_dates": [],
+      "expected_amounts": [
+        1500000,
+        20000
+      ],
+      "expected_sources": [
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "required_sources": [
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "allowed_citation_pages": {
+        "03_certificate_of_liability_insurance.pdf": [
+          2
+        ]
+      },
+      "citation_requirements": [
+        {
+          "filename": "03_certificate_of_liability_insurance.pdf",
+          "pages": [
+            2
+          ]
+        }
+      ],
+      "information_found": true,
+      "manual_review_required": true,
+      "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+      "reference_answer": "Public liability: INR 15 lakh per occurrence. Deductible: INR 20,000 per claim."
+    },
+    {
+      "id": "service_and_payment",
+      "question_type": "stress_synthesis",
+      "question": "Summarise the emergency helpdesk window and the invoice payment days and trigger.",
+      "expected_terms": [
+        "Monday",
+        "Saturday",
+        "30"
+      ],
+      "expected_term_groups": [
+        [
+          "06:00",
+          "6:00",
+          "6 am",
+          "6am"
+        ],
+        [
+          "22:00",
+          "10 pm",
+          "10pm"
+        ],
+        [
+          "accepted monthly service sheet",
+          "acceptance of the monthly service sheet",
+          "monthly service sheet acceptance",
+          "monthly service sheet is accepted",
+          "monthly service sheet has been accepted"
+        ]
+      ],
+      "expected_dates": [],
+      "expected_amounts": [],
+      "expected_sources": [
+        "01_supplier_registration_form.pdf"
+      ],
+      "required_sources": [
+        "01_supplier_registration_form.pdf"
+      ],
+      "allowed_citation_pages": {
+        "01_supplier_registration_form.pdf": [
+          2,
+          3
+        ]
+      },
+      "citation_requirements": [
+        {
+          "filename": "01_supplier_registration_form.pdf",
+          "pages": [
+            2
+          ]
+        },
+        {
+          "filename": "01_supplier_registration_form.pdf",
+          "pages": [
+            3
+          ]
+        }
+      ],
+      "information_found": true,
+      "manual_review_required": true,
+      "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+      "reference_answer": "Emergency helpdesk: 06:00 to 22:00, Monday to Saturday. Payment: Net 30 days from accepted monthly service sheet."
+    },
+    {
+      "id": "operating_site_and_property",
+      "question_type": "stress_synthesis",
+      "question": "What is the service-establishment address, and what sublimit applies to customer property in the supplier's care, custody and control?",
+      "expected_terms": [
+        "Suite 6",
+        "Yelahanka Service Centre",
+        "560064"
+      ],
+      "expected_term_groups": [],
+      "expected_dates": [],
+      "expected_amounts": [
+        300000
+      ],
+      "expected_sources": [
+        "02_gst_registration_certificate.pdf",
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "required_sources": [
+        "02_gst_registration_certificate.pdf",
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "allowed_citation_pages": {
+        "02_gst_registration_certificate.pdf": [
+          2
+        ],
+        "03_certificate_of_liability_insurance.pdf": [
+          2
+        ]
+      },
+      "citation_requirements": [
+        {
+          "filename": "02_gst_registration_certificate.pdf",
+          "pages": [
+            2
+          ]
+        },
+        {
+          "filename": "03_certificate_of_liability_insurance.pdf",
+          "pages": [
+            2
+          ]
+        }
+      ],
+      "information_found": true,
+      "manual_review_required": true,
+      "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+      "reference_answer": "The service establishment is Suite 6, Yelahanka Service Centre, Bengaluru, Karnataka 560064. Customer property in care, custody and control has an INR 3 lakh sublimit."
+    },
+    {
+      "id": "height_without_permit",
+      "question_type": "stress_conditional",
+      "question": "A job is above three metres and no site permit was issued before work. Does the declared working-at-height extension cover it?",
+      "expected_terms": [
+        "permit"
+      ],
+      "expected_term_groups": [
+        [
+          "excluded",
+          "not covered",
+          "does not cover",
+          "no cover"
+        ]
+      ],
+      "expected_dates": [],
+      "expected_amounts": [],
+      "expected_sources": [
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "required_sources": [
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "allowed_citation_pages": {
+        "03_certificate_of_liability_insurance.pdf": [
+          3
+        ]
+      },
+      "citation_requirements": [
+        {
+          "filename": "03_certificate_of_liability_insurance.pdf",
+          "pages": [
+            3
+          ]
+        }
+      ],
+      "information_found": true,
+      "manual_review_required": true,
+      "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+      "reference_answer": "It is excluded: work above three metres needs a site permit issued before work starts, and this job lacks that permit."
+    },
+    {
+      "id": "missing_sunday_hours",
+      "question_type": "safe_not_found",
+      "question": "What exact standard Sunday hours has the customer contracted for the emergency helpdesk?",
+      "expected_terms": [
+        "Information not found in uploaded supplier documents."
+      ],
+      "expected_sources": [],
+      "information_found": false,
+      "manual_review_required": true,
+      "gold_rationale": "No original supplies this requested value. Related information does not establish it.",
+      "reference_answer": "Information not found in uploaded supplier documents."
+    },
+    {
+      "id": "missing_permit_number",
+      "question_type": "safe_not_found",
+      "question": "What is the number of the site permit actually issued for the next working-at-height job?",
+      "expected_terms": [
+        "Information not found in uploaded supplier documents."
+      ],
+      "expected_sources": [],
+      "information_found": false,
+      "manual_review_required": true,
+      "gold_rationale": "No original supplies this requested value. Related information does not establish it.",
+      "reference_answer": "Information not found in uploaded supplier documents."
+    }
+  ],
+  "cohort": "stress",
+  "stress_category": "facilities",
+  "document_modes": {
+    "registration": "mixed",
+    "tax": "mixed",
+    "insurance": "mixed"
+  },
+  "expected_ocr_pages": {
+    "registration": [
+      2
+    ],
+    "tax": [
+      2
+    ],
+    "insurance": [
+      2
+    ]
+  },
+  "source_transcript_sha256": {
+    "registration": "3d6c01aefd03b1e1c03dd39c1f85d3029a4a7e3774fc5d7f1f2e0eb177efcece",
+    "tax": "939b6111d8b6a894b060e3c86976fc166f6f64031360e1062dd0e9086ac91ce8",
+    "insurance": "0bf967e88fae00733b68eb3bafadf061671891680e325ed13873e131a157fc79"
+  },
+  "document_sha256": {
+    "registration": "1ee4d17959396684db45ccbe1bd033d044f844c575d62d524831c709d99fc7c6",
+    "tax": "1e0b4db901968ce24c378df9bdc3fbfb6b0c4531a62f6c6bba2f81988b8ebeb2",
+    "insurance": "2abb5d4689f6c39229f36d6b1d213df54c7244812fa76fdbac7e1ff237c95b04"
+  }
+}

@@ -97,6 +97,7 @@ services:
     entrypoint: ["python", "scripts/run_quality_evaluation.py"]
     command: ["--base-url", "http://backend:8000/api"]
     environment:
+      EVALUATION_BASE_URL: http://backend:8000/api
       EVALUATION_REVIEWER_EMAIL: "${EVALUATION_REVIEWER_EMAIL:-}"
       EVALUATION_REVIEWER_PASSWORD: "${EVALUATION_REVIEWER_PASSWORD:-}"
     depends_on:

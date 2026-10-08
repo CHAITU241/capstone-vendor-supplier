@@ -1,0 +1,415 @@
+{
+  "slug": "chitra_components",
+  "create_payload": {
+    "name": "Chitra Industrial Components Private Limited",
+    "country": "India",
+    "contact_email": "evaluation.chitra_components@example.com"
+  },
+  "documents": {
+    "registration": "01_supplier_registration_form.pdf",
+    "tax": "02_gst_registration_certificate.pdf",
+    "insurance": "03_certificate_of_liability_insurance.pdf"
+  },
+  "extraction_expectations": {
+    "registration": {
+      "supplier_name": "Chitra Industrial Components Private Limited",
+      "registration_number": "U74999KA2020PTC190004",
+      "issuing_registry": "Registrar of Companies, India",
+      "registration_date": "2020-09-12",
+      "status": "Active"
+    },
+    "tax": {
+      "supplier_name": "Chitra Industrial Components Private Limited",
+      "tax_identifier": "AABCS6204F",
+      "gst_status_registered_or_not_registered": "Registered",
+      "gstin_when_registered": "29AABCS6204F1Z8"
+    }
+  },
+  "rag_only_documents": {
+    "insurance": "Supplementary liability evidence for RAG; the legacy insurance type has no current policy extraction contract."
+  },
+  "questions": [
+    {
+      "id": "legal_name_control",
+      "question_type": "direct_fact",
+      "question": "What legal name does the supplier registration form state?",
+      "expected_terms": [
+        "Chitra Industrial Components Private Limited"
+      ],
+      "expected_term_groups": [],
+      "expected_dates": [],
+      "expected_amounts": [],
+      "expected_sources": [
+        "01_supplier_registration_form.pdf",
+        "02_gst_registration_certificate.pdf",
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "required_sources": [
+        "01_supplier_registration_form.pdf"
+      ],
+      "allowed_citation_pages": {
+        "01_supplier_registration_form.pdf": [
+          1
+        ],
+        "02_gst_registration_certificate.pdf": [
+          1
+        ],
+        "03_certificate_of_liability_insurance.pdf": [
+          1
+        ]
+      },
+      "citation_requirements": [
+        {
+          "filename": "01_supplier_registration_form.pdf",
+          "pages": [
+            1
+          ]
+        }
+      ],
+      "information_found": true,
+      "manual_review_required": true,
+      "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+      "reference_answer": "The registration form states the legal name as Chitra Industrial Components Private Limited."
+    },
+    {
+      "id": "insurer_control",
+      "question_type": "direct_fact",
+      "question": "Which insurance provider is named on the liability certificate?",
+      "expected_terms": [
+        "HarborPoint General Insurance Company Limited"
+      ],
+      "expected_term_groups": [],
+      "expected_dates": [],
+      "expected_amounts": [],
+      "expected_sources": [
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "required_sources": [
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "allowed_citation_pages": {
+        "03_certificate_of_liability_insurance.pdf": [
+          1
+        ]
+      },
+      "citation_requirements": [
+        {
+          "filename": "03_certificate_of_liability_insurance.pdf",
+          "pages": [
+            1
+          ]
+        }
+      ],
+      "information_found": true,
+      "manual_review_required": true,
+      "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+      "reference_answer": "The liability certificate names HarborPoint General Insurance Company Limited as the provider."
+    },
+    {
+      "id": "registered_office",
+      "question_type": "stress_retrieval",
+      "question": "Which address should be entered as the registered office for statutory correspondence, rather than plant, depot or claims desk?",
+      "expected_terms": [
+        "Unit 71",
+        "Jigani Business Centre",
+        "560105"
+      ],
+      "expected_term_groups": [],
+      "expected_dates": [],
+      "expected_amounts": [],
+      "expected_sources": [
+        "01_supplier_registration_form.pdf",
+        "02_gst_registration_certificate.pdf"
+      ],
+      "required_sources": [
+        "01_supplier_registration_form.pdf"
+      ],
+      "allowed_citation_pages": {
+        "01_supplier_registration_form.pdf": [
+          1
+        ],
+        "02_gst_registration_certificate.pdf": [
+          1
+        ]
+      },
+      "citation_requirements": [
+        {
+          "filename": "01_supplier_registration_form.pdf",
+          "pages": [
+            1
+          ]
+        }
+      ],
+      "information_found": true,
+      "manual_review_required": true,
+      "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+      "reference_answer": "Use Unit 71, Jigani Business Centre, Bengaluru, Karnataka 560105 as the registered office for statutory correspondence."
+    },
+    {
+      "id": "pickup_depot",
+      "question_type": "stress_retrieval",
+      "question": "Where should a customer collect finished goods? Give the dispatch location, not the manufacturing plant.",
+      "expected_terms": [
+        "Bay 9",
+        "Nelamangala Freight Yard",
+        "562123"
+      ],
+      "expected_term_groups": [],
+      "expected_dates": [],
+      "expected_amounts": [],
+      "expected_sources": [
+        "01_supplier_registration_form.pdf"
+      ],
+      "required_sources": [
+        "01_supplier_registration_form.pdf"
+      ],
+      "allowed_citation_pages": {
+        "01_supplier_registration_form.pdf": [
+          2
+        ]
+      },
+      "citation_requirements": [
+        {
+          "filename": "01_supplier_registration_form.pdf",
+          "pages": [
+            2
+          ]
+        }
+      ],
+      "information_found": true,
+      "manual_review_required": true,
+      "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+      "reference_answer": "Collect from the dispatch depot: Bay 9, Nelamangala Freight Yard, Bengaluru, Karnataka 562123."
+    },
+    {
+      "id": "claims_routing",
+      "question_type": "stress_retrieval",
+      "question": "Where is insurance claims correspondence routed, and whose routing address is it?",
+      "expected_terms": [
+        "Claims Desk 2",
+        "Residency Road",
+        "560025",
+        "insurer"
+      ],
+      "expected_term_groups": [],
+      "expected_dates": [],
+      "expected_amounts": [],
+      "expected_sources": [
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "required_sources": [
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "allowed_citation_pages": {
+        "03_certificate_of_liability_insurance.pdf": [
+          2
+        ]
+      },
+      "citation_requirements": [
+        {
+          "filename": "03_certificate_of_liability_insurance.pdf",
+          "pages": [
+            2
+          ]
+        }
+      ],
+      "information_found": true,
+      "manual_review_required": true,
+      "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+      "reference_answer": "Insurance claims correspondence goes to Claims Desk 2, Residency Road, Bengaluru, Karnataka 560025. This is the insurer's routing address."
+    },
+    {
+      "id": "entity_and_trading",
+      "question_type": "stress_synthesis",
+      "question": "For ERP, separate the full invoice legal name from the trading name, and state the payment period and its trigger.",
+      "expected_terms": [
+        "Chitra Industrial Components Private Limited",
+        "Chitra Components",
+        "60"
+      ],
+      "expected_term_groups": [
+        [
+          "quality acceptance",
+          "acceptance after quality inspection",
+          "accepted after quality inspection",
+          "quality approval"
+        ]
+      ],
+      "expected_dates": [],
+      "expected_amounts": [],
+      "expected_sources": [
+        "01_supplier_registration_form.pdf",
+        "02_gst_registration_certificate.pdf",
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "required_sources": [
+        "01_supplier_registration_form.pdf"
+      ],
+      "allowed_citation_pages": {
+        "01_supplier_registration_form.pdf": [
+          1,
+          3
+        ],
+        "02_gst_registration_certificate.pdf": [
+          1
+        ],
+        "03_certificate_of_liability_insurance.pdf": [
+          1
+        ]
+      },
+      "citation_requirements": [
+        {
+          "filename": "01_supplier_registration_form.pdf",
+          "pages": [
+            1
+          ]
+        },
+        {
+          "filename": "01_supplier_registration_form.pdf",
+          "pages": [
+            3
+          ]
+        }
+      ],
+      "information_found": true,
+      "manual_review_required": true,
+      "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+      "reference_answer": "Invoice legal name: Chitra Industrial Components Private Limited. Trading name: Chitra Components. Payment is Net 60 days after quality acceptance."
+    },
+    {
+      "id": "factory_and_cover",
+      "question_type": "stress_synthesis",
+      "question": "For a plant audit, give the manufacturing location and the declared insured activity at that plant.",
+      "expected_terms": [
+        "Shed 18",
+        "Doddaballapur Industrial Area",
+        "561203",
+        "precision machining",
+        "assembly"
+      ],
+      "expected_term_groups": [],
+      "expected_dates": [],
+      "expected_amounts": [],
+      "expected_sources": [
+        "01_supplier_registration_form.pdf",
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "required_sources": [
+        "01_supplier_registration_form.pdf",
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "allowed_citation_pages": {
+        "01_supplier_registration_form.pdf": [
+          2
+        ],
+        "03_certificate_of_liability_insurance.pdf": [
+          2
+        ]
+      },
+      "citation_requirements": [
+        {
+          "filename": "01_supplier_registration_form.pdf",
+          "pages": [
+            2
+          ]
+        },
+        {
+          "filename": "03_certificate_of_liability_insurance.pdf",
+          "pages": [
+            2
+          ]
+        }
+      ],
+      "information_found": true,
+      "manual_review_required": true,
+      "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+      "reference_answer": "The manufacturing location is Shed 18, Doddaballapur Industrial Area, Bengaluru, Karnataka 561203. The insured activity is precision machining and assembly of industrial components."
+    },
+    {
+      "id": "canada_claim",
+      "question_type": "stress_conditional",
+      "question": "A component is supplied into Canada. Does the declared India product-liability territory cover the resulting product claim? Explain the stated exclusion.",
+      "expected_terms": [
+        "Canada",
+        "India"
+      ],
+      "expected_term_groups": [
+        [
+          "excluded",
+          "excludes",
+          "not covered",
+          "does not cover"
+        ]
+      ],
+      "expected_dates": [],
+      "expected_amounts": [],
+      "expected_sources": [
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "required_sources": [
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "allowed_citation_pages": {
+        "03_certificate_of_liability_insurance.pdf": [
+          3
+        ]
+      },
+      "citation_requirements": [
+        {
+          "filename": "03_certificate_of_liability_insurance.pdf",
+          "pages": [
+            3
+          ]
+        }
+      ],
+      "information_found": true,
+      "manual_review_required": true,
+      "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+      "reference_answer": "No. The declared territory is India; product claims arising from supply into Canada are excluded."
+    },
+    {
+      "id": "missing_export_endorsement",
+      "question_type": "safe_not_found",
+      "question": "What is the number of an issued export endorsement that extends this supplier's product cover to Canada?",
+      "expected_terms": [
+        "Information not found in uploaded supplier documents."
+      ],
+      "expected_sources": [],
+      "information_found": false,
+      "manual_review_required": true,
+      "gold_rationale": "No original supplies this requested value. Related information does not establish it.",
+      "reference_answer": "Information not found in uploaded supplier documents."
+    },
+    {
+      "id": "missing_bank_account",
+      "question_type": "safe_not_found",
+      "question": "Which beneficiary bank account number should AP use for this supplier?",
+      "expected_terms": [
+        "Information not found in uploaded supplier documents."
+      ],
+      "expected_sources": [],
+      "information_found": false,
+      "manual_review_required": true,
+      "gold_rationale": "No original supplies this requested value. Related information does not establish it.",
+      "reference_answer": "Information not found in uploaded supplier documents."
+    }
+  ],
+  "cohort": "stress",
+  "stress_category": "components",
+  "document_modes": {
+    "registration": "native",
+    "tax": "native",
+    "insurance": "native"
+  },
+  "expected_ocr_pages": {
+    "registration": [],
+    "tax": [],
+    "insurance": []
+  },
+  "source_transcript_sha256": {},
+  "document_sha256": {
+    "registration": "fe29ac05452c5d2631bb67047643863124db57db2bcc4542ad7aab0028e2b952",
+    "tax": "984f21b1a1ba06b577016e1859510f22008d910dab716cf3e06bb4e3544d8370",
+    "insurance": "e46f8e695de6cb8c99f2d23f4fb48aa13152ed81217abf6090e6464aa3a3e4d2"
+  }
+}

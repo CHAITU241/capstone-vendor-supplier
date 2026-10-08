@@ -1,0 +1,413 @@
+{
+  "slug": "dakshin_logistics",
+  "create_payload": {
+    "name": "Dakshin Freight Services Private Limited",
+    "country": "India",
+    "contact_email": "evaluation.dakshin_logistics@example.com"
+  },
+  "documents": {
+    "registration": "01_supplier_registration_form.pdf",
+    "tax": "02_gst_registration_certificate.pdf",
+    "insurance": "03_certificate_of_liability_insurance.pdf"
+  },
+  "extraction_expectations": {
+    "registration": {
+      "supplier_name": "Dakshin Freight Services Private Limited",
+      "registration_number": "U74999KA2020PTC190001",
+      "issuing_registry": "Registrar of Companies, India",
+      "registration_date": "2020-09-12",
+      "status": "Active"
+    },
+    "tax": {
+      "supplier_name": "Dakshin Freight Services Private Limited",
+      "tax_identifier": "AABCS6201F",
+      "gst_status_registered_or_not_registered": "Registered",
+      "gstin_when_registered": "29AABCS6201F1Z8"
+    }
+  },
+  "rag_only_documents": {
+    "insurance": "Supplementary liability evidence for RAG; the legacy insurance type has no current policy extraction contract."
+  },
+  "questions": [
+    {
+      "id": "legal_name_control",
+      "question_type": "direct_fact",
+      "question": "What legal name does the supplier registration form state?",
+      "expected_terms": [
+        "Dakshin Freight Services Private Limited"
+      ],
+      "expected_term_groups": [],
+      "expected_dates": [],
+      "expected_amounts": [],
+      "expected_sources": [
+        "01_supplier_registration_form.pdf",
+        "02_gst_registration_certificate.pdf",
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "required_sources": [
+        "01_supplier_registration_form.pdf"
+      ],
+      "allowed_citation_pages": {
+        "01_supplier_registration_form.pdf": [
+          1
+        ],
+        "02_gst_registration_certificate.pdf": [
+          1
+        ],
+        "03_certificate_of_liability_insurance.pdf": [
+          1
+        ]
+      },
+      "citation_requirements": [
+        {
+          "filename": "01_supplier_registration_form.pdf",
+          "pages": [
+            1
+          ]
+        }
+      ],
+      "information_found": true,
+      "manual_review_required": true,
+      "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+      "reference_answer": "The registration form states the legal name as Dakshin Freight Services Private Limited."
+    },
+    {
+      "id": "insurer_control",
+      "question_type": "direct_fact",
+      "question": "Which insurance provider is named on the liability certificate?",
+      "expected_terms": [
+        "HarborPoint General Insurance Company Limited"
+      ],
+      "expected_term_groups": [],
+      "expected_dates": [],
+      "expected_amounts": [],
+      "expected_sources": [
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "required_sources": [
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "allowed_citation_pages": {
+        "03_certificate_of_liability_insurance.pdf": [
+          1
+        ]
+      },
+      "citation_requirements": [
+        {
+          "filename": "03_certificate_of_liability_insurance.pdf",
+          "pages": [
+            1
+          ]
+        }
+      ],
+      "information_found": true,
+      "manual_review_required": true,
+      "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+      "reference_answer": "The liability certificate names HarborPoint General Insurance Company Limited as the provider."
+    },
+    {
+      "id": "transit_limit",
+      "question_type": "stress_retrieval",
+      "question": "What is the road-transit limit per consignment? Distinguish it from storage cover.",
+      "expected_terms": [
+        "consignment"
+      ],
+      "expected_term_groups": [],
+      "expected_dates": [],
+      "expected_amounts": [
+        2000000
+      ],
+      "expected_sources": [
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "required_sources": [
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "allowed_citation_pages": {
+        "03_certificate_of_liability_insurance.pdf": [
+          2
+        ]
+      },
+      "citation_requirements": [
+        {
+          "filename": "03_certificate_of_liability_insurance.pdf",
+          "pages": [
+            2
+          ]
+        }
+      ],
+      "information_found": true,
+      "manual_review_required": true,
+      "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+      "reference_answer": "Road transit is limited to INR 20 lakh per consignment; this is the transit limit, separate from storage cover."
+    },
+    {
+      "id": "storage_limit",
+      "question_type": "stress_retrieval",
+      "question": "What cover limit applies to goods already received into an approved warehouse, and on what basis?",
+      "expected_terms": [
+        "occurrence"
+      ],
+      "expected_term_groups": [],
+      "expected_dates": [],
+      "expected_amounts": [
+        5000000
+      ],
+      "expected_sources": [
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "required_sources": [
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "allowed_citation_pages": {
+        "03_certificate_of_liability_insurance.pdf": [
+          3
+        ]
+      },
+      "citation_requirements": [
+        {
+          "filename": "03_certificate_of_liability_insurance.pdf",
+          "pages": [
+            3
+          ]
+        }
+      ],
+      "information_found": true,
+      "manual_review_required": true,
+      "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+      "reference_answer": "At an approved warehouse, the storage limit is INR 50 lakh per occurrence."
+    },
+    {
+      "id": "subcontract_limit",
+      "question_type": "stress_retrieval",
+      "question": "What is the subcontracted-carriage sublimit and what register condition must be met before dispatch?",
+      "expected_terms": [
+        "consignment"
+      ],
+      "expected_term_groups": [
+        [
+          "approved-carrier register",
+          "approved carrier register"
+        ],
+        [
+          "before dispatch",
+          "prior to dispatch"
+        ]
+      ],
+      "expected_dates": [],
+      "expected_amounts": [
+        1000000
+      ],
+      "expected_sources": [
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "required_sources": [
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "allowed_citation_pages": {
+        "03_certificate_of_liability_insurance.pdf": [
+          4
+        ]
+      },
+      "citation_requirements": [
+        {
+          "filename": "03_certificate_of_liability_insurance.pdf",
+          "pages": [
+            4
+          ]
+        }
+      ],
+      "information_found": true,
+      "manual_review_required": true,
+      "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+      "reference_answer": "Subcontracted carriage is limited to INR 10 lakh per consignment and requires the carrier to be on the approved-carrier register before dispatch."
+    },
+    {
+      "id": "transit_and_storage",
+      "question_type": "stress_synthesis",
+      "question": "Compare the road-transit and warehouse-storage limits, labelling which basis belongs to each operation.",
+      "expected_terms": [
+        "transit",
+        "storage",
+        "consignment",
+        "occurrence"
+      ],
+      "expected_term_groups": [],
+      "expected_dates": [],
+      "expected_amounts": [
+        2000000,
+        5000000
+      ],
+      "expected_sources": [
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "required_sources": [
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "allowed_citation_pages": {
+        "03_certificate_of_liability_insurance.pdf": [
+          2,
+          3
+        ]
+      },
+      "citation_requirements": [
+        {
+          "filename": "03_certificate_of_liability_insurance.pdf",
+          "pages": [
+            2
+          ]
+        },
+        {
+          "filename": "03_certificate_of_liability_insurance.pdf",
+          "pages": [
+            3
+          ]
+        }
+      ],
+      "information_found": true,
+      "manual_review_required": true,
+      "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+      "reference_answer": "Road transit: INR 20 lakh per consignment. Warehouse storage: INR 50 lakh per occurrence."
+    },
+    {
+      "id": "dock_and_payment",
+      "question_type": "stress_synthesis",
+      "question": "For AP and dispatch handover, give the warehouse receiving location and payment days with the payment-clock trigger.",
+      "expected_terms": [
+        "Dock 4",
+        "Hoskote Freight Park",
+        "562114",
+        "45"
+      ],
+      "expected_term_groups": [
+        [
+          "accepted invoice",
+          "invoice acceptance",
+          "acceptance of the invoice",
+          "invoice is accepted",
+          "invoice has been accepted",
+          "invoice accepted"
+        ]
+      ],
+      "expected_dates": [],
+      "expected_amounts": [],
+      "expected_sources": [
+        "01_supplier_registration_form.pdf"
+      ],
+      "required_sources": [
+        "01_supplier_registration_form.pdf"
+      ],
+      "allowed_citation_pages": {
+        "01_supplier_registration_form.pdf": [
+          2,
+          3
+        ]
+      },
+      "citation_requirements": [
+        {
+          "filename": "01_supplier_registration_form.pdf",
+          "pages": [
+            2
+          ]
+        },
+        {
+          "filename": "01_supplier_registration_form.pdf",
+          "pages": [
+            3
+          ]
+        }
+      ],
+      "information_found": true,
+      "manual_review_required": true,
+      "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+      "reference_answer": "Receive at Dock 4, Hoskote Freight Park, Bengaluru, Karnataka 562114. AP terms are Net 45 days from accepted invoice."
+    },
+    {
+      "id": "unlisted_carrier",
+      "question_type": "stress_conditional",
+      "question": "A carrier is not named on the approved-carrier register before dispatch. Does the submitted subcontracted-carriage clause cover that journey? Explain the condition.",
+      "expected_terms": [
+        "carrier",
+        "register"
+      ],
+      "expected_term_groups": [
+        [
+          "not covered",
+          "outside",
+          "no cover",
+          "not apply",
+          "does not apply"
+        ]
+      ],
+      "expected_dates": [],
+      "expected_amounts": [],
+      "expected_sources": [
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "required_sources": [
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "allowed_citation_pages": {
+        "03_certificate_of_liability_insurance.pdf": [
+          4
+        ]
+      },
+      "citation_requirements": [
+        {
+          "filename": "03_certificate_of_liability_insurance.pdf",
+          "pages": [
+            4
+          ]
+        }
+      ],
+      "information_found": true,
+      "manual_review_required": true,
+      "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+      "reference_answer": "No cover applies: a carrier not named on the approved-carrier register before dispatch is outside the subcontracted-carriage clause."
+    },
+    {
+      "id": "missing_carrier_approval",
+      "question_type": "safe_not_found",
+      "question": "Which subcontracted carrier has actually been approved on this supplier's approved-carrier register?",
+      "expected_terms": [
+        "Information not found in uploaded supplier documents."
+      ],
+      "expected_sources": [],
+      "information_found": false,
+      "manual_review_required": true,
+      "gold_rationale": "No original supplies this requested value. Related information does not establish it.",
+      "reference_answer": "Information not found in uploaded supplier documents."
+    },
+    {
+      "id": "missing_credit_rating",
+      "question_type": "safe_not_found",
+      "question": "What external credit rating has been assigned to this supplier?",
+      "expected_terms": [
+        "Information not found in uploaded supplier documents."
+      ],
+      "expected_sources": [],
+      "information_found": false,
+      "manual_review_required": true,
+      "gold_rationale": "No original supplies this requested value. Related information does not establish it.",
+      "reference_answer": "Information not found in uploaded supplier documents."
+    }
+  ],
+  "cohort": "stress",
+  "stress_category": "logistics",
+  "document_modes": {
+    "registration": "native",
+    "tax": "native",
+    "insurance": "native"
+  },
+  "expected_ocr_pages": {
+    "registration": [],
+    "tax": [],
+    "insurance": []
+  },
+  "source_transcript_sha256": {},
+  "document_sha256": {
+    "registration": "34024b802cddf9e89ccc9e4d792f2a3e0afcabc9538d30b27fa3b7d12639ca5f",
+    "tax": "efb81b77e928c275ba81781774c5ad25e9be0056edadec3e7a66276ffc2c8637",
+    "insurance": "073884a40b84703bd50eeff1f7d3d60b3f6366efac4efa7fdb6eb81a386c8a62"
+  }
+}

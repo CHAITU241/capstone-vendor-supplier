@@ -1,0 +1,413 @@
+{
+  "slug": "amrutha_food",
+  "create_payload": {
+    "name": "Amrutha Meal Services Private Limited",
+    "country": "India",
+    "contact_email": "evaluation.amrutha_food@example.com"
+  },
+  "documents": {
+    "registration": "01_supplier_registration_form.pdf",
+    "tax": "02_gst_registration_certificate.pdf",
+    "insurance": "03_certificate_of_liability_insurance.pdf"
+  },
+  "extraction_expectations": {
+    "registration": {
+      "supplier_name": "Amrutha Meal Services Private Limited",
+      "registration_number": "U74999KA2020PTC190002",
+      "issuing_registry": "Registrar of Companies, India",
+      "registration_date": "2020-09-12",
+      "status": "Active"
+    },
+    "tax": {
+      "supplier_name": "Amrutha Meal Services Private Limited",
+      "tax_identifier": "AABCS6202F",
+      "gst_status_registered_or_not_registered": "Registered",
+      "gstin_when_registered": "29AABCS6202F1Z8"
+    }
+  },
+  "rag_only_documents": {
+    "insurance": "Supplementary liability evidence for RAG; the legacy insurance type has no current policy extraction contract."
+  },
+  "questions": [
+    {
+      "id": "legal_name_control",
+      "question_type": "direct_fact",
+      "question": "What legal name does the supplier registration form state?",
+      "expected_terms": [
+        "Amrutha Meal Services Private Limited"
+      ],
+      "expected_term_groups": [],
+      "expected_dates": [],
+      "expected_amounts": [],
+      "expected_sources": [
+        "01_supplier_registration_form.pdf",
+        "02_gst_registration_certificate.pdf",
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "required_sources": [
+        "01_supplier_registration_form.pdf"
+      ],
+      "allowed_citation_pages": {
+        "01_supplier_registration_form.pdf": [
+          1
+        ],
+        "02_gst_registration_certificate.pdf": [
+          1
+        ],
+        "03_certificate_of_liability_insurance.pdf": [
+          1
+        ]
+      },
+      "citation_requirements": [
+        {
+          "filename": "01_supplier_registration_form.pdf",
+          "pages": [
+            1
+          ]
+        }
+      ],
+      "information_found": true,
+      "manual_review_required": true,
+      "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+      "reference_answer": "The registration form states the legal name as Amrutha Meal Services Private Limited."
+    },
+    {
+      "id": "insurer_control",
+      "question_type": "direct_fact",
+      "question": "Which insurance provider is named on the liability certificate?",
+      "expected_terms": [
+        "HarborPoint General Insurance Company Limited"
+      ],
+      "expected_term_groups": [],
+      "expected_dates": [],
+      "expected_amounts": [],
+      "expected_sources": [
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "required_sources": [
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "allowed_citation_pages": {
+        "03_certificate_of_liability_insurance.pdf": [
+          1
+        ]
+      },
+      "citation_requirements": [
+        {
+          "filename": "03_certificate_of_liability_insurance.pdf",
+          "pages": [
+            1
+          ]
+        }
+      ],
+      "information_found": true,
+      "manual_review_required": true,
+      "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+      "reference_answer": "The liability certificate names HarborPoint General Insurance Company Limited as the provider."
+    },
+    {
+      "id": "original_aggregate",
+      "question_type": "stress_retrieval",
+      "question": "What annual aggregate was stated in the original product-liability schedule, before either amendment becomes effective?",
+      "expected_terms": [
+        "annual",
+        "aggregate"
+      ],
+      "expected_term_groups": [],
+      "expected_dates": [],
+      "expected_amounts": [
+        2000000
+      ],
+      "expected_sources": [
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "required_sources": [
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "allowed_citation_pages": {
+        "03_certificate_of_liability_insurance.pdf": [
+          2
+        ]
+      },
+      "citation_requirements": [
+        {
+          "filename": "03_certificate_of_liability_insurance.pdf",
+          "pages": [
+            2
+          ]
+        }
+      ],
+      "information_found": true,
+      "manual_review_required": true,
+      "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+      "reference_answer": "The original annual product-liability aggregate is INR 20 lakh."
+    },
+    {
+      "id": "renewal_expiry",
+      "question_type": "stress_retrieval",
+      "question": "What expiry does endorsement E1 establish for the renewal period?",
+      "expected_terms": [],
+      "expected_term_groups": [],
+      "expected_dates": [
+        "2028-06-30"
+      ],
+      "expected_amounts": [],
+      "expected_sources": [
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "required_sources": [
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "allowed_citation_pages": {
+        "03_certificate_of_liability_insurance.pdf": [
+          3
+        ]
+      },
+      "citation_requirements": [
+        {
+          "filename": "03_certificate_of_liability_insurance.pdf",
+          "pages": [
+            3
+          ]
+        }
+      ],
+      "information_found": true,
+      "manual_review_required": true,
+      "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+      "reference_answer": "Endorsement E1 establishes renewal expiry on 30 June 2028."
+    },
+    {
+      "id": "e2_preserved_expiry",
+      "question_type": "stress_retrieval",
+      "question": "What annual aggregate does amendment E2 set, and which expiry does it explicitly leave unchanged?",
+      "expected_terms": [
+        "annual",
+        "aggregate"
+      ],
+      "expected_term_groups": [],
+      "expected_dates": [
+        "2028-06-30"
+      ],
+      "expected_amounts": [
+        4000000
+      ],
+      "expected_sources": [
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "required_sources": [
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "allowed_citation_pages": {
+        "03_certificate_of_liability_insurance.pdf": [
+          4
+        ]
+      },
+      "citation_requirements": [
+        {
+          "filename": "03_certificate_of_liability_insurance.pdf",
+          "pages": [
+            4
+          ]
+        }
+      ],
+      "information_found": true,
+      "manual_review_required": true,
+      "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+      "reference_answer": "E2 sets the annual aggregate at INR 40 lakh and leaves the expiry of 30 June 2028 unchanged."
+    },
+    {
+      "id": "july_vs_august",
+      "question_type": "stress_synthesis",
+      "question": "Compare the applicable annual product-liability aggregate on 15 July 2027 and on 15 August 2027. Label each date and limit.",
+      "expected_terms": [],
+      "expected_term_groups": [
+        [
+          "July",
+          "JUL"
+        ],
+        [
+          "August",
+          "AUG"
+        ]
+      ],
+      "expected_dates": [],
+      "expected_amounts": [
+        3000000,
+        4000000
+      ],
+      "expected_sources": [
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "required_sources": [
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "allowed_citation_pages": {
+        "03_certificate_of_liability_insurance.pdf": [
+          3,
+          4
+        ]
+      },
+      "citation_requirements": [
+        {
+          "filename": "03_certificate_of_liability_insurance.pdf",
+          "pages": [
+            3
+          ]
+        },
+        {
+          "filename": "03_certificate_of_liability_insurance.pdf",
+          "pages": [
+            4
+          ]
+        }
+      ],
+      "information_found": true,
+      "manual_review_required": true,
+      "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+      "reference_answer": "On 15 July 2027, the annual aggregate is INR 30 lakh under E1. On 15 August 2027, INR 40 lakh applies under E2."
+    },
+    {
+      "id": "ap_and_renewal",
+      "question_type": "stress_synthesis",
+      "question": "For the procurement handover, state the payment days and trigger, plus the renewed insurance expiry.",
+      "expected_terms": [
+        "30"
+      ],
+      "expected_term_groups": [
+        [
+          "accepted delivery",
+          "delivery acceptance",
+          "acceptance of delivery",
+          "delivery is accepted",
+          "delivery has been accepted",
+          "delivery accepted"
+        ]
+      ],
+      "expected_dates": [
+        "2028-06-30"
+      ],
+      "expected_amounts": [],
+      "expected_sources": [
+        "01_supplier_registration_form.pdf",
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "required_sources": [
+        "01_supplier_registration_form.pdf",
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "allowed_citation_pages": {
+        "01_supplier_registration_form.pdf": [
+          2
+        ],
+        "03_certificate_of_liability_insurance.pdf": [
+          3
+        ]
+      },
+      "citation_requirements": [
+        {
+          "filename": "01_supplier_registration_form.pdf",
+          "pages": [
+            2
+          ]
+        },
+        {
+          "filename": "03_certificate_of_liability_insurance.pdf",
+          "pages": [
+            3
+          ]
+        }
+      ],
+      "information_found": true,
+      "manual_review_required": true,
+      "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+      "reference_answer": "Payment is Net 30 days after accepted delivery. The renewed insurance expiry is 30 June 2028."
+    },
+    {
+      "id": "before_e2_effective",
+      "question_type": "stress_conditional",
+      "question": "As of 20 July 2027, may AP record E2's higher annual aggregate just because E2 was issued in May? Give the applicable limit and E2's effective date.",
+      "expected_terms": [],
+      "expected_term_groups": [
+        [
+          "not yet",
+          "no",
+          "not effective",
+          "does not apply"
+        ]
+      ],
+      "expected_dates": [
+        "2027-08-01"
+      ],
+      "expected_amounts": [
+        3000000
+      ],
+      "expected_sources": [
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "required_sources": [
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "allowed_citation_pages": {
+        "03_certificate_of_liability_insurance.pdf": [
+          4
+        ]
+      },
+      "citation_requirements": [
+        {
+          "filename": "03_certificate_of_liability_insurance.pdf",
+          "pages": [
+            4
+          ]
+        }
+      ],
+      "information_found": true,
+      "manual_review_required": true,
+      "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+      "reference_answer": "No. On 20 July 2027, the applicable annual aggregate is INR 30 lakh. E2 is not yet effective; its effective date is 01 August 2027."
+    },
+    {
+      "id": "missing_recall_limit",
+      "question_type": "safe_not_found",
+      "question": "What monetary recall-expense limit has been approved for this supplier?",
+      "expected_terms": [
+        "Information not found in uploaded supplier documents."
+      ],
+      "expected_sources": [],
+      "information_found": false,
+      "manual_review_required": true,
+      "gold_rationale": "No original supplies this requested value. Related information does not establish it.",
+      "reference_answer": "Information not found in uploaded supplier documents."
+    },
+    {
+      "id": "missing_food_score",
+      "question_type": "safe_not_found",
+      "question": "What numerical food-safety inspection score did the authority give this supplier?",
+      "expected_terms": [
+        "Information not found in uploaded supplier documents."
+      ],
+      "expected_sources": [],
+      "information_found": false,
+      "manual_review_required": true,
+      "gold_rationale": "No original supplies this requested value. Related information does not establish it.",
+      "reference_answer": "Information not found in uploaded supplier documents."
+    }
+  ],
+  "cohort": "stress",
+  "stress_category": "food",
+  "document_modes": {
+    "registration": "native",
+    "tax": "native",
+    "insurance": "native"
+  },
+  "expected_ocr_pages": {
+    "registration": [],
+    "tax": [],
+    "insurance": []
+  },
+  "source_transcript_sha256": {},
+  "document_sha256": {
+    "registration": "6e669a861db59576e56942e1d6db4290c9d3f2e4c46703bc74a1ad8744ea598d",
+    "tax": "6955a50702ec74be8f2a3c4f44bd85b49542d2405b025ab5e0c251ff93e7e31b",
+    "insurance": "e13f598a16c37c69b9c9f502be8cf48746860281996c4af03b4ba14a93a8f1e1"
+  }
+}
