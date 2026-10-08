@@ -415,21 +415,21 @@ class OpenAIService:
                 )
                 return result
 
-    def judge_rag_evidence(self, evidence: dict):
-        """Isolated relevance and faithfulness calls with strict bounded retries."""
+    def judge_rag_evidence(self, evidence: dict, prior_judgment: dict | None = None):
+        """Isolate relevance, answer inventory and support, with bounded retries."""
         import json
         import hashlib
         from app.services.rag_evaluation import (
-            RELEVANCE_PROMPT, FAITHFULNESS_PROMPT, JUDGE_PROMPT_VERSION,
-            relevance_response_schema, faithfulness_response_schema,
-            validate_judgment,
+            RELEVANCE_PROMPT, FAITHFULNESS_PROMPT, CLAIM_INVENTORY_PROMPT, JUDGE_PROMPT_VERSION,
+            relevance_response_schema, faithfulness_response_schema, AnswerClaimInventory,
+            freeze_answer_spans, reusable_relevance, validate_judgment,
         )
 
         model = self.settings.evaluation_judge_model or self.settings.active_answer_model
         attempts: list[dict] = []
         provenance = {name: {"prompt_version": JUDGE_PROMPT_VERSION + ":" + name,
                              "prompt_sha256": hashlib.sha256(prompt.encode()).hexdigest()}
-                      for name, prompt in (("relevance", RELEVANCE_PROMPT), ("faithfulness", FAITHFULNESS_PROMPT))}
+                      for name, prompt in (("relevance", RELEVANCE_PROMPT), ("claim_inventory", CLAIM_INVENTORY_PROMPT), ("faithfulness", FAITHFULNESS_PROMPT))}
         # Explicit bounds exclude SDK automatic retries from the attempt count.
         client = self.client.with_options(timeout=60.0, max_retries=0) if hasattr(self.client, "with_options") else self.client
 
@@ -464,8 +464,10 @@ class OpenAIService:
                     # Feedback requests a new verdict; no missing/invalid label becomes false/true by default.
                     messages.append({"role": "user", "content":
                         "The previous assessment was rejected by validation: " + str(exc) +
-                        "\nReturn a complete assessment using the required schema. Copy exact contiguous context quotes; "
-                        "do not repair facts or invent support. Required candidate fields/context IDs remain unchanged."})
+                        ("\nReturn an exact, complete ordered partition of the observed answer. Do not paraphrase, add or omit text."
+                         if stage == "claim_inventory" else
+                         "\nReturn a complete assessment using the required schema. Copy exact contiguous context quotes; "
+                         "do not repair facts or invent support. Required candidate/claim fields and context IDs remain unchanged.")})
                 except Exception as exc:
                     # Provider/auth/network failures remain visible, with no unbounded retry.
                     record.update(status="error", reason=f"{type(exc).__name__}: metric provider request failed")
@@ -498,24 +500,41 @@ class OpenAIService:
         # The raw audit is deliberately impossible to see in this separate request.
         faithfulness_payload = {"question": evidence["question"], "answer": evidence["answer"],
                                 "information_found": evidence["information_found"],
+                                "claims": {},
                                 "generation_context": {key: {"filename": c["filename"], "page_number": c["page_number"], "text": c["text"]}
                                                        for key, c in context_map.items()}}
         def decode_claims(value):
-            claims = value.model_dump()["claims"]
-            for claim in claims:
+            verdicts = value.model_dump()
+            claims = []
+            for i, anchor in enumerate(inventory, 1):
+                claim = {**anchor, **verdicts[f"claim_{i}"]}
                 for support in claim["support"]:
                     if support["chunk_id"] not in context_map:
                         raise ValueError("Support refers outside actual generation context.")
                     support["chunk_id"] = context_map[support["chunk_id"]]["chunk_id"]
-            combined = {"relevance": relevance, "claims": claims}
-            return validate_judgment(combined, evidence)
+                claims.append(claim)
+            return validate_judgment({"relevance": relevance, "claims": claims}, evidence)
 
         with observe_ai_call("evaluation.rag.judge", model) as metrics:
             try:
-                relevance = assess("relevance", RELEVANCE_PROMPT, relevance_payload,
-                                   relevance_response_schema(len(ranked)), decode_relevance) if ranked else []
-                judgment = assess("faithfulness", FAITHFULNESS_PROMPT, faithfulness_payload,
-                                  faithfulness_response_schema(list(context_map)), decode_claims)
+                relevance = reusable_relevance(prior_judgment, evidence)
+                if relevance is not None:
+                    provenance["relevance"] = {**prior_judgment["stage_provenance"]["relevance"],
+                        "reused": True, "model_or_reviewer": prior_judgment["stage_provenance"]["relevance"].get("model_or_reviewer", prior_judgment["model_or_reviewer"]),
+                        "assessed_at": prior_judgment["stage_provenance"]["relevance"].get("assessed_at", prior_judgment["assessed_at"]), "evidence_sha256": prior_judgment["evidence_sha256"]}
+                else:
+                    relevance = assess("relevance", RELEVANCE_PROMPT, relevance_payload,
+                                       relevance_response_schema(len(ranked)), decode_relevance) if ranked else []
+                if evidence["information_found"]:
+                    # This request cannot see documents, context, gold answers or earlier claims.
+                    inventory = assess("claim_inventory", CLAIM_INVENTORY_PROMPT,
+                        {"question": evidence["question"], "answer": evidence["answer"]},
+                        AnswerClaimInventory, lambda value: freeze_answer_spans(value.spans, evidence["answer"]))
+                    faithfulness_payload["claims"] = {f"claim_{i}": c["claim"] for i, c in enumerate(inventory, 1)}
+                    judgment = assess("faithfulness", FAITHFULNESS_PROMPT, faithfulness_payload,
+                                      faithfulness_response_schema(list(context_map), len(inventory)), decode_claims)
+                else:
+                    judgment = validate_judgment({"relevance": relevance, "claims": []}, evidence)
             finally:
                 metrics.input_tokens = sum(a["input_tokens"] for a in attempts)
                 metrics.output_tokens = sum(a["output_tokens"] for a in attempts)

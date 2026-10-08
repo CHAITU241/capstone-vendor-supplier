@@ -300,6 +300,7 @@ class SupplierQuestionRequest(BaseModel):
 
 class EvaluationJudgeRequest(BaseModel):
     run_id: uuid.UUID
+    prior_judgment: dict | None = None
 
 
 class QuestionCitation(BaseModel):

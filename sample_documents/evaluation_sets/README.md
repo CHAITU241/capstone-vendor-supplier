@@ -25,9 +25,9 @@ The default run captures complete redacted generation context and an independent
 docker compose run --rm --build evaluation --judge
 ```
 
-The judge uses backend provider credentials; no keys are copied to the evaluation container. Optionally set `EVALUATION_JUDGE_MODEL` in `backend/.env` to a different supported model/deployment, then rebuild the backend. A blank value reuses the answer model and the report identifies this potential correlation. Protocol **`rag-metric-judge-v2`** separates relevance and faithfulness into two calls per eligible case (normally 242 calls for this run, plus bounded validation retries). Faithfulness receives only actual generation context. Required candidate fields prevent missing relevance verdicts; exact quote/identity validation remains strict. Judge tokens and latency are separate from answering; known usage for rejected and historical attempts is included, with unknown usage explicitly disclosed. Failed/incomplete judgments remain pending with reasons and `--judge` exits nonzero after writing the diagnostic report. No invented metric values are substituted.
+The judge uses backend provider credentials; no keys are copied to the evaluation container. Optionally set `EVALUATION_JUDGE_MODEL` in `backend/.env` to a different supported model/deployment, then rebuild the backend. A blank value reuses the answer model and the report identifies this potential correlation. Protocol **`rag-metric-judge-v3`** freezes exact answer spans in a document-free inventory stage, validates complete coverage/offsets, then scores required fixed claim slots against actual generation context. It cannot add document facts that the answer never asserted. Completed v2 retrieval judgments are reused with fingerprint/prompt checks. A v2-to-v3 reassessment normally needs 242 inventory/support calls and no relevance calls; a fresh assessment needs 362 calls, plus bounded retries. Judge tokens/latency stay separate from answering. Failed judgments remain pending; no invented metric values are substituted.
 
-All inputs and verdicts needed for offline calculation are in JSON: ranked full-text chunks with hashes, supplier pool size, actual generation context, relevance labels, atomic claims, support quotes, rationales and judge provenance. To judge an already captured report without asking new RAG questions (the source backend evaluation records must still exist):
+All inputs and verdicts needed for offline calculation are in JSON: ranked full-text chunks with hashes, supplier pool size, actual generation context, relevance labels, exact answer spans/offsets, support quotes, rationales and judge provenance. To judge an already captured report without asking new RAG questions (the source backend evaluation records must still exist):
 
 ```bash
 docker compose run --rm --build evaluation \
@@ -49,12 +49,12 @@ To recover an earlier partially judged report after upgrading the protocol, pres
 
 ```bash
 docker compose run --rm --build evaluation \
-  --judge-report /app/sample_documents/evaluation_sets/latest_results_judged.json \
-  --output /app/sample_documents/evaluation_sets/latest_results_judged_v2.json \
-  --report-output /app/sample_documents/evaluation_sets/latest_results_judged_v2.md
+  --judge-report /app/sample_documents/evaluation_sets/latest_results_judged_v2.json \
+  --output /app/sample_documents/evaluation_sets/latest_results_judged_v3.json \
+  --report-output /app/sample_documents/evaluation_sets/latest_results_judged_v3.md
 ```
 
-Old LLM prompt-version judgments are reassessed and archived inside the new JSON; all original answers and deterministic scores remain unchanged. Later resumes from the v2 JSON reuse valid v2 judgments and human assessments, retrying only pending/invalid cases. Always choose distinct output paths. Progress and final status explicitly report pending/failed judgments; `run_status=completed` alone refers to the original answer run.
+Previous assessments are archived inside the new JSON; all original answers and deterministic scores remain unchanged. Completed v2 retrieval labels are reused; only faithfulness is reassessed. Progress is checkpointed after every question. Later resumes from the v3 JSON reuse valid v3 judgments and human assessments, retrying only pending/invalid cases. Always choose distinct output paths. Progress and final status explicitly report pending/failed judgments; `run_status=completed` alone refers to the original answer run.
 
 Old reports that contain only IDs/distances and truncated excerpts cannot retroactively supply a top-10/context snapshot. They retain pending metrics and require a new evidence-enabled run. Existing answers are never replaced by judging. See `RAG_METRICS.md` at the repository root for formulas, coverage and the short-corpus caveat: a three-chunk supplier can score at most 30% on fixed-denominator Precision@10 even when every returned chunk is relevant. Returned-chunk precision is reported alongside it. Answer generation remains top-4 by default; top-10 is a separate retrieval audit.
 

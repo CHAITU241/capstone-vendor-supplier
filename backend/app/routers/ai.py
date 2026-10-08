@@ -396,7 +396,8 @@ def judge_saved_evaluation(
             for d in supplier.documents
         ])
         started = time.perf_counter()
-        result = _get_ai_service().judge_rag_evidence(evidence)
+        result = (_get_ai_service().judge_rag_evidence(evidence, prior_judgment=payload.prior_judgment)
+                  if payload.prior_judgment else _get_ai_service().judge_rag_evidence(evidence))
         labels = validate_judgment(result.value.model_dump(), evidence)
     except MetricJudgeFailure as exc:
         assessment = {**exc.assessment(), "method": "llm_judge", "provider": settings.ai_provider,

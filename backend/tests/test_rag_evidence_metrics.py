@@ -9,7 +9,7 @@ import pytest
 
 from app.services.rag_evaluation import (
     EVIDENCE_VERSION, JUDGE_PROMPT_VERSION, chunk_snapshot, fingerprint, metric_summary, question_metrics,
-    validate_evidence, validate_judgment,
+    validate_evidence, validate_judgment, freeze_answer_spans,
 )
 from scripts.run_quality_evaluation import main, render_evidence_metrics, judge_report
 
@@ -27,6 +27,8 @@ def fixture():
             'claims':[{'claim':'Payment is Net 45 days from accepted invoice.','supported':True,
                        'support':[{'chunk_id':chunks[0]['chunk_id'],'quote':chunks[0]['text']}],'rationale':'Explicit terms','support_kind':'explicit'},
                       {'claim':'There is no deductible.','supported':False,'support':[], 'rationale':'Not in context','support_kind':'unsupported'}]}
+    for claim, anchor in zip(labels['claims'], freeze_answer_spans([c['claim'] for c in labels['claims']], evidence['answer'])):
+        claim.update(anchor)
     judgment={'status':'completed','method':'llm_judge','model_or_reviewer':'independent-judge',
               'assessed_at':'2026-10-08T10:00:00+00:00','evidence_sha256':fingerprint(evidence),
               'prompt_version':JUDGE_PROMPT_VERSION,'labels':labels,'input_tokens':50,'output_tokens':20,'latency_ms':100}
@@ -130,6 +132,8 @@ def test_recalculation_uses_saved_labels_without_network_or_changing_source(tmp_
 def test_macro_claim_score_and_micro_claim_support_have_distinct_denominators():
     s,q=fixture();second=copy.deepcopy(q);second['id']='single-claim'
     second['metric_judgment']['labels']['claims']=second['metric_judgment']['labels']['claims'][:1]
+    second['answer']=second['metric_evidence']['answer']=second['metric_judgment']['labels']['claims'][0]['claim']
+    second['metric_judgment']['evidence_sha256']=fingerprint(second['metric_evidence'])
     s['questions'].append(second);metrics=metric_summary([s])
     assert metrics['faithfulness']['value']==0.75
     assert metrics['faithfulness']['micro_claim_support']==0.6667

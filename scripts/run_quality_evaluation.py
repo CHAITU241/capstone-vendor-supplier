@@ -27,7 +27,7 @@ NOT_FOUND_ANSWER = "Information not found in uploaded supplier documents."
 EVALUATOR_VERSION = "rag-evaluator-v5"
 
 sys.path.insert(0, str(ROOT / "backend" if (ROOT / "backend").is_dir() else ROOT))
-from app.services.rag_evaluation import JUDGE_PROMPT_VERSION, metric_summary, question_metrics
+from app.services.rag_evaluation import JUDGE_PROMPT_VERSION, metric_summary, question_metrics, reusable_relevance
 
 
 class EvaluationRequestError(RuntimeError):
@@ -961,7 +961,7 @@ def percentage(value: float | None) -> str:
     return "N/A" if value is None else f"{value * 100:.1f}%"
 
 
-def judge_report(result: dict, base_url: str, headers: dict) -> None:
+def judge_report(result: dict, base_url: str, headers: dict, checkpoint=None) -> None:
     """Add independent semantic judgments; never change recorded answers or scores."""
     for supplier in result["suppliers"]:
         for question in supplier["questions"]:
@@ -980,7 +980,9 @@ def judge_report(result: dict, base_url: str, headers: dict) -> None:
                     raise ValueError("This run lacks full metric evidence/run IDs; rebuild the backend and run a new evaluation.")
                 received = request_json(
                     "POST", f"{base_url}/suppliers/{supplier['supplier_id']}/evaluation/judge",
-                    json={"run_id":question["run_id"]}, headers=headers, timeout=480,
+                    json={"run_id":question["run_id"], **({"prior_judgment": prior}
+                          if reusable_relevance(prior, question["metric_evidence"]) is not None else {})},
+                    headers=headers, timeout=600,
                 )
                 question["metric_judgment"] = received
                 if not isinstance(received, dict) or received.get("prompt_version") != JUDGE_PROMPT_VERSION:
@@ -990,8 +992,21 @@ def judge_report(result: dict, base_url: str, headers: dict) -> None:
                     raise ValueError(checked["reason"])
             except (ValueError, RuntimeError, requests.RequestException) as exc:
                 assessment = getattr(exc, "response_body", {}).get("metric_judgment")
-                question["metric_judgment"] = assessment if isinstance(assessment, dict) else {
+                failed = assessment if isinstance(assessment, dict) else {
                     **(received if isinstance(received, dict) else {}), "status":"error", "reason":str(exc)}
+                if reusable_relevance(prior, question.get("metric_evidence", {})) is not None:
+                    # Keep valid retrieval labels available if the separate faithfulness call fails.
+                    question["metric_judgment"] = copy.deepcopy(prior)
+                    question["metric_judgment_history"].pop()  # prior remains current, not duplicated in usage
+                    question["metric_judgment_history"].append(failed)
+                    question["faithfulness_reassessment_error"] = str(exc)
+                else:
+                    question["metric_judgment"] = failed
+            else:
+                question.pop("faithfulness_reassessment_error", None)
+            if checkpoint:
+                refresh_evidence_metrics(result)
+                checkpoint(result)
         items = [question_metrics(q, supplier["supplier_id"], supplier["documents"])
                  for q in supplier["questions"] if q["expected_information_found"] or q["information_found"]]
         completed = sum(all(m[key] in {"completed", "not_applicable"} for key in ("precision_status", "faithfulness_status")) for m in items)
@@ -1020,7 +1035,7 @@ def render_evidence_metrics(result: dict) -> list[str]:
         lines.append(f"| {label} | {percentage(metric.get('value'))} | {metric.get('scored_questions',0)}/{metric.get('eligible_questions',0)} | {metric['status']} |")
     lines.extend(["", "Precision@10 is relevant chunks / 10, macro-averaged over answerable questions. It uses an independent raw top-10 supplier-filtered retrieval audit with the same query embedding, before the distance filter. Answer generation keeps its configured top-k and distance threshold. When a supplier has fewer than ten chunks, unfilled positions contribute zero; this limits its maximum Precision@10. Returned-chunk precision is also shown to distinguish relevance from corpus size. Unsupported questions are excluded from this retrieval metric and assessed through fallback safety.",
                   "", "Faithfulness is supported factual claims / all factual claims in each asserted answer, macro-averaged across asserted answers, including incorrect assertions on unsupported questions. Support is judged against the exact context given to the answering model, not all original PDFs or the wider top-10 audit. Abstentions have no claim denominator and are excluded; safe fallback is reported separately. This does not measure answer completeness, real-world truth or causal reliance on context.",
-                  "", "A full-set score is N/A until every eligible question is judged. The JSON retains full ranked chunk text and hashes, actual generation context, relevance verdicts, atomic claims, verbatim support quotes, rationales, judge identity/version and usage. It can be recalculated without querying the backend or model. Judge labels are semantic judgments, not ground truth; review disagreements and calibrate against human labels."])
+                  "", "A full-set score is N/A until every eligible question is judged. The JSON retains full ranked chunk text and hashes, actual generation context, relevance verdicts, answer-anchored claim spans and offsets, verbatim support quotes, rationales, judge identity/version and usage. It can be recalculated without querying the backend or model. Protocol v3 freezes an exact partition of the answer before exposing documents, then scores required fixed claim slots. Older unanchored LLM claim scores remain pending reassessment. Judge labels are semantic judgments, not ground truth; review disagreements and calibrate against human labels."])
     precision, faithfulness = metrics["precision_at_10"], metrics["faithfulness"]
     lines.extend(["", f"Scored-subset Precision@10: {percentage(precision.get('scored_subset_value'))}; scored-subset returned-chunk precision: {percentage(precision.get('returned_precision'))}; answerable questions with fewer than ten indexed chunks: {precision.get('short_corpus_questions') if precision.get('short_corpus_questions') is not None else 'not recorded'}.",
                   f"Scored-subset faithfulness: {percentage(faithfulness.get('scored_subset_value'))}; supported/total claims: {faithfulness.get('supported_claims',0)}/{faithfulness.get('claims_total',0)}; micro claim support: {percentage(faithfulness.get('micro_claim_support'))}; fully supported asserted answers: {faithfulness.get('fully_supported_answers',0)}."])
@@ -1267,9 +1282,10 @@ def main() -> None:
         )
     refresh_evidence_metrics(result)
     if args.judge or args.judge_report:
+        write_reports(result, args.output, args.report_output)
         judge_report(result, args.base_url.rstrip("/"), reviewer_headers(
             args.base_url.rstrip("/"), args.reviewer_email, args.reviewer_password,
-        ))
+        ), checkpoint=lambda saved: write_checkpoint(saved, args.output, args.report_output))
     write_reports(result, args.output, args.report_output)
     print("summary=" + json.dumps(result["summary"]), flush=True)
     print(f"results={args.output.resolve()}", flush=True)
@@ -1281,6 +1297,18 @@ def main() -> None:
             print("Metric judging INCOMPLETE: outputs were saved, but invalid/missing judgments remain pending. "
                   "Resume from this saved judged JSON with separate output paths; do not rerun answer generation.", file=sys.stderr, flush=True)
             raise SystemExit(1)
+
+
+def write_checkpoint(result: dict, output: Path, report_output: Path) -> None:
+    """Save progress per question, preserving source and without growing archival copies."""
+    for path, content in ((output, json.dumps(result, indent=2)), (report_output, render_markdown_report(result))):
+        path.parent.mkdir(parents=True, exist_ok=True)
+        staged = path.with_name(path.name + ".checkpoint.tmp")
+        try:
+            staged.write_text(content, encoding="utf-8")
+            staged.replace(path)
+        finally:
+            staged.unlink(missing_ok=True)
 
 
 def write_reports(result: dict, output: Path, report_output: Path) -> None:

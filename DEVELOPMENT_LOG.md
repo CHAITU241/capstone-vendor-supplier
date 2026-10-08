@@ -599,3 +599,10 @@ After each meaningful implementation session, update this file with:
 - Important architectural decisions and their reason.
 - Verification commands and known failures.
 - The exact next implementation checklist.
+
+
+## 2026-10-08 — Anchor faithfulness to observed answers
+
+The v2 judged report showed supported claims drawn from documents but absent from the observed answer. Replaced the free-form claim denominator with a document-free, exact answer-span inventory and fixed support-verdict slots. Validated ordered full-answer coverage and character offsets; retained question interpretation for short factual answers. Historical unanchored LLM faithfulness is pending, while v2 relevance can be reused after evidence/prompt/provenance validation. Added per-question report checkpoints and preserved retrieval/usage if faithfulness reassessment fails. Production RAG, synthetic corpus, deterministic rubric and captured observations are unchanged. Owner credentials remain necessary for the final faithfulness-only reassessment; no scored results are fabricated.
+
+Validation: 430 backend tests passed; frontend production build passed (existing bundle-size warning); manifest validation passed for all 15 suppliers / 45 readable PDFs / 150 questions / 135 source-scoped checks. Static Compose/image wiring passed. The uploaded v2 report independently verified 121 reusable relevance assessments and unchanged Precision@10 17.08% / macro returned precision 45.06%. Docker execution and the credentialed v3 reassessment remain owner-side.
