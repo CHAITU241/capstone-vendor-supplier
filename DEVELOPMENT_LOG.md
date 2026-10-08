@@ -4,6 +4,14 @@ This file is the short resumption context for future AI or developer sessions.
 Read this file first, then open only the files relevant to the next task.
 The complete product intent remains in `PROJECT_BLUEPRINT.md`.
 
+## 2026-10-08 — Corrected deterministic evaluator and auditable reassessment
+
+- Versioned `rag-evaluator-v2` accepts labelled state/PIN formatting, equivalent conflict uncertainty and explicitly justified corroborating sources. Unique/task-specific evidence remains required; contradictory or unrelated citations remain failures. Production models and prompts are unchanged.
+- Live evaluation and offline reassessment share one scoring function. Offline mode preserves source responses, retrieval, citations, processing and measured usage/latency; it records the original report hash/run/manifest and component changes and protects source/live-latest output paths.
+- Preserved the original scoring manifest; changed only three scenario citation contracts in current scoring revision 2. PDF hashes, questions, answer facts and baseline supplier records remain unchanged.
+- The owner-provided 100-question live run reassesses to 99/100, correcting eight evaluator false negatives. One insurer/expiry case still fails its citation rule because contradictory registration evidence is cited without explanation. No fresh model calls were made for this reassessment.
+- Validation: 183 backend tests passed; corpus preflight passed during reassessment; original responses/citations/retrieval/processing/latency/tokens verified unchanged. Regression cases cover wrong/missing state/PIN, wrong facts, unrelated/missing unique sources, explicit winner claims, offline provenance and protected live-report paths.
+
 ## 2026-10-08 — Windows OCR transcript checkout compatibility
 
 - Reproduced the preflight checksum error by converting the unchanged authoring transcripts from LF to Windows CRLF.

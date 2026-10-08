@@ -39,7 +39,8 @@
       ],
       "expected_dates": [],
       "expected_sources": [
-        "01_supplier_registration_form.pdf"
+        "01_supplier_registration_form.pdf",
+        "02_gst_registration_certificate.pdf"
       ],
       "information_found": true
     },
@@ -53,9 +54,13 @@
       ],
       "expected_dates": [],
       "expected_sources": [
-        "02_gst_registration_certificate.pdf"
+        "02_gst_registration_certificate.pdf",
+        "01_supplier_registration_form.pdf"
       ],
-      "information_found": true
+      "information_found": true,
+      "required_sources": [
+        "02_gst_registration_certificate.pdf"
+      ]
     },
     {
       "id": "accounts_payable",
@@ -97,9 +102,14 @@
       ],
       "expected_dates": [],
       "expected_sources": [
-        "01_supplier_registration_form.pdf"
+        "01_supplier_registration_form.pdf",
+        "03_certificate_of_liability_insurance.pdf",
+        "02_gst_registration_certificate.pdf"
       ],
-      "information_found": true
+      "information_found": true,
+      "required_sources": [
+        "01_supplier_registration_form.pdf"
+      ]
     },
     {
       "id": "address_for_master",

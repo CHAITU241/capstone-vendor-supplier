@@ -104,6 +104,17 @@ def scenario_cases(s):
     cases = [{"id": qid, "question_type": "scenario_based", "question": question,
               "expected_terms": terms, "expected_dates": dates, "expected_sources": sources,
               "information_found": True} for qid, question, terms, dates, sources in specs]
+    # Allow corroborating originals only where they contain requested facts;
+    # still require the source of unique/task-specific facts.
+    for case in cases:
+        if case["id"] == "erp_names":
+            case["expected_sources"] = [reg, tax]  # Both state both names.
+        elif case["id"] == "gst_status":
+            case["expected_sources"] = [tax, reg]  # Registration corroborates name.
+            case["required_sources"] = [tax]
+        elif case["id"] == "supplier_handover":
+            case["expected_sources"] = [reg, ins, tax]
+            case["required_sources"] = [reg]  # Payment terms occur only here.
     for qid, question in [
         ("payment_bank_missing", "AP is ready to pay. Which beneficiary bank account number should we use?"),
         ("approval_missing", "Can you confirm that the reviewer has approved this supplier for ERP onboarding from these uploaded documents?")]:
@@ -164,7 +175,7 @@ def main():
         entry["document_sha256"] = {kind:hashlib.sha256((directory/name).read_bytes()).hexdigest() for kind,name in entry["documents"].items()}
         (directory / "ground_truth.json").write_text(json.dumps(entry, indent=2), encoding="utf-8")
         entries.append(entry)
-    manifest = {"version":4, "description":"Baseline facts plus image-only scans, contradictory originals and procurement-style scenarios; all synthetic.",
+    manifest = {"version":4, "scoring_revision":2, "description":"Baseline facts plus image-only scans, contradictory originals and procurement-style scenarios; all synthetic.",
                 "expected_counts":{"suppliers":10,"documents":30,"questions":100,
                   "question_types":{"direct_fact":32,"paraphrased_fact":16,"date_interpretation":7,"multi_fact":9,"safe_not_found":20,"conflict_resolution":8,"scenario_based":8}},
                 "suppliers":entries}

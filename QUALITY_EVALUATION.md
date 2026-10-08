@@ -1,6 +1,6 @@
 # SourceSure AI Controlled Quality Evaluation
 
-The active manifest is **version 4: 10 synthetic suppliers, 30 source PDFs, 100 RAG questions and 90 policy-field extraction checks**. The expanded live run remains pending; adding evidence does not establish a new accuracy score.
+The active manifest is **version 4, scoring revision 2: 10 synthetic suppliers, 30 source PDFs, 100 RAG questions and 90 policy-field extraction checks**. The owner supplied a completed live run on 8 October 2026. Reassessment of its saved responses with `rag-evaluator-v2` scores **99/100**; this is an offline scoring correction, not a new model run or model improvement.
 
 ## Evidence and question coverage
 
@@ -32,6 +32,10 @@ Each conflicting-evidence supplier has four questions that require both disagree
 ## Scoring contract
 
 A strict RAG pass requires the expected answer components, correct found/not-found decision, valid expected citations and supplier isolation. Conflict questions additionally require their declared source citations and lexical conflict/uncertainty guards. Unsupported questions must return the exact safe fallback with zero citations. Model errors remain failed cases; expected facts are authored before a run.
+
+Evaluator v2 accepts separately labelled state and six-digit PIN values without dropping either expected component. It recognizes refusal to diary/record/use a confirmed value, and a direct negative answer to a question asking whether one agreed value exists. Explicit winner assertions remain rejected. These are deterministic lexical guards, not a semantic judge.
+
+Corroborating originals are allowed only where they contain requested facts. Both registration and tax state the legal/trading names. The GST-status question still requires the tax certificate, while permitting registration to corroborate the name. The procurement handover still requires registration for payment terms, while permitting insurance/tax to corroborate other requested facts. The insurer-and-expiry question retains its insurance-only citation rule because the registration summary contains a conflicting expiry. The original scoring manifest is pinned as `evaluation_manifest_scoring_v1.json`; PDF bytes, question wording, expected facts and the five baseline supplier records remain unchanged.
 
 Extraction scores **90 current policy fields across 20 registration/tax originals**, checked within the document that supplied each field. The ten supplementary liability certificates are explicitly RAG-only because the legacy `insurance` type has no policy extraction field contract. This evaluates extraction and grounded Q&A, not full supplier approval or every category policy. Production allow-lists and RAG prompts are unchanged.
 
@@ -69,6 +73,17 @@ A completed live run writes these files in the host repository:
 - `sample_documents/evaluation_sets/latest_results.md`
 
 Existing latest reports are copied byte-for-byte into `results_archive/<timestamp_uuid>/` before replacement. Preflight and unit tests do not publish placeholder scores. An interrupted run does not publish a new final report. Until a version-4 live run completes, an existing latest report still describes its recorded manifest version and question count.
+
+To reassess the completed owner run offline, keep its `latest_results.json` and specify separate output paths:
+
+```bash
+docker compose run --rm --build evaluation \
+  --rescore sample_documents/evaluation_sets/latest_results.json \
+  --output sample_documents/evaluation_sets/rescored_results_v2.json \
+  --report-output sample_documents/evaluation_sets/rescored_results_v2.md
+```
+
+The same scoring function is used by live evaluation and offline reassessment. Offline mode checks source document hashes, supplier/question identities, wording and answerability against the scoring corpus; it records the source report hash, source run/manifest identity, evaluator version and component changes. Answers, citations, retrieval, processing, latency and token observations are copied unchanged. Default live `latest_results` paths and the input source file are protected from replacement. A new live run after pulling the fix uses evaluator v2 automatically.
 
 JSON retains run/manifest provenance, original hashes and metadata, supplier IDs, expected/actual field values, processing diagnostics, question answers and gold assertions, citation excerpts, retrieved chunk IDs/distances, model/prompt versions, tokens and latency. Markdown reports strict end-to-end and component accuracies, failures by component, per-type/per-supplier/per-cohort results, OCR execution evidence, average/P50/P95/max latency, usage, extraction mismatches and limitations. Q&A tokens are separated from extraction/indexing usage.
 

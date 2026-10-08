@@ -127,3 +127,98 @@ def test_expanded_report_exposes_cohort_ocr_and_conflict_failures():
     assert "OCR execution evidence" in report and "56 (review)" in report
     assert "citation, uncertainty" in report
     assert "not independently sampled real user traffic" in report
+
+
+@pytest.mark.parametrize('state,pin,unit,expected', [
+    ('Karnataka', '560099', 'Unit 63', True),
+    ('Tamil Nadu', '560099', 'Unit 63', False),
+    ('Karnataka', '560098', 'Unit 63', False),
+    ('Karnataka', '5600999', 'Unit 63', False),
+    ('Karnataka', '', 'Unit 63', False),
+    ('Karnataka', '560099', 'Unit 64', False),
+])
+def test_structured_address_accepts_labels_but_requires_every_correct_component(state,pin,unit,expected):
+    case={'id':'address_for_master','expected_terms':['Unit 63','Bommasandra Industrial Area','Bengaluru','Karnataka 560099']}
+    answer=f'Street: {unit}\nLocality: Bommasandra Industrial Area\nCity: Bengaluru\nState: {state}\nPIN Code: {pin}'
+    assert answer_matches(answer,case) is expected
+
+
+@pytest.mark.parametrize('answer,question,expected', [
+    ('The dates differ. You cannot diary one confirmed expiry date.', 'Can I diary one confirmed date?', True),
+    ('The dates differ. We cannot record a confirmed date.', 'Can I diary one confirmed date?', True),
+    ('No, the stated payment terms are different: Net 30 versus Net 60.', 'Is there one agreed term?', True),
+    ('No, the stated payment terms are different: Net 30 versus Net 60.', 'Does the tax document exist?', False),
+    ('No, the terms are different. I will use Net 60.', 'Is there one agreed term?', False),
+    ('The terms conflict and require clarification. The registration term is authoritative.', 'Is there one agreed term?', False),
+    ('The terms are different: Net 30 versus Net 60.', 'Is there one agreed term?', False),
+])
+def test_equivalent_uncertainty_is_question_bound_and_rejects_a_winner(answer,question,expected):
+    case={'question':question,'requires_conflict_acknowledgement':True,'requires_uncertainty':True}
+    assert conflict_checks(answer,case)['uncertainty_match'] is expected
+
+
+@pytest.mark.parametrize('case_id,cited,expected', [
+    ('erp_names',['registration','tax'],True),
+    ('erp_names',['tax'],True),
+    ('erp_names',['insurance'],False),
+    ('gst_status',['tax','registration'],True),
+    ('gst_status',['registration'],False),
+    ('supplier_handover',['registration','insurance'],True),
+    ('supplier_handover',['insurance'],False),
+    ('supplier_handover',['registration','unknown'],False),
+])
+def test_corroboration_keeps_unique_fact_and_task_sources_required(case_id,cited,expected):
+    from scripts.run_quality_evaluation import score_response
+    entry=json.loads(MANIFEST.read_text())['suppliers'][-1]
+    case=next(q for q in entry['questions'] if q['id']==case_id)
+    docs=[{'id':kind,'filename':filename,'page_count':1} for kind,filename in entry['documents'].items()]
+    docs.append({'id':'unknown','filename':'unrelated.pdf','page_count':1})
+    body={'answer':' '.join(case['expected_terms']),'information_found':True,
+          'citations':[{'filename':next(d['filename'] for d in docs if d['id']==kind),'page_number':1,'chunk_id':f'supplier:{kind}:0','excerpt':'facts'} for kind in cited],
+          'run':{'retrieval_count':len(cited),'details':{'retrieved_chunk_ids':[f'supplier:{kind}:0' for kind in cited]}}}
+    checks=score_response(body,'supplier',case,[],docs)
+    assert checks['answer_match'] and checks['isolation_match']
+    assert checks['citation_match'] is expected and checks['passed'] is expected
+
+
+def test_offline_rescoring_preserves_observations_and_rejects_changed_questions(tmp_path,monkeypatch):
+    from scripts.run_quality_evaluation import rescore_evaluation
+    docs=[{'id':'reg','supplier_id':'supplier','document_type':'registration','filename':'reg.pdf','page_count':1,'sha256':'reg-hash'},
+          {'id':'tax','supplier_id':'supplier','document_type':'tax','filename':'tax.pdf','page_count':1,'sha256':'tax-hash'}]
+    case={'id':'name','question_type':'direct_fact','question':'What is the name?','expected_terms':['Demo'],
+          'expected_sources':['reg.pdf','tax.pdf'],'information_found':True}
+    q={**case,'answer':'Demo','passed':False,'answer_match':True,'found_match':True,'citation_match':False,
+       'safe_fallback_match':None,'isolation_match':True,'conflict_match':None,'uncertainty_match':None,
+       'expected_information_found':True,'retrieval_count':2,'retrieved_chunk_ids':['supplier:reg:0','supplier:tax:0'],
+       'retrieval_distances':[.4,.5],'api_latency_ms':123,'recorded_latency_ms':100,'input_tokens':20,'output_tokens':5,
+       'model':'test','prompt_version':'test',
+       'citations':[{'chunk_id':f'supplier:{d["id"]}:0','filename':d['filename'],'page_number':1,'excerpt':'Demo'} for d in docs]}
+    source={'evaluated_at':'original-time','run_id':'original-run','manifest_version':4,'manifest_sha256':'original-manifest',
+            'base_url':'http://test','summary':{'questions_passed':0,'evaluation_elapsed_ms':500},
+            'suppliers':[{'slug':'demo','supplier_id':'supplier','documents':docs,'fields':{'passed':0,'total':0},'questions':[q]}]}
+    source_path=tmp_path/'live.json';source_path.write_text(json.dumps(source));before=source_path.read_bytes()
+    manifest_path=tmp_path/'manifest.json';manifest_path.write_text('scoring-manifest')
+    manifest={'version':4,'suppliers':[{'slug':'demo','create_payload':{'name':'Demo'},'questions':[case],
+              'documents':{'registration':'reg.pdf','tax':'tax.pdf'},'document_sha256':{'registration':'reg-hash','tax':'tax-hash'}}]}
+    monkeypatch.setattr('scripts.run_quality_evaluation.validate_manifest',lambda _:manifest)
+    def forbidden(*args,**kwargs):raise AssertionError('Offline rescoring must not call the API')
+    monkeypatch.setattr('scripts.run_quality_evaluation.request_json',forbidden)
+    result=rescore_evaluation(source_path,manifest_path)
+    assert result['summary']['questions_passed']==1
+    assert result['evaluation_mode']=='offline_rescore' and result['run_id']==source['run_id']
+    new_q=result['suppliers'][0]['questions'][0]
+    for key in ['answer','citations','retrieved_chunk_ids','retrieval_distances','api_latency_ms','recorded_latency_ms','input_tokens','output_tokens','model','prompt_version']:
+        assert new_q[key]==q[key]
+    assert source_path.read_bytes()==before and source['suppliers'][0]['questions'][0]['passed'] is False
+    assert result['rescoring']['source_report_sha256']==hashlib.sha256(before).hexdigest()
+    assert 'Offline' in result['rescoring']['method']
+    source['suppliers'][0]['questions'][0]['question']='A different question'
+    source_path.write_text(json.dumps(source))
+    with pytest.raises(ValueError,match='new live run'):
+        rescore_evaluation(source_path,manifest_path)
+
+
+def test_offline_cli_cannot_replace_live_latest_reports(tmp_path):
+    import subprocess,sys
+    result=subprocess.run([sys.executable,str(ROOT/'scripts/run_quality_evaluation.py'),'--rescore',str(tmp_path/'missing.json')],capture_output=True,text=True)
+    assert result.returncode==2 and 'preserve the source and live latest reports' in result.stderr

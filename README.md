@@ -60,7 +60,7 @@ See [MONITORING_SETUP.md](MONITORING_SETUP.md) for the three monitoring and eval
 
 ## Controlled quality evaluation
 
-The current package has 10 synthetic suppliers, 30 PDFs and 100 RAG questions, including six image-only scans, conflicting originals and broader onboarding scenarios. Run `docker compose run --rm --build evaluation` against the configured backend to generate JSON and Markdown reports. See [QUALITY_EVALUATION.md](QUALITY_EVALUATION.md) for the question split, scoring rubric, OCR checks and run instructions. Expanded live scores remain pending until this command completes.
+The current package has 10 synthetic suppliers, 30 PDFs and 100 RAG questions, including six image-only scans, conflicting originals and broader onboarding scenarios. Run `docker compose run --rm --build evaluation` against the configured backend to generate JSON and Markdown reports. See [QUALITY_EVALUATION.md](QUALITY_EVALUATION.md) for the question split, evaluator v2 rubric, OCR checks and live/offline reassessment instructions. The completed owner run scores 99/100 when its saved answers are reassessed with evaluator v2; this scoring correction is not a new model run.
 
 ## AI provider selection
 

@@ -1,6 +1,7 @@
 """Run repeatable extraction and grounded-Q&A evaluation against the live API."""
 
 import argparse
+import copy
 import hashlib
 import json
 import math
@@ -22,6 +23,7 @@ DEFAULT_MANIFEST = (
     ROOT / "sample_documents" / "evaluation_sets" / "evaluation_manifest.json"
 )
 NOT_FOUND_ANSWER = "Information not found in uploaded supplier documents."
+EVALUATOR_VERSION = "rag-evaluator-v2"
 
 
 def normalized(value: str) -> str:
@@ -50,9 +52,25 @@ def dates_in(value: str) -> set[str]:
 
 
 def answer_matches(answer: str, case: dict) -> bool:
+    value = normalized(answer)
+
+    def term_matches(term: str) -> bool:
+        expected = normalized(term)
+        if re.search(r"\b" + re.escape(expected) + r"\b", value):
+            return True
+        # Address components may be supplied as separately labelled fields.
+        # Preserve every expected state/PIN value, without requiring adjacency.
+        if "address" in case.get("id", ""):
+            state_pin = re.fullmatch(r"([a-z ]+) (\d{6})", expected)
+            if state_pin:
+                state, pin = state_pin.groups()
+                return bool(re.search(r"\b" + re.escape(state) + r"\b", value)
+                            and re.search(r"\b" + pin + r"\b", value))
+        return False
+
     return (
-        all(normalized(term) in normalized(answer) for term in case["expected_terms"])
-        and all(any(normalized(term) in normalized(answer) for term in group) for group in case.get("expected_term_groups", []))
+        all(term_matches(term) for term in case["expected_terms"])
+        and all(any(term_matches(term) for term in group) for group in case.get("expected_term_groups", []))
         and set(case.get("expected_dates", [])) <= dates_in(answer)
     )
 
@@ -63,12 +81,28 @@ def conflict_checks(answer: str, case: dict) -> dict[str, bool | None]:
     acknowledgement = bool(re.search(r"\b(conflict\w*|disagree\w*|different|differ\w*|inconsisten\w*|discrepan\w*|mismatch\w*)\b", value))
     uncertainty = bool(re.search(
         r"\b(unclear|unresolved|insufficient|unconfirmed)\b|"
-        r"\b(cannot|can t|unable to)\b.{0,55}\b(confirm|determine|establish|choose|verify)\b|"
+        r"\b(cannot|can t|unable to)\b.{0,55}\b(confirm|determine|establish|choose|verify|diary|record|use|enter|set)\b|"
         r"\b(not|no|neither)\b.{0,35}\b(confirmed|established|precedence|definitive|authoritative|confirmation)\b|"
         r"\b(clarif\w*|confirm\w*|verif\w*)\b.{0,35}\b(required|needed|necessary)\b|"
         r"\b(need\w*|require\w*|should|must)\b.{0,55}\b(clarif\w*|confirm\w*|verif\w*)\b",
         value,
     ))
+    # A direct "No" to a question asking whether there is one agreed value
+    # is an explicit refusal to treat the conflict as resolved. Bind this
+    # interpretation to the question and require conflict acknowledgement.
+    asks_for_agreement = bool(re.search(
+        r"\bis there (?:one|a single) (?:agreed|confirmed) (?:term|value|date|address)\b",
+        normalized(case.get("question", "")),
+    ))
+    uncertainty = uncertainty or (acknowledgement and asks_for_agreement and bool(re.match(r"no\b", value)))
+    unsupported_winner = bool(re.search(
+        r"\b(?:i|we)(?: will| would| ll)? (?:choose|select|use)\b", value,
+    )) or any(re.match(
+        r"(?:the(?: registration| tax| insurance| policy)?|this|that) "
+        r"(?:date|term|value|address) (?:is|are) (?:confirmed|authoritative|definitive|correct)\b",
+        normalized(clause),
+    ) for clause in re.split(r"[.!?;]+", answer))
+    uncertainty = uncertainty and not unsupported_winner
     return {
         "conflict_match": acknowledgement if case.get("requires_conflict_acknowledgement") else None,
         "uncertainty_match": uncertainty if case.get("requires_uncertainty") else None,
@@ -308,23 +342,9 @@ def verify_ocr_execution(entry: dict, documents: list[dict]) -> None:
         raise RuntimeError("Scanned originals did not pass through backend OCR. Enable OCR and rebuild the backend before evaluation.")
 
 
-def evaluate_question(
-    base_url: str,
-    supplier_id: str,
-    case: dict,
-    other_supplier_names: list[str],
-    headers: dict[str, str],
-    documents: list[dict],
-) -> dict:
-    started = time.perf_counter()
-    body = request_json(
-        "POST",
-        f"{base_url}/suppliers/{supplier_id}/questions",
-        json={"question": case["question"]},
-        headers=headers,
-        timeout=180,
-    )
-    api_latency_ms = round((time.perf_counter() - started) * 1000)
+def score_response(body: dict, supplier_id: str, case: dict,
+                   other_supplier_names: list[str], documents: list[dict]) -> dict:
+    """Shared deterministic rubric for live responses and offline reassessment."""
     answer_match = answer_matches(body["answer"], case)
     found_match = body["information_found"] is case["information_found"]
     citation_names = {item["filename"] for item in body["citations"]}
@@ -373,16 +393,36 @@ def evaluate_question(
     conflict = conflict_checks(body["answer"], case)
     passed = answer_match and found_match and citation_match and isolation_match and all(value is not False for value in conflict.values())
     return {
+        "passed": passed, "answer_match": answer_match, "found_match": found_match,
+        "citation_match": citation_match, "safe_fallback_match": safe_fallback_match,
+        "isolation_match": isolation_match, **conflict,
+    }
+
+
+def evaluate_question(
+    base_url: str,
+    supplier_id: str,
+    case: dict,
+    other_supplier_names: list[str],
+    headers: dict[str, str],
+    documents: list[dict],
+) -> dict:
+    started = time.perf_counter()
+    body = request_json(
+        "POST",
+        f"{base_url}/suppliers/{supplier_id}/questions",
+        json={"question": case["question"]},
+        headers=headers,
+        timeout=180,
+    )
+    api_latency_ms = round((time.perf_counter() - started) * 1000)
+    checks = score_response(body, supplier_id, case, other_supplier_names, documents)
+    retrieved_ids = body["run"].get("details", {}).get("retrieved_chunk_ids", [])
+    return {
         "id": case["id"],
         "question_type": case["question_type"],
         "question": case["question"],
-        "passed": passed,
-        "answer_match": answer_match,
-        "found_match": found_match,
-        "citation_match": citation_match,
-        "safe_fallback_match": safe_fallback_match,
-        "isolation_match": isolation_match,
-        **conflict,
+        **checks,
         "answer": body["answer"],
         "expected_terms": case["expected_terms"],
         "expected_dates": case.get("expected_dates", []),
@@ -654,6 +694,8 @@ def run_evaluation(
         "evaluated_at": datetime.now(UTC).isoformat(),
         "run_id": str(uuid.uuid4()),
         "manifest_version": manifest["version"],
+        "evaluator_version": EVALUATOR_VERSION,
+        "evaluation_mode": "live",
         "manifest_sha256": hashlib.sha256(manifest_path.read_bytes()).hexdigest(),
         "evaluation_scope": ("Policy extraction on registration and tax originals; grounded RAG on all originals. Six image-only scans, two conflicting-evidence suppliers and procurement-style scenarios are included. Full onboarding approval is outside scope."
                              if manifest["version"] == 4 else "Policy extraction on registration and tax documents; grounded RAG across all three documents. Not full onboarding approval or OCR coverage."),
@@ -661,6 +703,69 @@ def run_evaluation(
         "summary": summary,
         "suppliers": results,
     }
+
+
+def rescore_evaluation(source_path: Path, manifest_path: Path) -> dict:
+    """Reassess recorded responses without HTTP calls or changing observations."""
+    source_bytes = source_path.read_bytes()
+    source = json.loads(source_bytes)
+    if source.get("evaluation_mode", "live") != "live":
+        raise ValueError("Rescore the original live report, not a prior reassessment.")
+    manifest = validate_manifest(manifest_path)
+    entries = {s["slug"]: s for s in manifest["suppliers"]}
+    suppliers = source["suppliers"]
+    if source["manifest_version"] != manifest["version"] or len(suppliers) != len(entries) or {s["slug"] for s in suppliers} != set(entries):
+        raise ValueError("Saved report and scoring corpus contain different supplier packs.")
+    if len({s["supplier_id"] for s in suppliers}) != len(suppliers):
+        raise ValueError("Saved report must retain distinct supplier IDs.")
+    result = copy.deepcopy(source)
+    names = {s["slug"]: s["create_payload"]["name"] for s in entries.values()}
+    changes = []
+    component_names = ("passed", "answer_match", "found_match", "citation_match", "safe_fallback_match", "isolation_match", "conflict_match", "uncertainty_match")
+    for supplier in result["suppliers"]:
+        entry = entries[supplier["slug"]]
+        documents = supplier["documents"]
+        if len(documents) != len(entry["documents"]) or {d["document_type"] for d in documents} != set(entry["documents"]):
+            raise ValueError("Saved report has missing or duplicate originals.")
+        for doc in documents:
+            kind = doc["document_type"]
+            if doc["supplier_id"] != supplier["supplier_id"] or doc["filename"] != entry["documents"][kind] or doc["sha256"] != entry["document_sha256"][kind]:
+                raise ValueError("Saved originals differ from the scoring corpus.")
+        cases = {q["id"]: q for q in entry["questions"]}
+        if len(supplier["questions"]) != len(cases) or {q["id"] for q in supplier["questions"]} != set(cases):
+            raise ValueError("Saved report has missing or duplicate questions.")
+        for question in supplier["questions"]:
+            case = cases[question["id"]]
+            if question["question"] != case["question"] or question["question_type"] != case["question_type"] or question["expected_information_found"] != case["information_found"]:
+                raise ValueError("Question wording, type or answerability changed; a new live run is required.")
+            before = {key: question.get(key) for key in component_names}
+            body = {"answer": question["answer"], "information_found": question["information_found"],
+                    "citations": question["citations"], "run": {"retrieval_count": question["retrieval_count"],
+                    "details": {"retrieved_chunk_ids": question["retrieved_chunk_ids"]}}}
+            checks = score_response(body, supplier["supplier_id"], case,
+                                    [name for slug, name in names.items() if slug != supplier["slug"]], documents)
+            question.update(checks)
+            for key in ("expected_terms", "expected_dates", "expected_term_groups", "expected_sources", "required_sources"):
+                question[key] = case.get(key, [])
+            question["gold_rationale"] = case.get("gold_rationale")
+            after = {key: question.get(key) for key in component_names}
+            if before != after:
+                changes.append({"supplier": supplier["slug"], "id": question["id"], "before": before, "after": after})
+    result["summary"] = build_summary(result["suppliers"], source["summary"]["evaluation_elapsed_ms"])
+    result["manifest_sha256"] = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
+    result["evaluator_version"] = EVALUATOR_VERSION
+    result["evaluation_mode"] = "offline_rescore"
+    result["rescoring"] = {
+        "rescore_id": str(uuid.uuid4()), "rescored_at": datetime.now(UTC).isoformat(),
+        "source_run_id": source["run_id"], "source_evaluated_at": source["evaluated_at"],
+        "source_report_sha256": hashlib.sha256(source_bytes).hexdigest(),
+        "source_manifest_sha256": source["manifest_sha256"],
+        "source_evaluator_version": source.get("evaluator_version", "Unversioned original evaluator"),
+        "original_questions_passed": source["summary"]["questions_passed"],
+        "changes": changes,
+        "method": "Offline reassessment using the shared live rubric. Model responses, citations, retrieval, processing, latency and token observations are unchanged. No API calls or supplier writes.",
+    }
+    return result
 
 
 def percentage(value: float | None) -> str:
@@ -678,6 +783,8 @@ def render_markdown_report(result: dict) -> str:
         "",
         f"- Evaluated at: `{result['evaluated_at']}`",
         f"- Manifest version: `{result.get('manifest_version', 'Historical v2')}`",
+        f"- Evaluator version: `{result.get('evaluator_version', 'Unversioned original evaluator')}`",
+        f"- Evaluation mode: **{result.get('evaluation_mode', 'live')}**",
         f"- API: `{result['base_url']}`",
         f"- Dataset: **{dataset['questions']} questions**, **{dataset['suppliers']} suppliers**, **{dataset['documents']} documents**",
         f"- Composition: {dataset['answerable_questions']} answerable and {dataset['safe_not_found_questions']} unsupported/not-found questions",
@@ -686,7 +793,7 @@ def render_markdown_report(result: dict) -> str:
         "",
         "| Metric | Result | Definition |",
         "|---|---:|---|",
-        f"| End-to-end RAG accuracy | {summary['questions_passed']}/{summary['questions_total']} ({percentage(summary['question_accuracy'])}) | Answer, found/not-found decision, citation and supplier isolation must all pass |",
+        f"| End-to-end RAG accuracy | {summary['questions_passed']}/{summary['questions_total']} ({percentage(summary['question_accuracy'])}) | Answer, decision, citation, isolation and applicable conflict/uncertainty checks must all pass |",
         f"| Answer accuracy | {percentage(summary['answer_accuracy'])} | All expected answer terms are present |",
         f"| Found/not-found decision accuracy | {percentage(summary['information_found_accuracy'])} | The response correctly decides whether the evidence contains the answer |",
         f"| Citation accuracy | {percentage(summary['citation_accuracy'])} | Answerable questions cite an expected source document |",
@@ -707,6 +814,13 @@ def render_markdown_report(result: dict) -> str:
         "| Question type | Passed | Accuracy |",
         "|---|---:|---:|",
     ]
+    if result.get("evaluation_mode") == "offline_rescore":
+        provenance = result["rescoring"]
+        lines[lines.index("## Executive results"):lines.index("## Executive results")] = [
+            "This is an offline reassessment of saved responses, not a new model run. Answers, citations, retrieval, processing, latency and token measurements are reused unchanged from the source run.",
+            f"Source run: `{provenance['source_run_id']}`; source report SHA-256: `{provenance['source_report_sha256']}`; rescored at: `{provenance['rescored_at']}`.",
+            "",
+        ]
     for name, metrics in summary["by_question_type"].items():
         lines.append(
             f"| {name.replace('_', ' ').title()} | {metrics['passed']}/{metrics['total']} | {percentage(metrics['accuracy'])} |"
@@ -787,7 +901,7 @@ def render_markdown_report(result: dict) -> str:
         "",
         "## Method and interpretation",
         "",
-        "Each question passes only when expected answer components (including equivalent calendar dates), information-found decision, citation rule and supplier isolation all pass. Citations must use expected source documents and valid retrieved chunk IDs belonging to the evaluated supplier. Safe-not-found cases require the exact guarded fallback with no citations. Every run creates fresh supplier records, checks original PDF hashes and forces extraction/indexing refresh; existing supplier data is preserved. Extraction checks use current policy fields per document, with the legacy liability certificate explicitly RAG-only. Latency wraps the live HTTP request; P50/P95 use nearest rank. Headline token totals cover Q&A; extraction/indexing usage is recorded separately. Scores from different manifest versions must not be presented as a like-for-like improvement.",
+        "Each question passes only when expected answer components (including equivalent calendar dates), information-found decision, citation rule and supplier isolation all pass. Citations must use expected source documents and valid retrieved chunk IDs belonging to the evaluated supplier. Safe-not-found cases require the exact guarded fallback with no citations. Every live run creates fresh supplier records, checks original PDF hashes and forces extraction/indexing refresh; existing supplier data is preserved. Offline reassessment reuses the recorded observations and does not call the backend or model. Extraction checks use current policy fields per document, with the legacy liability certificate explicitly RAG-only. Latency wraps the live HTTP request; P50/P95 use nearest rank. Headline token totals cover Q&A; extraction/indexing usage is recorded separately. Scores from different manifest or evaluator versions must not be presented as a like-for-like model improvement.",
         "",
         "## Limitations",
         "",
@@ -802,7 +916,9 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--base-url", default="http://127.0.0.1:8000/api")
     parser.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST)
-    parser.add_argument("--validate-only", action="store_true", help="Validate the PDF corpus, checksums and policy contract without API calls or writing reports.")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--validate-only", action="store_true", help="Validate the PDF corpus, checksums and policy contract without API calls or writing reports.")
+    mode.add_argument("--rescore", type=Path, help="Reassess a saved live report offline; requires separate output/report paths.")
     parser.add_argument(
         "--reviewer-email",
         default=os.getenv("EVALUATION_REVIEWER_EMAIL"),
@@ -829,12 +945,16 @@ def main() -> None:
         suppliers = manifest["suppliers"]
         print(f"Validated manifest v{manifest['version']}: {len(suppliers)} suppliers, {sum(len(s['documents']) for s in suppliers)} PDFs, {sum(len(s['questions']) for s in suppliers)} questions, {sum(len(f) for s in suppliers for f in s['extraction_expectations'].values())} source-scoped extraction checks.")
         return
-    result = run_evaluation(
-        args.base_url.rstrip("/"),
-        args.manifest.resolve(),
-        args.reviewer_email,
-        args.reviewer_password,
-    )
+    if args.rescore:
+        protected = {args.rescore.resolve(), DEFAULT_MANIFEST.parent / "latest_results.json", DEFAULT_MANIFEST.parent / "latest_results.md"}
+        if args.output.resolve() in protected or args.report_output.resolve() in protected:
+            parser.error("Offline rescoring requires separate --output and --report-output paths; preserve the source and live latest reports.")
+        result = rescore_evaluation(args.rescore.resolve(), args.manifest.resolve())
+    else:
+        result = run_evaluation(
+            args.base_url.rstrip("/"), args.manifest.resolve(),
+            args.reviewer_email, args.reviewer_password,
+        )
     write_reports(result, args.output, args.report_output)
     print("summary=" + json.dumps(result["summary"]), flush=True)
     print(f"results={args.output.resolve()}", flush=True)
