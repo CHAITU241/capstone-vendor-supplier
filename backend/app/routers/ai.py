@@ -378,6 +378,8 @@ def judge_saved_evaluation(
     from app.services.rag_evaluation import (
         JUDGE_PROMPT, JUDGE_PROMPT_VERSION, fingerprint, validate_evidence, validate_judgment,
     )
+    from app.services.openai_service import MetricJudgeFailure
+    from fastapi.responses import JSONResponse
 
     supplier = _get_supplier_with_documents(db, supplier_id)
     if not supplier.is_evaluation:
@@ -396,6 +398,14 @@ def judge_saved_evaluation(
         started = time.perf_counter()
         result = _get_ai_service().judge_rag_evidence(evidence)
         labels = validate_judgment(result.value.model_dump(), evidence)
+    except MetricJudgeFailure as exc:
+        assessment = {**exc.assessment(), "method": "llm_judge", "provider": settings.ai_provider,
+                      "model_or_reviewer": settings.evaluation_judge_model or settings.active_answer_model,
+                      "prompt_version": JUDGE_PROMPT_VERSION,
+                      "prompt_sha256": hashlib.sha256(JUDGE_PROMPT.encode()).hexdigest(),
+                      "evidence_sha256": fingerprint(evidence), "assessed_at": datetime.now(UTC).isoformat()}
+        return JSONResponse(status_code=422, content={"code": "metric_judgment_invalid",
+                            "message": str(exc), "metric_judgment": assessment})
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except HTTPException:
@@ -409,4 +419,6 @@ def judge_saved_evaluation(
             "prompt_sha256":hashlib.sha256(JUDGE_PROMPT.encode()).hexdigest(),
             "evidence_sha256":fingerprint(evidence), "assessed_at":datetime.now(UTC).isoformat(),
             "input_tokens":result.input_tokens, "output_tokens":result.output_tokens,
-            "latency_ms":round((time.perf_counter()-started)*1000), "labels":labels.model_dump()}
+            "latency_ms":round((time.perf_counter()-started)*1000), "labels":labels.model_dump(),
+            "attempts":getattr(result, "attempts", []),
+            "stage_provenance":getattr(result, "stage_provenance", {})}

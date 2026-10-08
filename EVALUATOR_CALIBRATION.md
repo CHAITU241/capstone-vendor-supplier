@@ -2,9 +2,17 @@
 
 Active corpus: manifest v5, scoring revision 3, `rag-evaluator-v5`. It contains 15 suppliers, 45 PDFs / 73 pages, 150 questions and 135 registration/tax field checks. Calibration tests assess the grader, never model accuracy.
 
-## Confirmed grading corrections
+## Latest live run and semantic judge calibration
 
-The latest owner live run is `e5aa6ed4-d4e3-4e8d-8762-591150096673`, captured at `2026-10-08T08:53:30.673632+00:00`. Source JSON SHA-256: `ebdf5b012cb26f74d6ff90f032f93ccb6e886de0cc0fec6c094c518b6e870410`.
+Owner run `819334ef-a531-4626-bed6-67bd4c616df6` (2026-10-08 11:52:05 UTC) records 145/150 deterministic passes, 99/100 core and 46/50 stress. All 150 questions executed and all 45 documents were ready. Answer checks are 147/150, citations 117/120, decisions 149/150, safe fallback 29/30, isolation 150/150 and selected fields 135/135. These observations remain unchanged.
+
+The first captured-run GPT-4.1 assessment yielded 88 structurally accepted and 33 rejected judgments. Full Precision@10 and faithfulness remain pending; subset means must not be advertised as full-suite results. Twenty-six rejections concerned missing/duplicate/incorrect candidate IDs and seven concerned quotations outside the exact context text. Inspection of accepted labels found a faithfulness rationale using an audit-only Varsha clause and a clarification inference rejected merely because it was not explicitly stated.
+
+Protocol **`rag-metric-judge-v2`** isolates input scopes into separate calls, requires every candidate verdict by schema, maps short IDs back to original chunk IDs in code, and retries invalid outputs with feedback at most three times per stage. Inferences quote their premises; finite-context absence audits every actual context chunk. Exact identity/text checks remain strict. Replaced v1 assessments are archived, current valid v2/human assessments can be resumed, and failures/known usage are retained. New tests exercise these real failure classes; tests do not establish the semantic correctness of future LLM judgments. A credentialed v2 run plus human calibration remains necessary before reporting final semantic metrics.
+
+## Historical deterministic grading corrections
+
+The earlier owner live run was `e5aa6ed4-d4e3-4e8d-8762-591150096673`, captured at `2026-10-08T08:53:30.673632+00:00`. Source JSON SHA-256: `ebdf5b012cb26f74d6ff90f032f93ccb6e886de0cc0fec6c094c518b6e870410`.
 
 | Case | Correction | Guard retained |
 |---|---|---|

@@ -1,9 +1,10 @@
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
+import time
 from typing import Generic, Literal, TypeVar
 
-from openai import AzureOpenAI, OpenAI
+from openai import AzureOpenAI, OpenAI, LengthFinishReasonError
 from pydantic import BaseModel, Field
 
 from app.config import Settings, get_settings
@@ -88,6 +89,30 @@ class ModelResult(Generic[T]):
 class EmbeddingResult:
     embeddings: list[list[float]]
     input_tokens: int
+
+
+@dataclass(frozen=True)
+class MetricJudgeResult:
+    value: BaseModel
+    input_tokens: int
+    output_tokens: int
+    attempts: list[dict]
+    stage_provenance: dict
+
+
+class MetricJudgeFailure(ValueError):
+    """Retain rejected outputs and observed usage when bounded retries exhaust."""
+    def __init__(self, reason: str, attempts: list[dict], stage_provenance: dict):
+        super().__init__(reason)
+        self.attempts = attempts
+        self.stage_provenance = stage_provenance
+
+    def assessment(self) -> dict:
+        return {"status": "error", "reason": str(self), "attempts": self.attempts,
+                "stage_provenance": self.stage_provenance,
+                "input_tokens": sum(a["input_tokens"] for a in self.attempts),
+                "output_tokens": sum(a["output_tokens"] for a in self.attempts),
+                "latency_ms": sum(a["latency_ms"] for a in self.attempts)}
 
 
 PROMPT_DIR = Path(__file__).resolve().parents[1] / "prompts"
@@ -391,30 +416,112 @@ class OpenAIService:
                 return result
 
     def judge_rag_evidence(self, evidence: dict):
-        """Optional post-hoc metric judge; independent of answer generation."""
+        """Isolated relevance and faithfulness calls with strict bounded retries."""
         import json
-        from app.services.rag_evaluation import JUDGE_PROMPT, MetricJudgment
+        import hashlib
+        from app.services.rag_evaluation import (
+            RELEVANCE_PROMPT, FAITHFULNESS_PROMPT, JUDGE_PROMPT_VERSION,
+            relevance_response_schema, faithfulness_response_schema,
+            validate_judgment,
+        )
 
         model = self.settings.evaluation_judge_model or self.settings.active_answer_model
-        # No gold answer or original transcript is supplied to the judge.
-        payload = {key: evidence[key] for key in (
-            "question", "answer", "information_found", "retrieval_top_10", "generation_context",
-        )}
+        attempts: list[dict] = []
+        provenance = {name: {"prompt_version": JUDGE_PROMPT_VERSION + ":" + name,
+                             "prompt_sha256": hashlib.sha256(prompt.encode()).hexdigest()}
+                      for name, prompt in (("relevance", RELEVANCE_PROMPT), ("faithfulness", FAITHFULNESS_PROMPT))}
+        # Explicit bounds exclude SDK automatic retries from the attempt count.
+        client = self.client.with_options(timeout=60.0, max_retries=0) if hasattr(self.client, "with_options") else self.client
+
+        def assess(stage, prompt, payload, schema, validate):
+            messages = [{"role": "system", "content": prompt},
+                        {"role": "user", "content": json.dumps(payload, ensure_ascii=False)}]
+            for attempt in range(1, 4):
+                started = time.perf_counter()
+                response = None
+                record = {"stage": stage, "attempt": attempt, "input_tokens": 0,
+                          "output_tokens": 0, "usage_recorded": False}
+                try:
+                    response = client.beta.chat.completions.parse(
+                        model=model, temperature=0, max_completion_tokens=8192,
+                        messages=messages, response_format=schema, **self._structured_output_options(),
+                    )
+                    message = response.choices[0].message
+                    parsed = message.parsed
+                    if parsed is None:
+                        raise ValueError("No structured judgment was returned.")
+                    # Also validates providers/test doubles which bypass SDK parsing.
+                    value = schema.model_validate(parsed.model_dump())
+                    record["output"] = value.model_dump()
+                    result = validate(value)
+                    record["status"] = "accepted"
+                except (ValueError, LengthFinishReasonError) as exc:
+                    record.update(status="rejected", reason=str(exc))
+                    response = response or getattr(exc, "completion", None)
+                    message = response.choices[0].message if response is not None else None
+                    if "output" not in record and message is not None:
+                        record["raw_output"] = getattr(message, "content", None)
+                    # Feedback requests a new verdict; no missing/invalid label becomes false/true by default.
+                    messages.append({"role": "user", "content":
+                        "The previous assessment was rejected by validation: " + str(exc) +
+                        "\nReturn a complete assessment using the required schema. Copy exact contiguous context quotes; "
+                        "do not repair facts or invent support. Required candidate fields/context IDs remain unchanged."})
+                except Exception as exc:
+                    # Provider/auth/network failures remain visible, with no unbounded retry.
+                    record.update(status="error", reason=f"{type(exc).__name__}: metric provider request failed")
+                    result = None
+                finally:
+                    usage = getattr(response, "usage", None)
+                    if usage is not None:
+                        record.update(input_tokens=int(getattr(usage, "prompt_tokens", 0) or 0),
+                                      output_tokens=int(getattr(usage, "completion_tokens", 0) or 0),
+                                      usage_recorded=True)
+                    record["latency_ms"] = round((time.perf_counter() - started) * 1000)
+                    attempts.append(record)
+                if record["status"] == "accepted":
+                    return result
+                if record["status"] == "error":
+                    break
+            raise MetricJudgeFailure(f"{stage} judging failed after {record['attempt']} attempt(s): {record['reason']}",
+                                     attempts, provenance)
+
+        ranked = evidence["retrieval_top_10"]
+        candidate_map = {f"candidate_{i}": c for i, c in enumerate(ranked, 1)}
+        # Relevance receives only the question and ranked candidates. No observed/gold answer.
+        relevance_payload = {"question": evidence["question"],
+                             "candidates": {key: {"filename": c["filename"], "page_number": c["page_number"], "text": c["text"]}
+                                            for key, c in candidate_map.items()}}
+        def decode_relevance(value):
+            return [{"chunk_id": c["chunk_id"], **value.model_dump()[key]} for key, c in candidate_map.items()]
+
+        context_map = {f"context_{i}": c for i, c in enumerate(evidence["generation_context"], 1)}
+        # The raw audit is deliberately impossible to see in this separate request.
+        faithfulness_payload = {"question": evidence["question"], "answer": evidence["answer"],
+                                "information_found": evidence["information_found"],
+                                "generation_context": {key: {"filename": c["filename"], "page_number": c["page_number"], "text": c["text"]}
+                                                       for key, c in context_map.items()}}
+        def decode_claims(value):
+            claims = value.model_dump()["claims"]
+            for claim in claims:
+                for support in claim["support"]:
+                    if support["chunk_id"] not in context_map:
+                        raise ValueError("Support refers outside actual generation context.")
+                    support["chunk_id"] = context_map[support["chunk_id"]]["chunk_id"]
+            combined = {"relevance": relevance, "claims": claims}
+            return validate_judgment(combined, evidence)
+
         with observe_ai_call("evaluation.rag.judge", model) as metrics:
-            response = self.client.beta.chat.completions.parse(
-                model=model, temperature=0, max_completion_tokens=8192,
-                messages=[{"role": "system", "content": JUDGE_PROMPT},
-                          {"role": "user", "content": json.dumps(payload, ensure_ascii=False)}],
-                response_format=MetricJudgment, **self._structured_output_options(),
-            )
-            parsed = response.choices[0].message.parsed
-            if parsed is None:
-                raise AIResponseError("The metric judge returned no structured result.")
-            usage = response.usage
-            metrics.input_tokens = int(getattr(usage, "prompt_tokens", 0) or 0)
-            metrics.output_tokens = int(getattr(usage, "completion_tokens", 0) or 0)
-            return ModelResult(value=parsed, input_tokens=metrics.input_tokens,
-                               output_tokens=metrics.output_tokens)
+            try:
+                relevance = assess("relevance", RELEVANCE_PROMPT, relevance_payload,
+                                   relevance_response_schema(len(ranked)), decode_relevance) if ranked else []
+                judgment = assess("faithfulness", FAITHFULNESS_PROMPT, faithfulness_payload,
+                                  faithfulness_response_schema(list(context_map)), decode_claims)
+            finally:
+                metrics.input_tokens = sum(a["input_tokens"] for a in attempts)
+                metrics.output_tokens = sum(a["output_tokens"] for a in attempts)
+            return MetricJudgeResult(value=judgment, input_tokens=metrics.input_tokens,
+                                     output_tokens=metrics.output_tokens, attempts=attempts,
+                                     stage_provenance=provenance)
 
     def answer_general_question(
         self,

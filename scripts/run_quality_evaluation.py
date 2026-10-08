@@ -27,7 +27,13 @@ NOT_FOUND_ANSWER = "Information not found in uploaded supplier documents."
 EVALUATOR_VERSION = "rag-evaluator-v5"
 
 sys.path.insert(0, str(ROOT / "backend" if (ROOT / "backend").is_dir() else ROOT))
-from app.services.rag_evaluation import metric_summary, question_metrics
+from app.services.rag_evaluation import JUDGE_PROMPT_VERSION, metric_summary, question_metrics
+
+
+class EvaluationRequestError(RuntimeError):
+    def __init__(self, message: str, response_body: dict | None = None):
+        super().__init__(message)
+        self.response_body = response_body or {}
 
 
 def normalized(value: str) -> str:
@@ -331,8 +337,13 @@ def request_json(
 ) -> dict | list:
     response = requests.request(method, url, timeout=timeout, **kwargs)
     if not response.ok:
-        raise RuntimeError(
-            f"{method} {url} returned {response.status_code}: {response.text[:500]}"
+        try:
+            body = response.json()
+        except ValueError:
+            body = {}
+        raise EvaluationRequestError(
+            f"{method} {url} returned {response.status_code}: {response.text[:500]}",
+            body if isinstance(body, dict) else {},
         )
     return response.json() if response.content else {}
 
@@ -957,22 +968,39 @@ def judge_report(result: dict, base_url: str, headers: dict) -> None:
             if not question["expected_information_found"] and not question["information_found"]:
                 continue
             existing = question_metrics(question, supplier["supplier_id"], supplier.get("documents", []))
-            if all(existing[key] in {"completed", "not_applicable"} for key in ("precision_status", "faithfulness_status")):
+            prior = question.get("metric_judgment")
+            stale = isinstance(prior, dict) and prior.get("method") == "llm_judge" and prior.get("prompt_version") != JUDGE_PROMPT_VERSION
+            if not stale and all(existing[key] in {"completed", "not_applicable"} for key in ("precision_status", "faithfulness_status")):
                 continue
+            if prior:
+                question.setdefault("metric_judgment_history", []).append(copy.deepcopy(prior))
+            received = None
             try:
                 if not question.get("metric_evidence") or not question.get("run_id"):
                     raise ValueError("This run lacks full metric evidence/run IDs; rebuild the backend and run a new evaluation.")
-                question["metric_judgment"] = request_json(
+                received = request_json(
                     "POST", f"{base_url}/suppliers/{supplier['supplier_id']}/evaluation/judge",
-                    json={"run_id":question["run_id"]}, headers=headers, timeout=240,
+                    json={"run_id":question["run_id"]}, headers=headers, timeout=480,
                 )
+                question["metric_judgment"] = received
+                if not isinstance(received, dict) or received.get("prompt_version") != JUDGE_PROMPT_VERSION:
+                    raise ValueError("The backend judge protocol is outdated or missing. Rebuild the backend before reassessment.")
                 checked = question_metrics(question, supplier["supplier_id"], supplier["documents"])
                 if checked.get("validation_error"):
                     raise ValueError(checked["reason"])
             except (ValueError, RuntimeError, requests.RequestException) as exc:
-                question["metric_judgment"] = {"status":"error", "reason":str(exc)}
-        print(f"Metric judgments recorded: {supplier['slug']}", flush=True)
+                assessment = getattr(exc, "response_body", {}).get("metric_judgment")
+                question["metric_judgment"] = assessment if isinstance(assessment, dict) else {
+                    **(received if isinstance(received, dict) else {}), "status":"error", "reason":str(exc)}
+        items = [question_metrics(q, supplier["supplier_id"], supplier["documents"])
+                 for q in supplier["questions"] if q["expected_information_found"] or q["information_found"]]
+        completed = sum(all(m[key] in {"completed", "not_applicable"} for key in ("precision_status", "faithfulness_status")) for m in items)
+        print(f"Metric judging {supplier['slug']}: {completed}/{len(items)} completed; {len(items)-completed} pending/failed.", flush=True)
     refresh_evidence_metrics(result)
+    metrics = result["summary"]["evidence_metrics"]
+    for key in ("precision_at_10", "faithfulness"):
+        m = metrics[key]
+        print(f"{key}: {m['scored_questions']}/{m['eligible_questions']} completed; {m['pending_questions']} pending.", flush=True)
 
 
 def refresh_evidence_metrics(result: dict) -> None:
@@ -997,7 +1025,8 @@ def render_evidence_metrics(result: dict) -> list[str]:
     lines.extend(["", f"Scored-subset Precision@10: {percentage(precision.get('scored_subset_value'))}; scored-subset returned-chunk precision: {percentage(precision.get('returned_precision'))}; answerable questions with fewer than ten indexed chunks: {precision.get('short_corpus_questions') if precision.get('short_corpus_questions') is not None else 'not recorded'}.",
                   f"Scored-subset faithfulness: {percentage(faithfulness.get('scored_subset_value'))}; supported/total claims: {faithfulness.get('supported_claims',0)}/{faithfulness.get('claims_total',0)}; micro claim support: {percentage(faithfulness.get('micro_claim_support'))}; fully supported asserted answers: {faithfulness.get('fully_supported_answers',0)}."])
     judging = metrics.get("judging", {})
-    lines.extend(["", f"Semantic judging methods: {', '.join(judging.get('methods',[])) or 'Pending'}; judge(s): {', '.join(judging.get('models_or_reviewers',[])) or 'Pending'}; prompt(s): {', '.join(judging.get('prompt_versions',[])) or 'Pending'}. Judge input/output tokens: {judging.get('input_tokens',0)}/{judging.get('output_tokens',0)}; judge latency: {judging.get('latency_ms',0)} ms. These calls are excluded from Q&A latency/token totals. Using the answer model as judge can introduce correlated errors; this is not independent human validation."])
+    lines.extend(["", f"Semantic judging methods: {', '.join(judging.get('methods',[])) or 'Pending'}; judge(s): {', '.join(judging.get('models_or_reviewers',[])) or 'Pending'}; prompt(s): {', '.join(judging.get('prompt_versions',[])) or 'Pending'}. Recorded judge input/output tokens: {judging.get('input_tokens',0)}/{judging.get('output_tokens',0)}; recorded judge latency: {judging.get('latency_ms',0)} ms. These totals include saved prior judgments and rejected attempts when usage was returned; {judging.get('usage_unrecorded_attempts',0)} failed attempts have unrecorded usage. They are not a complete provider bill. These calls are excluded from Q&A latency/token totals. Using the answer model as judge can introduce correlated errors; this is not independent human validation.",
+                  "", "Judge protocol v2 isolates relevance and faithfulness into separate calls. Every candidate has a required schema field. Faithfulness sees only actual generation context; supported inferences quote their premises, and context-absence judgments audit every supplied context chunk. Invalid outputs receive at most three attempts per stage with validation feedback. This improves structural reliability and context separation; semantic judgments still require human calibration."])
     if result.get("suppliers"):
         lines.extend(["", "### Per-question evidence metrics", "", "| Supplier / case | Precision@10 | Faithfulness | Supported / claims | Status or reason |", "|---|---:|---:|---:|---|"])
         for supplier in result["suppliers"]:
@@ -1249,6 +1278,8 @@ def main() -> None:
         raise SystemExit(1)
     if args.judge or args.judge_report:
         if any(result["summary"]["evidence_metrics"][key]["status"] == "pending" for key in ("precision_at_10", "faithfulness")):
+            print("Metric judging INCOMPLETE: outputs were saved, but invalid/missing judgments remain pending. "
+                  "Resume from this saved judged JSON with separate output paths; do not rerun answer generation.", file=sys.stderr, flush=True)
             raise SystemExit(1)
 
 

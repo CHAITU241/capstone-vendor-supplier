@@ -8,7 +8,7 @@ from types import SimpleNamespace
 import pytest
 
 from app.services.rag_evaluation import (
-    EVIDENCE_VERSION, chunk_snapshot, fingerprint, metric_summary, question_metrics,
+    EVIDENCE_VERSION, JUDGE_PROMPT_VERSION, chunk_snapshot, fingerprint, metric_summary, question_metrics,
     validate_evidence, validate_judgment,
 )
 from scripts.run_quality_evaluation import main, render_evidence_metrics, judge_report
@@ -25,11 +25,11 @@ def fixture():
               'generation_top_k':4,'retrieval_top_10':chunks,'generation_context':chunks[:1]}
     labels={'relevance':[{'chunk_id':c['chunk_id'],'relevant':i==0,'rationale':'Payment clause' if i==0 else 'Unrelated role'} for i,c in enumerate(chunks)],
             'claims':[{'claim':'Payment is Net 45 days from accepted invoice.','supported':True,
-                       'support':[{'chunk_id':chunks[0]['chunk_id'],'quote':chunks[0]['text']}],'rationale':'Explicit terms'},
-                      {'claim':'There is no deductible.','supported':False,'support':[], 'rationale':'Not in context'}]}
+                       'support':[{'chunk_id':chunks[0]['chunk_id'],'quote':chunks[0]['text']}],'rationale':'Explicit terms','support_kind':'explicit'},
+                      {'claim':'There is no deductible.','supported':False,'support':[], 'rationale':'Not in context','support_kind':'unsupported'}]}
     judgment={'status':'completed','method':'llm_judge','model_or_reviewer':'independent-judge',
               'assessed_at':'2026-10-08T10:00:00+00:00','evidence_sha256':fingerprint(evidence),
-              'prompt_version':'rag-metric-judge-v1','labels':labels,'input_tokens':50,'output_tokens':20,'latency_ms':100}
+              'prompt_version':JUDGE_PROMPT_VERSION,'labels':labels,'input_tokens':50,'output_tokens':20,'latency_ms':100}
     q={'id':'payment','question':'What are the payment terms?','answer':evidence['answer'],
        'expected_information_found':True,'information_found':True,'retrieved_chunk_ids':[chunks[0]['chunk_id']],
        'metric_evidence':evidence,'metric_judgment':judgment}

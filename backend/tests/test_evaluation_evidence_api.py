@@ -14,8 +14,8 @@ from app.database import Base, get_db
 from app.main import app
 from app.models import Document, DocumentType, Supplier
 from app.services.chunking import TextChunk
-from app.services.openai_service import GroundedAnswer, ModelResult, OpenAIService
-from app.services.rag_evaluation import MetricJudgment, validate_evidence, validate_judgment
+from app.services.openai_service import GroundedAnswer, ModelResult, OpenAIService, MetricJudgeFailure
+from app.services.rag_evaluation import MetricJudgment, JUDGE_PROMPT_VERSION, validate_evidence, validate_judgment
 from app.services.retrieval import replace_document_chunks
 
 
@@ -47,7 +47,7 @@ def test_evaluation_capture_keeps_four_model_chunks_but_records_ten_and_judge_is
         def judge_rag_evidence(self,evidence):
             calls.append('judge');context=evidence['generation_context'][0]
             return ModelResult(value=MetricJudgment(relevance=[{'chunk_id':c['chunk_id'],'relevant':True,'rationale':'Payment clause'} for c in evidence['retrieval_top_10']],
-                               claims=[{'claim':evidence['answer'],'supported':True,'support':[{'chunk_id':context['chunk_id'],'quote':'Payment is Net 45 days from accepted invoice.'}],'rationale':'Explicit terms'}]),input_tokens=200,output_tokens=40)
+                               claims=[{'claim':evidence['answer'],'supported':True,'support_kind':'explicit','support':[{'chunk_id':context['chunk_id'],'quote':'Payment is Net 45 days from accepted invoice.'}],'rationale':'Explicit terms'}]),input_tokens=200,output_tokens=40)
     def db_override():
         with Session(engine) as db:yield db
     app.dependency_overrides[get_db]=db_override
@@ -74,6 +74,17 @@ def test_evaluation_capture_keeps_four_model_chunks_but_records_ten_and_judge_is
                 assert judged.json()['model_or_reviewer']=='independent-judge'
                 validate_judgment(judged.json()['labels'],evidence)
                 assert calls==['embed','answer','judge']
+                assert judged.json()['prompt_version']==JUDGE_PROMPT_VERSION
+                def fail_judge(evidence):
+                    raise MetricJudgeFailure('Invalid support after three attempts',
+                        [{'stage':'faithfulness','attempt':1,'status':'rejected','reason':'Invalid quote',
+                          'input_tokens':123,'output_tokens':45,'latency_ms':50,'usage_recorded':True}], {})
+                monkeypatch.setattr(AI,'judge_rag_evidence',lambda self,evidence:fail_judge(evidence))
+                failed=client.post(f'/api/suppliers/{sid}/evaluation/judge',json={'run_id':rid},headers=headers)
+                assert failed.status_code==422
+                audit=failed.json()['metric_judgment']
+                assert audit['input_tokens']==123 and audit['attempts'][0]['reason']=='Invalid quote'
+                assert audit['evidence_sha256']==judged.json()['evidence_sha256']
             else:
                 assert 'evaluation_evidence' not in details
                 assert client.post(f'/api/suppliers/{sid}/evaluation/judge',json={'run_id':rid},headers=headers).status_code==409
@@ -89,13 +100,15 @@ def test_judge_uses_structured_schema_configured_model_and_no_reference_answer()
     captured={}
     def parse(**kwargs):
         captured.update(kwargs)
-        return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(parsed=MetricJudgment(relevance=[],claims=[])))],usage=SimpleNamespace(prompt_tokens=20,completion_tokens=5))
+        parsed=kwargs['response_format'].model_validate({'claims':[]})
+        return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(parsed=parsed))],usage=SimpleNamespace(prompt_tokens=20,completion_tokens=5))
     client=SimpleNamespace(beta=SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(parse=parse))))
     service=OpenAIService(client,Settings(_env_file=None,evaluation_judge_model='judge-model',langfuse_enabled=False))
     evidence={'question':'Unsupported value?','answer':'Information not found in uploaded supplier documents.',
               'information_found':False,'retrieval_top_10':[],'generation_context':[],
               'reference_answer':'Must never reach the judge'}
     result=service.judge_rag_evidence(evidence)
-    assert captured['model']=='judge-model' and captured['response_format'] is MetricJudgment
+    assert captured['model']=='judge-model' and captured['response_format'].__name__=='FaithfulnessAssessment'
     assert 'Must never reach the judge' not in captured['messages'][1]['content']
+    assert 'retrieval_top_10' not in captured['messages'][1]['content']
     assert result.input_tokens==20 and result.output_tokens==5
