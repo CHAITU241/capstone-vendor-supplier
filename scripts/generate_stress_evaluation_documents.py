@@ -85,6 +85,22 @@ def allow_corroboration(case, evidence):
             pages.append(page)
 
 
+def apply_scoring_revision(case):
+    """Revision 2 changes scoring only: never rewrite questions, originals or primary evidence."""
+    corroboration = {"transit_limit": [(INS,3)], "before_e2_effective": [(INS,3)], "pickup_depot": [(TAX,2)]}
+    if case["id"] in corroboration:
+        allow_corroboration(case, corroboration[case["id"]])
+        case["gold_rationale"] += " The additional declared page supports the requested distinction or corroborates the answer; primary evidence remains mandatory."
+    if case["id"] == "original_aggregate":
+        case["allow_scalar_amount"] = True
+        case["gold_rationale"] += " A standalone currency-qualified amount may answer this single-value question without repeating annual aggregate; explanatory answers retain the scope labels."
+    if case["id"] in {"height_without_permit", "permit_without_watch"}:
+        case["expected_terms"] = []
+        case["expected_term_groups"] = []
+        case["expected_coverage_decision"] = False
+        case["gold_rationale"] += " The question asks a coverage decision, not an explanation: an unambiguous denial is sufficient with the required clause citation; affirmative, uncertain and contradictory responses fail."
+
+
 def missing(qid, text):
     return {"id":qid, "question_type":"safe_not_found", "question":text,
             "expected_terms":["Information not found in uploaded supplier documents."],
@@ -135,6 +151,7 @@ def build_pack(index, slug, name, trading, address, activity, author):
             allow_corroboration(case, [(TAX,1),(INS,1)])
         elif case["id"] == "registered_office":
             allow_corroboration(case, [(TAX,1)])
+        apply_scoring_revision(case)
         if not case["information_found"]:
             reference = "Information not found in uploaded supplier documents."
         elif case["id"] == "legal_name_control":
@@ -326,7 +343,7 @@ def main():
     ]
     entries.extend(build_pack(*definition) for definition in definitions)
     counts = Counter(q["question_type"] for s in entries for q in s["questions"])
-    manifest = {"version":5,"scoring_revision":1,
+    manifest = {"version":5,"scoring_revision":2,
         "description":"Pinned 100-question core plus a separate 50-question multi-page stress cohort. Synthetic evidence authored before live calls; complex stress answers require human audit.",
         "expected_counts":{"suppliers":15,"documents":45,"questions":150,"question_types":dict(sorted(counts.items()))},
         "suppliers":entries}

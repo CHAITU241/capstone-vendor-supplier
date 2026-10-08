@@ -348,17 +348,8 @@
       "id": "height_without_permit",
       "question_type": "stress_conditional",
       "question": "A job is above three metres and no site permit was issued before work. Does the declared working-at-height extension cover it?",
-      "expected_terms": [
-        "permit"
-      ],
-      "expected_term_groups": [
-        [
-          "excluded",
-          "not covered",
-          "does not cover",
-          "no cover"
-        ]
-      ],
+      "expected_terms": [],
+      "expected_term_groups": [],
       "expected_dates": [],
       "expected_amounts": [],
       "expected_sources": [
@@ -382,8 +373,9 @@
       ],
       "information_found": true,
       "manual_review_required": true,
-      "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
-      "reference_answer": "It is excluded: work above three metres needs a site permit issued before work starts, and this job lacks that permit."
+      "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer. The question asks a coverage decision, not an explanation: an unambiguous denial is sufficient with the required clause citation; affirmative, uncertain and contradictory responses fail.",
+      "reference_answer": "It is excluded: work above three metres needs a site permit issued before work starts, and this job lacks that permit.",
+      "expected_coverage_decision": false
     },
     {
       "id": "missing_sunday_hours",

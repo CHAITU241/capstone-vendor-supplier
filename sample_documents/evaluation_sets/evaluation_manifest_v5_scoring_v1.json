@@ -1,6 +1,6 @@
 {
   "version": 5,
-  "scoring_revision": 2,
+  "scoring_revision": 1,
   "description": "Pinned 100-question core plus a separate 50-question multi-page stress cohort. Synthetic evidence authored before live calls; complex stress answers require human audit.",
   "expected_counts": {
     "suppliers": 15,
@@ -2026,8 +2026,7 @@
           ],
           "allowed_citation_pages": {
             "03_certificate_of_liability_insurance.pdf": [
-              2,
-              3
+              2
             ]
           },
           "citation_requirements": [
@@ -2040,7 +2039,7 @@
           ],
           "information_found": true,
           "manual_review_required": true,
-          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer. The additional declared page supports the requested distinction or corroborates the answer; primary evidence remains mandatory.",
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
           "reference_answer": "Road transit is limited to INR 20 lakh per consignment; this is the transit limit, separate from storage cover."
         },
         {
@@ -2454,9 +2453,8 @@
           ],
           "information_found": true,
           "manual_review_required": true,
-          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer. A standalone currency-qualified amount may answer this single-value question without repeating annual aggregate; explanatory answers retain the scope labels.",
-          "reference_answer": "The original annual product-liability aggregate is INR 20 lakh.",
-          "allow_scalar_amount": true
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "The original annual product-liability aggregate is INR 20 lakh."
         },
         {
           "id": "renewal_expiry",
@@ -2665,8 +2663,7 @@
           ],
           "allowed_citation_pages": {
             "03_certificate_of_liability_insurance.pdf": [
-              4,
-              3
+              4
             ]
           },
           "citation_requirements": [
@@ -2679,7 +2676,7 @@
           ],
           "information_found": true,
           "manual_review_required": true,
-          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer. The additional declared page supports the requested distinction or corroborates the answer; primary evidence remains mandatory.",
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
           "reference_answer": "No. On 20 July 2027, the applicable annual aggregate is INR 30 lakh. E2 is not yet effective; its effective date is 01 August 2027."
         },
         {
@@ -3078,8 +3075,17 @@
           "id": "height_without_permit",
           "question_type": "stress_conditional",
           "question": "A job is above three metres and no site permit was issued before work. Does the declared working-at-height extension cover it?",
-          "expected_terms": [],
-          "expected_term_groups": [],
+          "expected_terms": [
+            "permit"
+          ],
+          "expected_term_groups": [
+            [
+              "excluded",
+              "not covered",
+              "does not cover",
+              "no cover"
+            ]
+          ],
           "expected_dates": [],
           "expected_amounts": [],
           "expected_sources": [
@@ -3103,9 +3109,8 @@
           ],
           "information_found": true,
           "manual_review_required": true,
-          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer. The question asks a coverage decision, not an explanation: an unambiguous denial is sufficient with the required clause citation; affirmative, uncertain and contradictory responses fail.",
-          "reference_answer": "It is excluded: work above three metres needs a site permit issued before work starts, and this job lacks that permit.",
-          "expected_coverage_decision": false
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "It is excluded: work above three metres needs a site permit issued before work starts, and this job lacks that permit."
         },
         {
           "id": "missing_sunday_hours",
@@ -3323,17 +3328,13 @@
           "expected_dates": [],
           "expected_amounts": [],
           "expected_sources": [
-            "01_supplier_registration_form.pdf",
-            "02_gst_registration_certificate.pdf"
+            "01_supplier_registration_form.pdf"
           ],
           "required_sources": [
             "01_supplier_registration_form.pdf"
           ],
           "allowed_citation_pages": {
             "01_supplier_registration_form.pdf": [
-              2
-            ],
-            "02_gst_registration_certificate.pdf": [
               2
             ]
           },
@@ -3347,7 +3348,7 @@
           ],
           "information_found": true,
           "manual_review_required": true,
-          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer. The additional declared page supports the requested distinction or corroborates the answer; primary evidence remains mandatory.",
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
           "reference_answer": "Collect from the dispatch depot: Bay 9, Nelamangala Freight Yard, Bengaluru, Karnataka 562123."
         },
         {
@@ -3922,8 +3923,17 @@
           "id": "permit_without_watch",
           "question_type": "stress_conditional",
           "question": "Hot work has a permit, but no fire watch remains after completion. Does the submitted hot-work extension cover this situation?",
-          "expected_terms": [],
-          "expected_term_groups": [],
+          "expected_terms": [
+            "fire watch"
+          ],
+          "expected_term_groups": [
+            [
+              "excluded",
+              "not covered",
+              "does not cover",
+              "no cover"
+            ]
+          ],
           "expected_dates": [],
           "expected_amounts": [],
           "expected_sources": [
@@ -3947,9 +3957,8 @@
           ],
           "information_found": true,
           "manual_review_required": true,
-          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer. The question asks a coverage decision, not an explanation: an unambiguous denial is sufficient with the required clause citation; affirmative, uncertain and contradictory responses fail.",
-          "reference_answer": "It is excluded from the hot-work extension: a permit alone is insufficient without the required fire watch after completion.",
-          "expected_coverage_decision": false
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "It is excluded from the hot-work extension: a permit alone is insufficient without the required fire watch after completion."
         },
         {
           "id": "missing_restoration",

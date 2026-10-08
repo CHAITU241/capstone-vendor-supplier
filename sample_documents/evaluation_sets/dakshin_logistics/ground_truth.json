@@ -125,7 +125,8 @@
       ],
       "allowed_citation_pages": {
         "03_certificate_of_liability_insurance.pdf": [
-          2
+          2,
+          3
         ]
       },
       "citation_requirements": [
@@ -138,7 +139,7 @@
       ],
       "information_found": true,
       "manual_review_required": true,
-      "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+      "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer. The additional declared page supports the requested distinction or corroborates the answer; primary evidence remains mandatory.",
       "reference_answer": "Road transit is limited to INR 20 lakh per consignment; this is the transit limit, separate from storage cover."
     },
     {

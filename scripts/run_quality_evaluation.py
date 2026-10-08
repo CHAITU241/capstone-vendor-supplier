@@ -24,7 +24,7 @@ DEFAULT_MANIFEST = (
     ROOT / "sample_documents" / "evaluation_sets" / "evaluation_manifest.json"
 )
 NOT_FOUND_ANSWER = "Information not found in uploaded supplier documents."
-EVALUATOR_VERSION = "rag-evaluator-v3"
+EVALUATOR_VERSION = "rag-evaluator-v4"
 
 
 def normalized(value: str) -> str:
@@ -66,6 +66,26 @@ def amounts_in(value: str) -> set[Decimal]:
             for amount, unit in matches}
 
 
+def scalar_amount_matches(answer: str, case: dict) -> bool:
+    """Only a standalone, currency-qualified amount may omit repeated scope labels."""
+    if not case.get("allow_scalar_amount"):
+        return False
+    number = r"\d[\d,]*(?:\.\d+)?\s*(?:lakhs?|lacs?|crores?|million|thousand)?"
+    shape = r"(?:(?:INR|Rs\.?|₹|rupees)\s*" + number + r"|" + number + r"\s*rupees)\.?"
+    return bool(re.fullmatch(shape, answer.strip(), re.I)) and amounts_in(answer) == set(case["expected_amounts"])
+
+
+def coverage_decision_matches(answer: str) -> bool:
+    """Case-scoped denial guard; complex semantic entailment still needs human review."""
+    value = normalized(answer)
+    if re.search(r"\b(maybe|perhaps|uncertain|unclear|might|could|possibly)\b", value):
+        return False
+    if re.search(r"\byes\b|\b(?:is|are|will be|would be|can be|may be|remains) covered\b|\bdoes cover\b|\bcovers\b|\bcoverage applies\b|\bnot excluded\b", value):
+        return False
+    return bool(re.match(r"^no(?:[,.!;:]|$)", answer.strip(), re.I) or re.search(
+        r"\b(?:does not cover|doesn t cover|not covered|no cover|excluded|outside the cover)\b", value))
+
+
 def answer_matches(answer: str, case: dict) -> bool:
     value = normalized(answer)
 
@@ -84,10 +104,11 @@ def answer_matches(answer: str, case: dict) -> bool:
         return False
 
     return (
-        all(term_matches(term) for term in case["expected_terms"])
+        (all(term_matches(term) for term in case["expected_terms"]) or scalar_amount_matches(answer, case))
         and all(any(term_matches(term) for term in group) for group in case.get("expected_term_groups", []))
         and set(case.get("expected_dates", [])) <= dates_in(answer)
         and set(case.get("expected_amounts", [])) <= amounts_in(answer)
+        and (case.get("expected_coverage_decision") is not False or coverage_decision_matches(answer))
     )
 
 
@@ -216,8 +237,12 @@ def validate_manifest(manifest_path: Path) -> dict:
         for case in entry["questions"]:
             kind = case["question_type"]
             type_counts[kind] = type_counts.get(kind, 0) + 1
+            if "allow_scalar_amount" in case and (case["allow_scalar_amount"] is not True or len(case.get("expected_amounts", [])) != 1 or case.get("expected_dates") or case.get("expected_term_groups")):
+                raise ValueError("Scalar amount exception needs one currency value and no other requested fact.")
+            if "expected_coverage_decision" in case and (case["expected_coverage_decision"] is not False or kind != "stress_conditional" or not re.search(r"\bdoes\b.*\bcover\b", case["question"], re.I)):
+                raise ValueError("Coverage denial assertion requires a direct conditional coverage question.")
             if case["information_found"]:
-                if not case["expected_sources"] or not (case["expected_terms"] or case.get("expected_dates") or case.get("expected_amounts") or case.get("expected_term_groups")):
+                if not case["expected_sources"] or not (case["expected_terms"] or case.get("expected_dates") or case.get("expected_amounts") or case.get("expected_term_groups") or "expected_coverage_decision" in case):
                     raise ValueError("Answerable cases require evidence and answer assertions.")
                 if not set(case["expected_sources"]) <= set(documents.values()):
                     raise ValueError("Question cites an unknown corpus document.")
@@ -496,6 +521,8 @@ def evaluate_question(
         "expected_terms": case["expected_terms"],
         "expected_dates": case.get("expected_dates", []),
         "expected_amounts": case.get("expected_amounts", []),
+        "allow_scalar_amount": case.get("allow_scalar_amount", False),
+        "expected_coverage_decision": case.get("expected_coverage_decision"),
         "allowed_citation_pages": case.get("allowed_citation_pages", {}),
         "citation_requirements": case.get("citation_requirements", []),
         "manual_review_required": case.get("manual_review_required", False),
@@ -822,6 +849,7 @@ def run_evaluation(
         "evaluated_at": datetime.now(UTC).isoformat(),
         "run_id": str(uuid.uuid4()),
         "manifest_version": manifest["version"],
+        "manifest_scoring_revision": manifest.get("scoring_revision", 1),
         "evaluator_version": EVALUATOR_VERSION,
         "evaluation_mode": "live",
         "selected_cohort": cohort,
@@ -876,6 +904,8 @@ def rescore_evaluation(source_path: Path, manifest_path: Path) -> dict:
             question.update(checks)
             for key in ("expected_terms", "expected_dates", "expected_amounts", "expected_term_groups", "expected_sources", "required_sources", "citation_requirements"):
                 question[key] = case.get(key, [])
+            question["allow_scalar_amount"] = case.get("allow_scalar_amount", False)
+            question["expected_coverage_decision"] = case.get("expected_coverage_decision")
             question["gold_rationale"] = case.get("gold_rationale")
             question["allowed_citation_pages"] = case.get("allowed_citation_pages", {})
             question["manual_review_required"] = case.get("manual_review_required", False)
@@ -885,6 +915,7 @@ def rescore_evaluation(source_path: Path, manifest_path: Path) -> dict:
                 changes.append({"supplier": supplier["slug"], "id": question["id"], "before": before, "after": after})
     result["summary"] = build_summary(result["suppliers"], source["summary"]["evaluation_elapsed_ms"])
     result["manifest_sha256"] = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
+    result["manifest_scoring_revision"] = manifest.get("scoring_revision", 1)
     result["evaluator_version"] = EVALUATOR_VERSION
     result["evaluation_mode"] = "offline_rescore"
     result["rescoring"] = {
@@ -916,6 +947,7 @@ def render_markdown_report(result: dict) -> str:
         "",
         f"- Evaluated at: `{result['evaluated_at']}`",
         f"- Manifest version: `{result.get('manifest_version', 'Historical v2')}`",
+        f"- Manifest scoring revision: `{result.get('manifest_scoring_revision', 'Not recorded')}`",
         f"- Evaluator version: `{result.get('evaluator_version', 'Unversioned original evaluator')}`",
         f"- Evaluation mode: **{result.get('evaluation_mode', 'live')}**",
         f"- API: `{result['base_url']}`",

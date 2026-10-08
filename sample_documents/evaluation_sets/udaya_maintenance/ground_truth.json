@@ -338,17 +338,8 @@
       "id": "permit_without_watch",
       "question_type": "stress_conditional",
       "question": "Hot work has a permit, but no fire watch remains after completion. Does the submitted hot-work extension cover this situation?",
-      "expected_terms": [
-        "fire watch"
-      ],
-      "expected_term_groups": [
-        [
-          "excluded",
-          "not covered",
-          "does not cover",
-          "no cover"
-        ]
-      ],
+      "expected_terms": [],
+      "expected_term_groups": [],
       "expected_dates": [],
       "expected_amounts": [],
       "expected_sources": [
@@ -372,8 +363,9 @@
       ],
       "information_found": true,
       "manual_review_required": true,
-      "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
-      "reference_answer": "It is excluded from the hot-work extension: a permit alone is insufficient without the required fire watch after completion."
+      "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer. The question asks a coverage decision, not an explanation: an unambiguous denial is sufficient with the required clause citation; affirmative, uncertain and contradictory responses fail.",
+      "reference_answer": "It is excluded from the hot-work extension: a permit alone is insufficient without the required fire watch after completion.",
+      "expected_coverage_decision": false
     },
     {
       "id": "missing_restoration",

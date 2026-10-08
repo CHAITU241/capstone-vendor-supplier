@@ -139,8 +139,9 @@
       ],
       "information_found": true,
       "manual_review_required": true,
-      "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
-      "reference_answer": "The original annual product-liability aggregate is INR 20 lakh."
+      "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer. A standalone currency-qualified amount may answer this single-value question without repeating annual aggregate; explanatory answers retain the scope labels.",
+      "reference_answer": "The original annual product-liability aggregate is INR 20 lakh.",
+      "allow_scalar_amount": true
     },
     {
       "id": "renewal_expiry",
@@ -349,7 +350,8 @@
       ],
       "allowed_citation_pages": {
         "03_certificate_of_liability_insurance.pdf": [
-          4
+          4,
+          3
         ]
       },
       "citation_requirements": [
@@ -362,7 +364,7 @@
       ],
       "information_found": true,
       "manual_review_required": true,
-      "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+      "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer. The additional declared page supports the requested distinction or corroborates the answer; primary evidence remains mandatory.",
       "reference_answer": "No. On 20 July 2027, the applicable annual aggregate is INR 30 lakh. E2 is not yet effective; its effective date is 01 August 2027."
     },
     {

@@ -1,3 +1,10 @@
+## 2026-10-08 — Six saved-run scoring corrections, evaluator v4
+
+- Manifest v5 scoring revision 2 accepts only three declared corroborating pages, one standalone monetary answer and two clear coverage denials. Primary citations, monetary values, dates and all originals/question identities remain unchanged; the original v5 revision 1 manifest is pinned.
+- Rescored owner live run `a76c7315-b13a-4d78-8d87-cf72a0df3723` (source SHA-256 `6aa89e5ae84120f7d25911664a26c519d2626147abd85aa2e9a02645f6d2fdf2`) offline: 145/150 strict automatic passes, 47/50 stress, 146/150 answer, 118/120 citation, 135/135 source-scoped fields. Exactly six grades changed; no API/model calls or observation changes. This is documented post-run evaluator calibration, not held-out model improvement.
+- Five cases remain failed: conflicting insurer/expiry citation, missing insurer, unsupported recall limit, omitted property sublimit/evidence and ambiguous `Claims Desk 2` routing. All 50 stress semantic reviews remain pending; insurance policy diagnostics are unscored and Q&A latency excludes upload/OCR.
+- Validation: 351 full backend tests passed, including 52 new calibration regressions; all 45 PDFs / 73 pages and actual OCR validated. Frontend/production RAG code unchanged. Docker/provider execution unavailable here; owner's live observations are preserved and no fresh live run is claimed. See EVALUATOR_CALIBRATION.md and QUALITY_EVALUATION.md.
+
 ## 2026-10-08 — Final fair stress cohort and evaluator calibration
 
 Added five independently authored synthetic multi-page packs for logistics limits, dated food-liability endorsements, mixed OCR facilities evidence, manufacturing address roles and maintenance conditions/exclusions. Active v5: 15 suppliers, 45 PDFs, 73 pages, 150 questions, 135 registration/tax fields; the added 50 questions are separately reported as stress. Pinned the unchanged ten-pack v4 manifest for audit and offline replay.

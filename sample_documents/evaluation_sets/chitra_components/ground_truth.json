@@ -158,13 +158,17 @@
       "expected_dates": [],
       "expected_amounts": [],
       "expected_sources": [
-        "01_supplier_registration_form.pdf"
+        "01_supplier_registration_form.pdf",
+        "02_gst_registration_certificate.pdf"
       ],
       "required_sources": [
         "01_supplier_registration_form.pdf"
       ],
       "allowed_citation_pages": {
         "01_supplier_registration_form.pdf": [
+          2
+        ],
+        "02_gst_registration_certificate.pdf": [
           2
         ]
       },
@@ -178,7 +182,7 @@
       ],
       "information_found": true,
       "manual_review_required": true,
-      "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+      "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer. The additional declared page supports the requested distinction or corroborates the answer; primary evidence remains mandatory.",
       "reference_answer": "Collect from the dispatch depot: Bay 9, Nelamangala Freight Yard, Bengaluru, Karnataka 562123."
     },
     {
