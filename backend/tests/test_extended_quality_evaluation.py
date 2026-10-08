@@ -47,6 +47,22 @@ def test_ocr_preflight_rejects_a_scan_replaced_with_selectable_text(tmp_path):
         validate_manifest(manifest_path)
 
 
+def test_windows_transcript_newlines_pass_but_changed_source_content_fails(tmp_path):
+    corpus = tmp_path / "corpus"
+    shutil.copytree(MANIFEST.parent, corpus)
+    transcripts = sorted(corpus.glob("*/*.source.txt"))
+    assert len(transcripts) == 6
+    for path in transcripts:
+        path.write_bytes(path.read_bytes().replace(b"\r\n", b"\n").replace(b"\n", b"\r\n"))
+    # The full preflight still checks PDF hashes and exercises real backend OCR.
+    validated = validate_manifest(corpus / MANIFEST.name)
+    assert validated["version"] == 4 and len(validated["suppliers"]) == 10
+    changed = transcripts[0]
+    changed.write_bytes(changed.read_bytes() + b"\r\nChanged source fact")
+    with pytest.raises(ValueError, match="OCR authoring transcript checksum mismatch"):
+        validate_manifest(corpus / MANIFEST.name)
+
+
 @pytest.mark.parametrize("text,expected", [
     ("The dates conflict. Neither date is confirmed; supplier clarification is required.", True),
     ("The dates are different and we need confirmation before choosing one.", True),

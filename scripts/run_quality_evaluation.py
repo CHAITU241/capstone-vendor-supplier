@@ -115,7 +115,10 @@ def validate_manifest(manifest_path: Path) -> dict:
                     if any(page.get_text().strip() or not page.get_images() for page in doc):
                         raise ValueError(f"OCR original must contain only scanned page images: {path}")
                     transcript = path.with_suffix(".source.txt")
-                    if hashlib.sha256(transcript.read_bytes()).hexdigest() != entry["source_transcript_sha256"][kind]:
+                    # Git may check out text as CRLF on Windows. The pinned
+                    # transcript uses LF; tolerate only that newline conversion.
+                    transcript_bytes = transcript.read_bytes().replace(b"\r\n", b"\n")
+                    if hashlib.sha256(transcript_bytes).hexdigest() != entry["source_transcript_sha256"][kind]:
                         raise ValueError(f"OCR authoring transcript checksum mismatch: {path}")
                     source_text = transcript.read_text(encoding="utf-8")
                     # Exercise the deployed extraction routine. Recognition mistakes

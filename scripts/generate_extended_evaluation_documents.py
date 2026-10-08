@@ -48,7 +48,7 @@ def pdf(path, title, records, scan=False, compressed=False):
             raster_page.insert_image(raster_page.rect, stream=pix.tobytes("png"))
         doc.close()
         doc = scanned
-        path.with_suffix(".source.txt").write_text(transcript, encoding="utf-8")
+        path.with_suffix(".source.txt").write_text(transcript, encoding="utf-8", newline="\n")
     doc.save(path, garbage=4, deflate=True, no_new_id=True)
     doc.close()
 

@@ -59,6 +59,8 @@ PYTHONPATH=backend python scripts/run_quality_evaluation.py --base-url http://12
 
 Preflight checks exact counts/cohorts, policy coverage, question assertions, manifest/ground-truth consistency, PDF and transcript hashes, native readability, image-only scan structure and actual OCR extraction. A normal run creates ten fresh evaluation supplier records and verifies uploaded original hashes. Processing uses `refresh=true` and requires every original to be processed freshly. Existing suppliers and reviewer decisions are preserved; each report records the new supplier IDs.
 
+Transcript hashing accepts Windows CRLF-to-LF line-ending conversion only; changed source content still fails. Git pins `.source.txt` checkouts to LF, and the generator writes LF explicitly. PDF checksums remain byte-exact.
+
 ## Reports and audit trail
 
 A completed live run writes these files in the host repository:

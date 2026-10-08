@@ -4,6 +4,13 @@ This file is the short resumption context for future AI or developer sessions.
 Read this file first, then open only the files relevant to the next task.
 The complete product intent remains in `PROJECT_BLUEPRINT.md`.
 
+## 2026-10-08 — Windows OCR transcript checkout compatibility
+
+- Reproduced the preflight checksum error by converting the unchanged authoring transcripts from LF to Windows CRLF.
+- Transcript validation canonicalizes CRLF to LF before hashing, while source-content edits and PDF-byte edits remain rejected. Git attributes and the generator pin transcript line endings to LF.
+- Added a full preflight regression using all six CRLF transcripts, followed by a changed-content rejection check. No corpus facts, PDF hashes or scoring expectations changed.
+- Validation: 160 backend tests passed, including the complete 10-supplier/30-PDF/100-question preflight against Windows-style transcripts and actual OCR on all six scans. Docker execution remains on the owner machine.
+
 ## 2026-10-08 — Expanded OCR, conflict and onboarding evaluation
 
 - Active manifest v4 contains 10 synthetic suppliers, 30 originals, 100 RAG questions and 90 current-policy extraction checks. The pinned five-supplier v3 records and originals remain unchanged.
