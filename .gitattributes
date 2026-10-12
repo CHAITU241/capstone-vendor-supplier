@@ -1,0 +1,2 @@
+# OCR gold transcripts use the same LF bytes on Linux and Windows checkouts.
+sample_documents/evaluation_sets/**/*.source.txt text eol=lf

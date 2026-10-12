@@ -1,8 +1,100 @@
-# VendorLens AI — Development Handoff Log
+## 2026-10-08 — Isolate and harden semantic judging (protocol v2)
+
+- Inspected owner run `819334ef-a531-4626-bed6-67bd4c616df6` and its partially judged report. The answer run completed 150 questions at 145/150 deterministic passes. GPT-4.1 accepted 88 judgments and rejected 33: 26 invalid candidate-label sets and seven invalid exact support quotations. Accepted semantic labels also showed audit-only evidence leaking into faithfulness and an entailed clarification inference rejected for lacking literal wording. Owner input/report bytes remain unchanged.
+- Replaced the combined prompt with independent relevance and actual-context-only faithfulness requests. Required per-candidate schema slots and short backend-mapped context IDs remove UUID copying/omission as an accepted output path. Direct support, justified inference, finite-context absence and unsupported claims are distinguished; absence covers every actual supplied chunk, not the wider corpus.
+- Retained strict quote, identity, ownership and complete-label checks. Each stage gets at most three attempts with validation feedback, a 60-second request timeout and no hidden SDK retries. Rejected outputs, known usage, stage provenance and exhausted failures survive API/report handling. Unknown usage stays disclosed; current/historical judgment usage is separate from answer/extraction metrics.
+- Saved-report judging archives and reassesses earlier LLM prompt versions, preserving original observations and scores. Valid current-v2 and human judgments resume without repetition. An outdated backend cannot silently satisfy a new-protocol run. Progress/final messages explicitly state completed and pending/failed counts; incomplete semantic metrics remain N/A and exit nonzero after saving outputs.
+- Validation: **408 backend tests passed**, frontend production build passed, all 45 PDFs/hashes/actual OCR preflight passed, all 150 owner evidence snapshots validated, Compose YAML/backend-env/network/report-mount checks passed statically, and whitespace checks passed. Tests exercise malformed labels, quotes/IDs, bounded retries, inference/absence support, context separation, usage retention, version upgrades and saved-report resume.
+- Docker/provider credentials are unavailable in this environment. No credentialed v2 semantic run or final metric score is claimed. The owner can reassess `latest_results_judged.json` into separate `latest_results_judged_v2.json` / `.md` files after pulling and rebuilding the backend. Reviewer isolation and answer-generation retrieval/prompts remain unchanged.
+
+## 2026-10-08 — Evaluator v5 and reproducible evidence metrics
+
+- Corrected two confirmed false negatives from owner run `e5aa6ed4-d4e3-4e8d-8762-591150096673`: Coromandel's “necessitate clarification” and Dakshin's valid warehouse corroboration on tax page 2. Kept both required registration pages, all facts and all original hashes. Scoring revision 2 is pinned; revision 3 changes only one gold contract.
+- Same-run offline reassessment is 145/150 (96.67%), with 98/100 core and 47/50 stress. No observed answer, citation, retrieval, latency or token changed. Five failures remain; semantic stress review remains pending.
+- Evaluation-only full-context capture records exact redacted generation text and a separate raw top-ten retrieval audit with the same embedding. Normal top-four answer generation and reviewer worklist isolation remain intact.
+- Optional `--judge` / `--judge-report` records semantic relevance and atomic claim support, exact support quotes (whitespace layout tolerated), rationales, hashes and judge model/prompt/usage. `--metrics-from-report` recalculates Precision@10 and faithfulness from saved evidence/labels without backend/model calls. Full metrics remain N/A until all eligible judgments validate; short-corpus ceilings, abstention scope and separate judge cost/latency are documented.
+- Validation: 392 backend tests passed, frontend production build passed, all 45 PDFs/manifest hashes/actual OCR preflight passed, Compose YAML/container/network/report wiring and whitespace checks passed. API tests exercise real supplier-scoped Chroma retrieval, four-context versus ten-audit capture, optional structured judging, reviewer authorization and normal-supplier rejection. Tests reject fabricated quotes, foreign evidence, invalid/partial labels and overwritten context, and verify offline arithmetic and resume behavior.
+- Docker and provider credentials are unavailable here. No live Precision@10/faithfulness scores or replacement live reports are claimed or committed. Existing owner report bytes are unchanged.
+
+## 2026-10-08 — Isolate evaluation suppliers from the reviewer worklist
+
+- Added a non-null `Supplier.is_evaluation` flag, default false, set explicitly by the evaluator through the existing reviewer-authenticated creation API. Normal portal applications and reviewer-created suppliers retain their default visibility. The reviewer list excludes evaluation records, so its list-derived counts remain clean.
+- Startup migration `0022_evaluation_suppliers` marks all existing runs of the pinned 15 evaluation suppliers using exact synthetic name/contact pairs, country India and absent portal account/category/subcategory. It preserves all IDs, documents, statuses and review/evaluation records; lookalike or account-backed applications remain visible.
+- Validation: 356 backend tests passed; actual upgrade/backfill/downgrade tested against preserved rows, PostgreSQL migration SQL checked, and Alembic has a single head.
+- Evaluation access by ID and owner admin records remain available. The runner checks acknowledgement of its marker and stops on an outdated backend rather than continuing an unisolated run. No scoring contracts, corpus files, model prompts or saved report observations changed.
+
+## 2026-10-08 — Six saved-run scoring corrections, evaluator v4
+
+- Manifest v5 scoring revision 2 accepts only three declared corroborating pages, one standalone monetary answer and two clear coverage denials. Primary citations, monetary values, dates and all originals/question identities remain unchanged; the original v5 revision 1 manifest is pinned.
+- Rescored owner live run `a76c7315-b13a-4d78-8d87-cf72a0df3723` (source SHA-256 `6aa89e5ae84120f7d25911664a26c519d2626147abd85aa2e9a02645f6d2fdf2`) offline: 145/150 strict automatic passes, 47/50 stress, 146/150 answer, 118/120 citation, 135/135 source-scoped fields. Exactly six grades changed; no API/model calls or observation changes. This is documented post-run evaluator calibration, not held-out model improvement.
+- Five cases remain failed: conflicting insurer/expiry citation, missing insurer, unsupported recall limit, omitted property sublimit/evidence and ambiguous `Claims Desk 2` routing. All 50 stress semantic reviews remain pending; insurance policy diagnostics are unscored and Q&A latency excludes upload/OCR.
+- Validation: 351 full backend tests passed, including 52 new calibration regressions; all 45 PDFs / 73 pages and actual OCR validated. Frontend/production RAG code unchanged. Docker/provider execution unavailable here; owner's live observations are preserved and no fresh live run is claimed. See EVALUATOR_CALIBRATION.md and QUALITY_EVALUATION.md.
+
+## 2026-10-08 — Final fair stress cohort and evaluator calibration
+
+Added five independently authored synthetic multi-page packs for logistics limits, dated food-liability endorsements, mixed OCR facilities evidence, manufacturing address roles and maintenance conditions/exclusions. Active v5: 15 suppliers, 45 PDFs, 73 pages, 150 questions, 135 registration/tax fields; the added 50 questions are separately reported as stress. Pinned the unchanged ten-pack v4 manifest for audit and offline replay.
+
+Evaluator v3 adds equivalent INR values, PDF-wrapped/ordinal date handling, clause-page citation contracts, declared payment-trigger aliases, duplicate/malformed retrieval rejection, distinct JSON/Markdown destinations and a mandatory human-review queue for all stress answers. Upload/OCR HTTP timing is separated from processing and Q&A. Supplementary liability annotations are unscored diagnostics, not insurance compliance or full supplier approval. Upload/processing failures produce incomplete pipeline reporting without charging unexecuted questions as wrong RAG answers. Existing records and production prompts remain unchanged.
+
+Validation: 299 full backend tests passed; frontend production build passed; v5 preflight validated all 45 PDFs and actual OCR; all 43 new pages rendered/inspected. Static Compose/Docker wiring verified. The owner-run replay retains 99/100 strict passes and the real citation failure without changing source observations. Docker/provider execution and live v5 results remain pending the owner's environment; no model scores or latest reports fabricated.
+
+# SourceSure AI — Development Handoff Log
 
 This file is the short resumption context for future AI or developer sessions.
 Read this file first, then open only the files relevant to the next task.
 The complete product intent remains in `PROJECT_BLUEPRINT.md`.
+
+## 2026-10-08 — Corrected deterministic evaluator and auditable reassessment
+
+- Versioned `rag-evaluator-v2` accepts labelled state/PIN formatting, equivalent conflict uncertainty and explicitly justified corroborating sources. Unique/task-specific evidence remains required; contradictory or unrelated citations remain failures. Production models and prompts are unchanged.
+- Live evaluation and offline reassessment share one scoring function. Offline mode preserves source responses, retrieval, citations, processing and measured usage/latency; it records the original report hash/run/manifest and component changes and protects source/live-latest output paths.
+- Preserved the original scoring manifest; changed only three scenario citation contracts in current scoring revision 2. PDF hashes, questions, answer facts and baseline supplier records remain unchanged.
+- The owner-provided 100-question live run reassesses to 99/100, correcting eight evaluator false negatives. One insurer/expiry case still fails its citation rule because contradictory registration evidence is cited without explanation. No fresh model calls were made for this reassessment.
+- Validation: 183 backend tests passed; corpus preflight passed during reassessment; original responses/citations/retrieval/processing/latency/tokens verified unchanged. Regression cases cover wrong/missing state/PIN, wrong facts, unrelated/missing unique sources, explicit winner claims, offline provenance and protected live-report paths.
+
+## 2026-10-08 — Windows OCR transcript checkout compatibility
+
+- Reproduced the preflight checksum error by converting the unchanged authoring transcripts from LF to Windows CRLF.
+- Transcript validation canonicalizes CRLF to LF before hashing, while source-content edits and PDF-byte edits remain rejected. Git attributes and the generator pin transcript line endings to LF.
+- Added a full preflight regression using all six CRLF transcripts, followed by a changed-content rejection check. No corpus facts, PDF hashes or scoring expectations changed.
+- Validation: 160 backend tests passed, including the complete 10-supplier/30-PDF/100-question preflight against Windows-style transcripts and actual OCR on all six scans. Docker execution remains on the owner machine.
+
+## 2026-10-08 — Expanded OCR, conflict and onboarding evaluation
+
+- Active manifest v4 contains 10 synthetic suppliers, 30 originals, 100 RAG questions and 90 current-policy extraction checks. The pinned five-supplier v3 records and originals remain unchanged.
+- Added two OCR suppliers with six image-only PDFs, two suppliers with contradictory addresses/terms/expiry dates, and one supplier with broader vendor-master/AP/insurance/handover questions.
+- Conflict scoring requires both values, source attribution, both citations and conflict/uncertainty guards. Reports expose cohort results, OCR execution/quality, and failed components. Gold transcripts are never uploaded as evidence.
+- Fixed an upload-quality bug for supplementary scans with no policy extraction fields: use OCR readability instead of counting inapplicable field confidence/coverage as zero. Poor scans remain rejected; review-quality originals retain attention flags.
+- Structural preflight exercises actual OCR and verifies the full corpus. Expanded model scores remain pending on the owner Docker/provider machine; existing reports and the presentation are not relabelled as a 100-question result.
+- Validation: 159 backend tests passed; frontend production build passed; all 30 originals validated, all 15 added pages rendered and visually reviewed, and all six scans exercised backend OCR. Compose wiring checked statically; Docker execution is unavailable in this workspace.
+
+## 2026-10-08 — Consistent OCR findings and processing completion
+
+- Processing now commits terminal run/supplier states and refreshed compliance results in one transaction, preventing the review poller from stopping on stale findings.
+- Objective check results remain visible as matched/not matched even when extracted inputs need human verification; this does not approve uncertain OCR evidence.
+- Refresh preserves OCR quality attention and field verification requirements. Bulk confirmation excludes OCR-review documents and uncertain fields independently of their document status.
+- Semantic findings prefer current/latest processing over older upload-time assessments.
+- Regression coverage includes first run, forced refresh, already-indexed evidence, OCR-quality gates, future-date mismatch and independent bulk-confirmation exclusions.
+- Verification: 122 backend tests passed; frontend production build passed. Live supplier/provider verification remains to be performed on the deployed VM.
+
+## 2026-10-08 — Final 50-question RAG evaluation
+
+- Expanded the controlled evaluation from four suppliers/six repeated questions to five suppliers/ten questions each.
+- The 50 cases cover direct facts, paraphrased facts, date interpretation, multi-fact answers and safe not-found behaviour; ten cases explicitly require guarded fallback with zero citations.
+- Added an industry-distinct renewable-components supplier pack, producing 15 total source PDFs.
+- The runner now reports strict end-to-end accuracy, answer/found/citation/fallback/isolation components, results by question type and supplier, average/P50/P95/maximum latency, tokens, failures, methodology and limitations.
+- Every live run writes machine-readable `latest_results.json` and mentor-ready `latest_results.md`. Final values remain pending until OpenRouter credentials are available.
+- Added a one-command Compose evaluation service: `docker compose run --rm --build evaluation`.
+- Verification: 125 backend tests passed, the frontend production build passed, all 15 generated PDFs are readable, and the Compose YAML/evaluation dependency structure parsed successfully. Docker execution and the live 50-question run remain pending on the VM.
+
+## 2026-10-08 — Policy-aligned evaluation setup
+
+- Preserved the owner-provided v2 live run unchanged (45/50 RAG, 5/45 obsolete extraction checks) and archived its manifest/report.
+- Active manifest v3 scores 45 current policy fields by source document across registration/tax; five legacy liability certificates remain explicitly RAG-only. Updated PDFs declare issuer/status/GST facts.
+- Clarified complete-address intent, accepts equivalent dates, validates corpus hashes/schema before API calls, creates fresh supplier IDs and forces processing refresh.
+- Citation/isolation checks now verify supplier/original/chunk/page identity; reports retain expected/actual facts, excerpts, processing diagnostics and manifest provenance. Existing reports are archived before replacement.
+- Production policy and RAG prompts unchanged. Updated live run remains pending on the owner Docker/OpenRouter machine; no replacement scores fabricated.
+- Validation: 141 backend tests passed, manifest/PDF preflight passed, all 15 pages rendered and visually checked, Compose wiring checked. Native Docker execution remains unavailable in this workspace.
 
 ## Current Status
 
@@ -104,7 +196,7 @@ frontend/src/theme/theme.ts         Single source for all brand colors
 
 - Verification date: 2026-08-04.
 - ChromaDB 1.5.9 installed successfully in the project virtual environment.
-- Local PostgreSQL connection passed against PostgreSQL 18.1 and database `vendorlens`.
+- Local PostgreSQL connection passed against PostgreSQL 18.1 and database `sourcesure`.
 - `alembic upgrade head` passed; revision is `0003_restore_three_types (head)`.
 - PostgreSQL tables confirmed: `alembic_version`, `suppliers`, `documents`, and `audit_events`.
 - `/api/health` returned HTTP 200 with `status: healthy`, `database: connected`, and `chroma: connected`.
@@ -293,11 +385,22 @@ frontend/src/theme/theme.ts         Single source for all brand colors
 - Rejection requires a reason of at least 10 characters and stores it in the supplier decision and audit history.
 - Finalized suppliers are locked against document changes, field corrections, and AI reprocessing in the demo workflow.
 
-### Mock ERP boundary
+### Mock ERP boundary (superseded by the MCP integration below)
 
 - Added a deterministic local `MockERPService` used only after a valid human approval.
 - Successful approval creates a stable `ERP-...` supplier reference and separate `erp.supplier.created` and `supplier.approved` audit events.
-- The current implementation is a local service abstraction to keep Phase 3 runnable as a two-process demo; no real ERP is contacted.
+- This was the initial Phase 3 implementation and is retained here as historical context. It was replaced by the persistent mock ERP MCP integration below.
+
+### Persistent mock ERP MCP integration
+
+- Replaced the approval-time local ERP function with a separately deployed MCP JSON-RPC service.
+- Added persistent ERP supplier-master records that can be independently listed and retrieved.
+- Added preflight validation for required ERP fields, India scope, category mappings, duplicate tax references, and duplicate bank accounts.
+- Added idempotent creation keyed by the stable `SUP-...` supplier reference, so timeouts and retries cannot create duplicates.
+- Added sanitized ERP tool-attempt records with operation, status, latency, retry count, and error code.
+- ERP unavailability leaves the supplier unapproved and returns a safe retry message instead of a stack trace.
+- The reviewer workspace now displays ERP validation results before enabling approval and provides a read-only mock ERP supplier-master screen.
+- Verification passed with 65 backend tests, Python compilation, frontend lint, and a production frontend build.
 
 ### Frontend
 
@@ -339,7 +442,7 @@ frontend/src/theme/theme.ts         Single source for all brand colors
 ### Frontend
 
 - Added a globally mounted bottom-right floating help icon in `AppShell` that opens a responsive “Supplier onboarding assistant” popover with message bubbles, reset-chat control, and response metrics on every route.
-- Tuned the assistant prompt with explicit VendorLens context so document-requirement questions lead with the three required uploads: registration, tax, and insurance.
+- Tuned the assistant prompt with explicit SourceSure AI context so document-requirement questions lead with the three required uploads: registration, tax, and insurance.
 - The existing “Ask about this supplier” panel remains document-grounded and cited; the new assistant is explicitly labeled as general guidance.
 
 ### Verification
@@ -436,6 +539,35 @@ frontend/src/theme/theme.ts         Single source for all brand colors
 - Static Compose YAML parsing passed, backend compilation and all 28 tests passed, and frontend lint and production build passed with 954 transformed modules.
 - Docker was not available in the development environment, so an actual image build and live Compose smoke test remain to be run on a Docker-enabled machine.
 
+## Admin AI Observability and Correlated Langfuse Tracing (2026-09-23)
+
+- Added Administrator as the third landing-page workspace while retaining separately authenticated, admin-only access.
+- Added an admin AI-observability dashboard with configurable time windows, run success, tokens, P95 latency, model/operation/prompt usage, RAG grounding, OCR coverage, ERP tool health, and privacy-safe recent runs.
+- Added correlated Langfuse workflow traces for OCR/text extraction, document processing, supplier RAG, supplier/reviewer assistants, and MCP ERP tools.
+- Added hashed telemetry subjects, assistant/workflow sessions, provider/model/prompt/release metadata, and quality scores for processing, grounding, citations, OCR, and ERP tool success.
+- Removed original filenames from extraction telemetry and the LLM extraction prompt; only the file extension and document type are retained.
+- Normalized OpenRouter model slugs for Langfuse pricing lookup while preserving the complete provider model in metadata.
+- Added `LANGFUSE_DASHBOARD_URL` for the admin-only deep link and documented the recommended SourceSure AI dashboard widgets.
+- Verification: 77 backend tests passed; frontend production build passed; frontend lint completed with zero errors and two pre-existing warnings.
+
+## Demo Authentication Flow (2026-09-24)
+
+- Supplier authentication now defaults to **Sign in** unless the user explicitly selects **Create account**.
+- Removed the hidden admin link from the supplier sign-in page; reviewer and administrator entry now live only on the three-workspace landing page.
+- Added independent `REVIEWER_AUTH_ENABLED` and `ADMIN_AUTH_ENABLED` runtime flags. Both default to `false` for one-click demo access; either role can independently require its configured email and password.
+- Added a reviewer credential endpoint/page and an admin demo-session endpoint while retaining role-protected reviewer and admin APIs.
+- Replaced the browser's single active login with separate supplier, reviewer, and administrator sessions. Entering a staff workspace no longer discards the supplier login.
+- Updated Docker and demo documentation to match the current staff entry and OCR behavior.
+- Verification: 79 backend tests passed; frontend production build passed; frontend lint completed with zero errors and two pre-existing warnings.
+
+## Automatic Processing Refresh and Upload UX (2026-09-30)
+
+- AI-configured submissions and resubmissions now enter `processing` before the background task starts, closing the gap where a reviewer could open a case before the processing state was visible.
+- The reviewer case polls lightweight supplier state every two seconds only while processing is active, then stops automatically and displays completed fields and policy checks without a manual refresh.
+- The manual AI action is disabled during an active run, preventing a redundant zero-token processing workflow while the original extraction is still finishing.
+- Supplier evidence uploads and flagged-document replacements now begin immediately after a file is selected. The redundant second Upload/Replace button was removed, and upload progress is isolated to the selected requirement row so unrelated controls no longer display a loading state.
+- Verification: 79 backend tests passed; frontend production build passed; frontend lint completed with zero errors and the same two pre-existing warnings.
+
 ## Resume Commands
 
 Preferred combined command from the repository root:
@@ -467,3 +599,10 @@ After each meaningful implementation session, update this file with:
 - Important architectural decisions and their reason.
 - Verification commands and known failures.
 - The exact next implementation checklist.
+
+
+## 2026-10-08 — Anchor faithfulness to observed answers
+
+The v2 judged report showed supported claims drawn from documents but absent from the observed answer. Replaced the free-form claim denominator with a document-free, exact answer-span inventory and fixed support-verdict slots. Validated ordered full-answer coverage and character offsets; retained question interpretation for short factual answers. Historical unanchored LLM faithfulness is pending, while v2 relevance can be reused after evidence/prompt/provenance validation. Added per-question report checkpoints and preserved retrieval/usage if faithfulness reassessment fails. Production RAG, synthetic corpus, deterministic rubric and captured observations are unchanged. Owner credentials remain necessary for the final faithfulness-only reassessment; no scored results are fabricated.
+
+Validation: 430 backend tests passed; frontend production build passed (existing bundle-size warning); manifest validation passed for all 15 suppliers / 45 readable PDFs / 150 questions / 135 source-scoped checks. Static Compose/image wiring passed. The uploaded v2 report independently verified 121 reusable relevance assessments and unchanged Precision@10 17.08% / macro returned precision 45.06%. Docker execution and the credentialed v3 reassessment remain owner-side.

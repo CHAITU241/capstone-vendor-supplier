@@ -1,4 +1,4 @@
-"""Generate a negative-case insurance document for a VendorLens demo."""
+"""Generate a negative-case insurance document for a SourceSure AI demo."""
 
 from pathlib import Path
 

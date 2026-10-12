@@ -1,0 +1,156 @@
+ Professional and Advisory Services Supplier Policy
+ Synthetic buyer policy corpus | Version 1.1 | 19 September 2026 | PROF category applicability
+
+
+ This category policy covers professional and advisory services suppliers whose primary contracted
+ deliverable falls in one of the three codes below. Specialist advice or project work delivered mainly
+ through professional expertise. Each inherits BASE-001 through BASE-003. The subcategory-specific IDs
+ and acceptance checks are set out here and under those same IDs in Evidence and Validation Standards.
+
+
+ PROF-01 Supplier journeys
+
+   Primary code           Subcategory                             Additional IDs
+
+
+   PROF-CONS              Business and Technical Consulting       CONF-001, INS-PI-001
+
+
+   PROF-LFA               Legal Finance and Audit                 CONF-001, PRIV-001, CRED-001, INS-PI-001
+
+
+   PROF-MKT               Marketing Creative and Research         CONF-001
+
+
+
+ PROF-02 Common baseline
+ Every supplier in this category must submit BASE-001 business registration evidence, BASE-002 tax
+ registration or accepted tax status evidence, and BASE-003 bank account verification evidence. The
+ exact fields, alternatives and checks are in Evidence and Validation Standards sections BASE-001 to
+ BASE-003.
+
+
+ PROF-CONS Business and Technical Consulting
+ Advisory or implementation work on strategy, operations, technology, or engineering. Examples:
+ Management consulting, engineering advisory, strategy, and technical implementation consulting.
+
+ Category boundary. Ongoing operation of company IT belongs in TECH-ITM. Legal, tax, accounting, or
+ audit work belongs in PROF-LFA.
+
+ In addition to the three baseline documents, submit the following evidence. The evidence standard
+ named by each ID supplies its fields and exact pass criteria.
+
+ CONF-001 Confidentiality undertaking
+ Why and what to submit. Set confidentiality duties for work involving company information. Buyer standard
+ confidentiality undertaking signed by both parties.
+
+ Required content. Supplier legal name; buyer name; signatory names; both signatures; execution date.
+
+ CONF-001.R1 The supplier name matches BASE-001 and both parties have signed.
+
+ CONF-001.R2 The execution date is on or before the evaluation date and within the previous 365 calendar days.
+
+
+
+
+Synthetic onboarding policy | Version 1.1                                                                    Page 1
+ INS-PI-001 Professional indemnity coverage
+ Why and what to submit. Provide cover for errors in professional services. Insurer-issued professional indemnity
+ insurance certificate.
+
+ Required content. Policyholder legal name; insurer; policy number; professional indemnity amount in INR; effective
+ date; expiry date.
+
+ INS-PI-001.R1 The policyholder matches BASE-001, the cover names professional indemnity and coverage is at
+ least ₹1 crore.
+
+ INS-PI-001.R2 The policy is effective on the evaluation date and expires at least 30 calendar days later.
+
+
+ PROF-LFA Legal Finance and Audit
+ Regulated or specialist advice concerning law, tax, accounting, audit, or corporate finance. Examples:
+ Law firms, tax advisers, auditors, accounting firms, and financial advisers.
+
+ Category boundary. A supplier processing company payments as a service belongs in SENS-PAY; an
+ insurance broker belongs in SENS-INS.
+
+ In addition to the three baseline documents, submit the following evidence. The evidence standard
+ named by each ID supplies its fields and exact pass criteria.
+
+ CONF-001 Confidentiality undertaking
+ Why and what to submit. Set confidentiality duties for work involving company information. Buyer standard
+ confidentiality undertaking signed by both parties.
+
+ Required content. Supplier legal name; buyer name; signatory names; both signatures; execution date.
+
+ CONF-001.R1 The supplier name matches BASE-001 and both parties have signed.
+
+ CONF-001.R2 The execution date is on or before the evaluation date and within the previous 365 calendar days.
+
+ PRIV-001 Personal data handling assessment
+ Why and what to submit. Make personal-data use and deletion commitments explicit. Buyer privacy questionnaire,
+ signed within 180 calendar days.
+
+ Required content. Supplier legal name; whether personal data is processed; purpose; data categories; processing
+ locations; subprocessors; retention after service end; deletion interval; signature and date.
+
+ PRIV-001.R1 Every field is answered; “None” is allowed for categories and subprocessors, and “Not applicable” is
+ allowed for locations, retention and deletion only when the supplier states it processes no personal data.
+
+ PRIV-001.R2 If personal data is processed, retention after service end is at most 24 months and deletion on buyer
+ request is within 30 calendar days.
+
+ CRED-001 Professional or service authorization
+ Why and what to submit. Show authorization relevant to the contracted specialist service. Relevant provider
+ credential, professional registration or service authorization.
+
+ Required content. Supplier or named responsible professional; issuer; credential number; authorized service scope;
+ issue date; expiry date.
+
+ CRED-001.R1 The authorization scope covers the selected service and the named entity or professional is linked to
+ this supplier.
+
+ CRED-001.R2 The issue date is on or before evaluation and the expiry is at least 30 calendar days later.
+
+
+
+
+Synthetic onboarding policy | Version 1.1                                                                      Page 2
+ INS-PI-001 Professional indemnity coverage
+ Why and what to submit. Provide cover for errors in professional services. Insurer-issued professional indemnity
+ insurance certificate.
+
+ Required content. Policyholder legal name; insurer; policy number; professional indemnity amount in INR; effective
+ date; expiry date.
+
+ INS-PI-001.R1 The policyholder matches BASE-001, the cover names professional indemnity and coverage is at
+ least ₹1 crore.
+
+ INS-PI-001.R2 The policy is effective on the evaluation date and expires at least 30 calendar days later.
+
+
+ PROF-MKT Marketing Creative and Research
+ Creative, communications, advertising, or market insight services. Examples: Advertising agencies,
+ graphic design, branding, content production, and market research.
+
+ Category boundary. A provider whose primary deliverable is an event or venue belongs in FOOD-EVT.
+ A general-purpose marketing software subscription belongs in TECH-SW.
+
+ In addition to the three baseline documents, submit the following evidence. The evidence standard
+ named by each ID supplies its fields and exact pass criteria.
+
+ CONF-001 Confidentiality undertaking
+ Why and what to submit. Set confidentiality duties for work involving company information. Buyer standard
+ confidentiality undertaking signed by both parties.
+
+ Required content. Supplier legal name; buyer name; signatory names; both signatures; execution date.
+
+ CONF-001.R1 The supplier name matches BASE-001 and both parties have signed.
+
+ CONF-001.R2 The execution date is on or before the evaluation date and within the previous 365 calendar days.
+
+
+
+
+Synthetic onboarding policy | Version 1.1                                                                     Page 3
+

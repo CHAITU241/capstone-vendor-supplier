@@ -1,6 +1,8 @@
-"""Generate four coherent supplier packs for VendorLens quality evaluation."""
+"""Regenerate the pinned five-supplier baseline. Use the extended generator for v4."""
 
 import json
+import hashlib
+from datetime import datetime
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -155,6 +157,32 @@ SUPPLIERS = [
         tax_reference="GST/WB/2026/7310",
         insurance_reference="COI/AGG/2026/90441",
     ),
+    SupplierPack(
+        slug="sahyadri_renewable_components",
+        legal_name="Sahyadri Renewable Components Private Limited",
+        trading_name="Sahyadri Renewables",
+        address="Unit 14, Chakan Green Industrial Park, Pune, Maharashtra 410501",
+        country="India",
+        cin="U31909PN2021PTC204716",
+        pan="AALCS2468R",
+        gstin="27AALCS2468R1Z5",
+        incorporation_date="08 October 2021",
+        contact_name="Neha Patil",
+        contact_role="Manager - Commercial Finance",
+        contact_email="neha.patil@example.com",
+        contact_phone="+91 90005 67890",
+        product_category="Solar mounting structures, inverter enclosures and renewable-energy component assemblies",
+        payment_terms="Net 30 days after goods receipt and quality acceptance",
+        signatory="Aditya Joshi",
+        insurance_provider="SummitShield General Insurance Company Limited",
+        policy_number="SSG/RE/2026/58214",
+        policy_start="15 AUG 2026",
+        policy_expiry="14 AUG 2027",
+        occurrence_limit="INR 6,00,00,000",
+        registration_reference="SRC/VEN/2026/582",
+        tax_reference="GST/MH/2026/8425",
+        insurance_reference="COI/SSG/2026/58214",
+    ),
 ]
 
 
@@ -210,7 +238,9 @@ def rows(page: pymupdf.Page, y: float, values: list[tuple[str, str]], row_height
         page.draw_rect((left, top, right, top + row_height), fill=fill, color=(0.84, 0.87, 0.91), width=0.5)
         page.draw_line((split, top), (split, top + row_height), color=(0.84, 0.87, 0.91), width=0.5)
         page.insert_text((left + 9, top + 17), label, fontname="hebo", fontsize=7.5, color=SLATE)
-        page.insert_textbox((split + 9, top + 5, right - 8, top + row_height - 3), value, fontname="helv", fontsize=8, color=BLACK)
+        remaining = page.insert_textbox((split + 9, top + 5, right - 8, top + row_height - 3), value, fontname="helv", fontsize=8, color=BLACK)
+        if remaining < 0:
+            raise ValueError(f"PDF row does not fit: {label}: {value}")
     return y + len(values) * row_height
 
 
@@ -222,7 +252,7 @@ def footer(page: pymupdf.Page, reference: str) -> None:
 
 def save(document: pymupdf.Document, directory: Path, filename: str) -> None:
     directory.mkdir(parents=True, exist_ok=True)
-    document.save(directory / filename, garbage=4, deflate=True)
+    document.save(directory / filename, garbage=4, deflate=True, no_new_id=True)
     document.close()
 
 
@@ -235,6 +265,8 @@ def registration_pdf(supplier: SupplierPack, directory: Path) -> None:
         ("Trading name", supplier.trading_name),
         ("Country", supplier.country),
         ("Incorporation / CIN", f"{supplier.incorporation_date} / {supplier.cin}"),
+        ("Issuing registry", "Registrar of Companies, India"),
+        ("Registration status", "Active"),
         ("PAN / GSTIN", f"{supplier.pan} / {supplier.gstin}"),
         ("Registered address", supplier.address),
     ])
@@ -266,6 +298,7 @@ def tax_pdf(supplier: SupplierPack, directory: Path) -> None:
         ("Constitution", "Private Limited Company"),
         ("Permanent Account Number", supplier.pan),
         ("Registration type", "Regular"),
+        ("GST registration status", "Registered"),
         ("Principal place of business", supplier.address),
         ("Authorized signatory", supplier.signatory),
         ("Jurisdiction", supplier.address.split(",")[-2].strip()),
@@ -300,9 +333,13 @@ def insurance_pdf(supplier: SupplierPack, directory: Path) -> None:
 
 
 def evaluation_questions(supplier: SupplierPack) -> list[dict]:
+    address_parts = [part.strip() for part in supplier.address.split(",")]
+    state, postal_code = address_parts.pop().rsplit(" ", 1)
+    address_parts.extend([state, postal_code])
     return [
         {
             "id": "legal_name",
+            "question_type": "direct_fact",
             "question": "What is the supplier's full legal name?",
             "expected_terms": [supplier.legal_name],
             "expected_sources": [
@@ -314,6 +351,7 @@ def evaluation_questions(supplier: SupplierPack) -> list[dict]:
         },
         {
             "id": "payment_terms",
+            "question_type": "direct_fact",
             "question": "What are the supplier's standard payment terms?",
             "expected_terms": [supplier.payment_terms],
             "expected_sources": ["01_supplier_registration_form.pdf"],
@@ -321,6 +359,7 @@ def evaluation_questions(supplier: SupplierPack) -> list[dict]:
         },
         {
             "id": "insurance_provider",
+            "question_type": "direct_fact",
             "question": "Which company provides the supplier's liability insurance?",
             "expected_terms": [supplier.insurance_provider],
             "expected_sources": ["03_certificate_of_liability_insurance.pdf"],
@@ -328,13 +367,16 @@ def evaluation_questions(supplier: SupplierPack) -> list[dict]:
         },
         {
             "id": "insurance_expiry",
+            "question_type": "date_interpretation",
             "question": "When does the supplier's liability insurance expire?",
-            "expected_terms": [supplier.policy_expiry],
+            "expected_terms": [],
+            "expected_dates": [datetime.strptime(supplier.policy_expiry, "%d %b %Y").date().isoformat()],
             "expected_sources": ["03_certificate_of_liability_insurance.pdf"],
             "information_found": True,
         },
         {
             "id": "business_activity",
+            "question_type": "direct_fact",
             "question": "What products or services does this supplier provide?",
             "expected_terms": [supplier.product_category],
             "expected_sources": [
@@ -344,8 +386,48 @@ def evaluation_questions(supplier: SupplierPack) -> list[dict]:
             "information_found": True,
         },
         {
+            "id": "trading_name_paraphrase",
+            "question_type": "paraphrased_fact",
+            "question": "Which trading or brand name does this company operate under?",
+            "expected_terms": [supplier.trading_name],
+            "expected_sources": [
+                "01_supplier_registration_form.pdf",
+                "02_gst_registration_certificate.pdf",
+            ],
+            "information_found": True,
+        },
+        {
+            "id": "registered_address_paraphrase",
+            "question_type": "paraphrased_fact",
+            "question": "At what complete street address is this business registered? Include the locality, city, state and postal code.",
+            "expected_terms": address_parts,
+            "expected_sources": [
+                "01_supplier_registration_form.pdf",
+                "02_gst_registration_certificate.pdf",
+            ],
+            "information_found": True,
+        },
+        {
+            "id": "insurance_provider_and_expiry",
+            "question_type": "multi_fact",
+            "question": "Give me both the liability insurer and the policy expiry date.",
+            "expected_terms": [supplier.insurance_provider],
+            "expected_dates": [datetime.strptime(supplier.policy_expiry, "%d %b %Y").date().isoformat()],
+            "expected_sources": ["03_certificate_of_liability_insurance.pdf"],
+            "information_found": True,
+        },
+        {
             "id": "absent_bank_balance",
+            "question_type": "safe_not_found",
             "question": "What is the supplier's current bank account balance?",
+            "expected_terms": ["Information not found in uploaded supplier documents."],
+            "expected_sources": [],
+            "information_found": False,
+        },
+        {
+            "id": "absent_credit_rating",
+            "question_type": "safe_not_found",
+            "question": "What external credit rating has been assigned to this supplier?",
             "expected_terms": ["Information not found in uploaded supplier documents."],
             "expected_sources": [],
             "information_found": False,
@@ -366,16 +448,23 @@ def manifest_entry(supplier: SupplierPack) -> dict:
             "tax": "02_gst_registration_certificate.pdf",
             "insurance": "03_certificate_of_liability_insurance.pdf",
         },
-        "expected_fields": {
-            "supplier_name": supplier.legal_name,
-            "address": supplier.address,
-            "country": supplier.country,
-            "tax_identifier": supplier.gstin,
-            "contact_name": supplier.contact_name,
-            "contact_email": supplier.contact_email,
-            "insurance_provider": supplier.insurance_provider,
-            "insurance_expiry_date": supplier.policy_expiry,
-            "payment_terms": supplier.payment_terms,
+        "extraction_expectations": {
+            "registration": {
+                "supplier_name": supplier.legal_name,
+                "registration_number": supplier.cin,
+                "issuing_registry": "Registrar of Companies, India",
+                "registration_date": datetime.strptime(supplier.incorporation_date, "%d %B %Y").date().isoformat(),
+                "status": "Active",
+            },
+            "tax": {
+                "supplier_name": supplier.legal_name,
+                "tax_identifier": supplier.pan,
+                "gst_status_registered_or_not_registered": "Registered",
+                "gstin_when_registered": supplier.gstin,
+            },
+        },
+        "rag_only_documents": {
+            "insurance": "Supplementary liability evidence for RAG; the legacy insurance type has no current policy extraction contract.",
         },
         "questions": evaluation_questions(supplier),
     }
@@ -390,12 +479,20 @@ def main() -> None:
         tax_pdf(supplier, directory)
         insurance_pdf(supplier, directory)
         entry = manifest_entry(supplier)
+        entry["document_sha256"] = {
+            kind: hashlib.sha256((directory / filename).read_bytes()).hexdigest()
+            for kind, filename in entry["documents"].items()
+        }
         (directory / "ground_truth.json").write_text(
             json.dumps(entry, indent=2), encoding="utf-8"
         )
         entries.append(entry)
-    (OUTPUT_ROOT / "evaluation_manifest.json").write_text(
-        json.dumps({"version": 1, "suppliers": entries}, indent=2),
+    (OUTPUT_ROOT / "baseline_manifest_v3.json").write_text(
+        json.dumps({
+            "version": 3,
+            "description": "Five suppliers, ten questions each, with direct, paraphrased, date, multi-fact and safe-not-found cases.",
+            "suppliers": entries,
+        }, indent=2),
         encoding="utf-8",
     )
     print(f"Generated {len(entries)} supplier packs in {OUTPUT_ROOT}")

@@ -1,0 +1,236 @@
+ Technology and Digital Services Supplier Policy
+ Synthetic buyer policy corpus | Version 1.1 | 19 September 2026 | TECH category applicability
+
+
+ This category policy covers technology and digital services suppliers whose primary contracted
+ deliverable falls in one of the three codes below. Products or services delivered through software,
+ cybersecurity capabilities, or management of company technology. Each inherits BASE-001 through
+ BASE-003. The subcategory-specific IDs and acceptance checks are set out here and under those same
+ IDs in Evidence and Validation Standards.
+
+
+ TECH-01 Supplier journeys
+
+   Primary code           Subcategory                              Additional IDs
+
+
+   TECH-SW                SaaS and Cloud Software                  CONF-001, SEC-001, PRIV-001, CONT-001
+
+
+                                                                   CONF-001, SEC-001, PRIV-001, CONT-001,
+   TECH-CYB               Cybersecurity
+                                                                   INS-CYB-001
+
+
+   TECH-ITM               Managed IT and Infrastructure Services   CONF-001, SEC-001, PRIV-001, CONT-001
+
+
+
+ TECH-02 Common baseline
+ Every supplier in this category must submit BASE-001 business registration evidence, BASE-002 tax
+ registration or accepted tax status evidence, and BASE-003 bank account verification evidence. The
+ exact fields, alternatives and checks are in Evidence and Validation Standards sections BASE-001 to
+ BASE-003.
+
+
+ TECH-SW SaaS and Cloud Software
+ Hosted business applications supplied for the company to use. Examples: HR, CRM, expense,
+ collaboration, or project management software.
+
+ Category boundary. Security tools whose primary function is to protect or test systems belong in
+ TECH-CYB. Infrastructure operated on the company’s behalf belongs in TECH-ITM.
+
+ In addition to the three baseline documents, submit the following evidence. The evidence standard
+ named by each ID supplies its fields and exact pass criteria.
+
+ CONF-001 Confidentiality undertaking
+ Why and what to submit. Set confidentiality duties for work involving company information. Buyer standard
+ confidentiality undertaking signed by both parties.
+
+ Required content. Supplier legal name; buyer name; signatory names; both signatures; execution date.
+
+ CONF-001.R1 The supplier name matches BASE-001 and both parties have signed.
+
+ CONF-001.R2 The execution date is on or before the evaluation date and within the previous 365 calendar days.
+
+
+
+
+Synthetic onboarding policy | Version 1.1                                                                    Page 1
+ SEC-001 Information security assessment
+ Why and what to submit. Establish minimum controls for technology or sensitive-data services. Buyer security
+ questionnaire, signed within 180 calendar days.
+
+ Required content. Supplier legal name; service scope; security contact; privileged-account MFA; encryption at rest;
+ encryption in transit; incident notice commitment; signature and date.
+
+ SEC-001.R1 All three control answers (MFA and both encryption measures) are Yes.
+
+ SEC-001.R2 The committed incident notice interval is at most 48 hours and the signed date is within 180 calendar
+ days.
+
+ PRIV-001 Personal data handling assessment
+ Why and what to submit. Make personal-data use and deletion commitments explicit. Buyer privacy questionnaire,
+ signed within 180 calendar days.
+
+ Required content. Supplier legal name; whether personal data is processed; purpose; data categories; processing
+ locations; subprocessors; retention after service end; deletion interval; signature and date.
+
+ PRIV-001.R1 Every field is answered; “None” is allowed for categories and subprocessors, and “Not applicable” is
+ allowed for locations, retention and deletion only when the supplier states it processes no personal data.
+
+ PRIV-001.R2 If personal data is processed, retention after service end is at most 24 months and deletion on buyer
+ request is within 30 calendar days.
+
+ CONT-001 Service continuity
+ Why and what to submit. Demonstrate a practical service recovery plan. Signed continuity and recovery summary
+ reviewed within 180 calendar days.
+
+ Required content. Supplier legal name; covered service; recovery owner; recovery time objective (RTO); recovery
+ point objective (RPO); last exercise date; review date.
+
+ CONT-001.R1 RTO is at most 72 hours and RPO is at most 24 hours.
+
+ CONT-001.R2 The last exercise is within 365 calendar days and the plan review is within 180 calendar days.
+
+
+ TECH-CYB Cybersecurity
+ Products or services primarily used to protect, monitor, assess, or control information systems.
+ Examples: Antivirus and endpoint protection, SOC services, penetration testing, vulnerability
+ management, and identity or access management.
+
+ Category boundary. General cloud business software belongs in TECH-SW. Selling network hardware
+ without an operating service belongs in GOODS-ITE.
+
+ In addition to the three baseline documents, submit the following evidence. The evidence standard
+ named by each ID supplies its fields and exact pass criteria.
+
+ CONF-001 Confidentiality undertaking
+ Why and what to submit. Set confidentiality duties for work involving company information. Buyer standard
+ confidentiality undertaking signed by both parties.
+
+ Required content. Supplier legal name; buyer name; signatory names; both signatures; execution date.
+
+ CONF-001.R1 The supplier name matches BASE-001 and both parties have signed.
+
+ CONF-001.R2 The execution date is on or before the evaluation date and within the previous 365 calendar days.
+
+
+
+
+Synthetic onboarding policy | Version 1.1                                                                      Page 2
+ SEC-001 Information security assessment
+ Why and what to submit. Establish minimum controls for technology or sensitive-data services. Buyer security
+ questionnaire, signed within 180 calendar days.
+
+ Required content. Supplier legal name; service scope; security contact; privileged-account MFA; encryption at rest;
+ encryption in transit; incident notice commitment; signature and date.
+
+ SEC-001.R1 All three control answers (MFA and both encryption measures) are Yes.
+
+ SEC-001.R2 The committed incident notice interval is at most 48 hours and the signed date is within 180 calendar
+ days.
+
+ PRIV-001 Personal data handling assessment
+ Why and what to submit. Make personal-data use and deletion commitments explicit. Buyer privacy questionnaire,
+ signed within 180 calendar days.
+
+ Required content. Supplier legal name; whether personal data is processed; purpose; data categories; processing
+ locations; subprocessors; retention after service end; deletion interval; signature and date.
+
+ PRIV-001.R1 Every field is answered; “None” is allowed for categories and subprocessors, and “Not applicable” is
+ allowed for locations, retention and deletion only when the supplier states it processes no personal data.
+
+ PRIV-001.R2 If personal data is processed, retention after service end is at most 24 months and deletion on buyer
+ request is within 30 calendar days.
+
+ CONT-001 Service continuity
+ Why and what to submit. Demonstrate a practical service recovery plan. Signed continuity and recovery summary
+ reviewed within 180 calendar days.
+
+ Required content. Supplier legal name; covered service; recovery owner; recovery time objective (RTO); recovery
+ point objective (RPO); last exercise date; review date.
+
+ CONT-001.R1 RTO is at most 72 hours and RPO is at most 24 hours.
+
+ CONT-001.R2 The last exercise is within 365 calendar days and the plan review is within 180 calendar days.
+
+ INS-CYB-001 Cyber liability coverage
+ Why and what to submit. Provide cover for a cyber incident involving the contracted service. Insurer-issued cyber
+ liability insurance certificate.
+
+ Required content. Policyholder legal name; insurer; policy number; cyber coverage amount in INR; effective date;
+ expiry date.
+
+ INS-CYB-001.R1 The policyholder matches BASE-001, the cover explicitly includes cyber liability and coverage is at
+ least ₹5 crore.
+
+ INS-CYB-001.R2 The policy is effective on the evaluation date and expires at least 30 calendar days later.
+
+
+ TECH-ITM Managed IT and Infrastructure Services
+ Ongoing management, support, or operation of company systems, devices, networks, or infrastructure.
+ Examples: Managed networks, cloud infrastructure support, IT help desks, and managed workplace
+ services.
+
+ Category boundary. A one-time sale of laptops or networking equipment belongs in GOODS-ITE. A
+ standalone security monitoring service belongs in TECH-CYB.
+
+ In addition to the three baseline documents, submit the following evidence. The evidence standard
+ named by each ID supplies its fields and exact pass criteria.
+
+
+
+
+Synthetic onboarding policy | Version 1.1                                                                      Page 3
+ CONF-001 Confidentiality undertaking
+ Why and what to submit. Set confidentiality duties for work involving company information. Buyer standard
+ confidentiality undertaking signed by both parties.
+
+ Required content. Supplier legal name; buyer name; signatory names; both signatures; execution date.
+
+ CONF-001.R1 The supplier name matches BASE-001 and both parties have signed.
+
+ CONF-001.R2 The execution date is on or before the evaluation date and within the previous 365 calendar days.
+
+ SEC-001 Information security assessment
+ Why and what to submit. Establish minimum controls for technology or sensitive-data services. Buyer security
+ questionnaire, signed within 180 calendar days.
+
+ Required content. Supplier legal name; service scope; security contact; privileged-account MFA; encryption at rest;
+ encryption in transit; incident notice commitment; signature and date.
+
+ SEC-001.R1 All three control answers (MFA and both encryption measures) are Yes.
+
+ SEC-001.R2 The committed incident notice interval is at most 48 hours and the signed date is within 180 calendar
+ days.
+
+ PRIV-001 Personal data handling assessment
+ Why and what to submit. Make personal-data use and deletion commitments explicit. Buyer privacy questionnaire,
+ signed within 180 calendar days.
+
+ Required content. Supplier legal name; whether personal data is processed; purpose; data categories; processing
+ locations; subprocessors; retention after service end; deletion interval; signature and date.
+
+ PRIV-001.R1 Every field is answered; “None” is allowed for categories and subprocessors, and “Not applicable” is
+ allowed for locations, retention and deletion only when the supplier states it processes no personal data.
+
+ PRIV-001.R2 If personal data is processed, retention after service end is at most 24 months and deletion on buyer
+ request is within 30 calendar days.
+
+ CONT-001 Service continuity
+ Why and what to submit. Demonstrate a practical service recovery plan. Signed continuity and recovery summary
+ reviewed within 180 calendar days.
+
+ Required content. Supplier legal name; covered service; recovery owner; recovery time objective (RTO); recovery
+ point objective (RPO); last exercise date; review date.
+
+ CONT-001.R1 RTO is at most 72 hours and RPO is at most 24 hours.
+
+ CONT-001.R2 The last exercise is within 365 calendar days and the plan review is within 180 calendar days.
+
+
+
+
+Synthetic onboarding policy | Version 1.1                                                                      Page 4
+

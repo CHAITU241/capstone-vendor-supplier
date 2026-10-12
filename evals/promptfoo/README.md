@@ -1,6 +1,6 @@
-# VendorLens Promptfoo evaluation
+# SourceSure AI Promptfoo evaluation
 
-This evaluation exercises the running VendorLens API, not a separate copy of
+This evaluation exercises the running SourceSure AI API, not a separate copy of
 the prompts or a direct Azure OpenAI client. It therefore measures the actual
 redaction boundary, ChromaDB retrieval, grounded answer prompt, citations,
 global assistant prompt, API latency, and token counts.

@@ -22,7 +22,7 @@ def test_openrouter_takes_priority_and_uses_openrouter_models(monkeypatch) -> No
     settings = Settings(
         _env_file=None,
         openrouter_api_key="openrouter-key",
-        openrouter_site_url="https://vendorlens.example",
+        openrouter_site_url="https://sourcesure.example",
         openai_api_key="azure-key",
         azure_openai_endpoint="https://azure.example",
     )
@@ -34,11 +34,12 @@ def test_openrouter_takes_priority_and_uses_openrouter_models(monkeypatch) -> No
     assert settings.active_extraction_model == "openai/gpt-4o-mini"
     assert settings.active_answer_model == "openai/gpt-4o-mini"
     assert settings.active_embedding_model == "openai/text-embedding-3-small"
+    assert settings.extraction_max_completion_tokens == 4096
     assert captured["api_key"] == "openrouter-key"
     assert captured["base_url"] == "https://openrouter.ai/api/v1"
     assert captured["default_headers"] == {
-        "X-Title": "VendorLens AI",
-        "HTTP-Referer": "https://vendorlens.example",
+        "X-Title": "SourceSure AI",
+        "HTTP-Referer": "https://sourcesure.example",
     }
     assert service._structured_output_options() == {
         "extra_body": {"provider": {"require_parameters": True}}
@@ -89,3 +90,9 @@ def test_configuration_requires_one_complete_provider() -> None:
         build_openai_service(
             Settings(_env_file=None, openai_api_key="azure-key")
         )
+
+
+def test_extraction_output_budget_is_configurable_and_bounded() -> None:
+    assert Settings(_env_file=None, extraction_max_completion_tokens=8192).extraction_max_completion_tokens == 8192
+    with pytest.raises(ValueError):
+        Settings(_env_file=None, extraction_max_completion_tokens=512)

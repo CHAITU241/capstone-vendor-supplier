@@ -1,0 +1,4010 @@
+{
+  "version": 5,
+  "scoring_revision": 1,
+  "description": "Pinned 100-question core plus a separate 50-question multi-page stress cohort. Synthetic evidence authored before live calls; complex stress answers require human audit.",
+  "expected_counts": {
+    "suppliers": 15,
+    "documents": 45,
+    "questions": 150,
+    "question_types": {
+      "conflict_resolution": 8,
+      "date_interpretation": 7,
+      "direct_fact": 42,
+      "multi_fact": 9,
+      "paraphrased_fact": 16,
+      "safe_not_found": 30,
+      "scenario_based": 8,
+      "stress_conditional": 5,
+      "stress_retrieval": 15,
+      "stress_synthesis": 10
+    }
+  },
+  "suppliers": [
+    {
+      "slug": "kaveri_flow_controls",
+      "create_payload": {
+        "name": "Kaveri Flow Controls Private Limited",
+        "country": "India",
+        "contact_email": "ananya.rao@example.com"
+      },
+      "documents": {
+        "registration": "01_supplier_registration_form.pdf",
+        "tax": "02_gst_registration_certificate.pdf",
+        "insurance": "03_certificate_of_liability_insurance.pdf"
+      },
+      "extraction_expectations": {
+        "registration": {
+          "supplier_name": "Kaveri Flow Controls Private Limited",
+          "registration_number": "U29120TZ2018PTC030945",
+          "issuing_registry": "Registrar of Companies, India",
+          "registration_date": "2018-09-12",
+          "status": "Active"
+        },
+        "tax": {
+          "supplier_name": "Kaveri Flow Controls Private Limited",
+          "tax_identifier": "AABCK1234F",
+          "gst_status_registered_or_not_registered": "Registered",
+          "gstin_when_registered": "33AABCK1234F1Z8"
+        }
+      },
+      "rag_only_documents": {
+        "insurance": "Supplementary liability evidence for RAG; the legacy insurance type has no current policy extraction contract."
+      },
+      "questions": [
+        {
+          "id": "legal_name",
+          "question_type": "direct_fact",
+          "question": "What is the supplier's full legal name?",
+          "expected_terms": [
+            "Kaveri Flow Controls Private Limited"
+          ],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf",
+            "02_gst_registration_certificate.pdf",
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "payment_terms",
+          "question_type": "direct_fact",
+          "question": "What are the supplier's standard payment terms?",
+          "expected_terms": [
+            "Net 30 days from invoice receipt"
+          ],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "insurance_provider",
+          "question_type": "direct_fact",
+          "question": "Which company provides the supplier's liability insurance?",
+          "expected_terms": [
+            "HarborPoint General Insurance Company Limited"
+          ],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "insurance_expiry",
+          "question_type": "date_interpretation",
+          "question": "When does the supplier's liability insurance expire?",
+          "expected_terms": [],
+          "expected_dates": [
+            "2027-06-30"
+          ],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "business_activity",
+          "question_type": "direct_fact",
+          "question": "What products or services does this supplier provide?",
+          "expected_terms": [
+            "Industrial valves, actuator assemblies and flow-control skids"
+          ],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf",
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "trading_name_paraphrase",
+          "question_type": "paraphrased_fact",
+          "question": "Which trading or brand name does this company operate under?",
+          "expected_terms": [
+            "Kaveri FlowTech"
+          ],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf",
+            "02_gst_registration_certificate.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "registered_address_paraphrase",
+          "question_type": "paraphrased_fact",
+          "question": "At what complete street address is this business registered? Include the locality, city, state and postal code.",
+          "expected_terms": [
+            "Plot 22",
+            "SIDCO Industrial Estate",
+            "Kurichi",
+            "Coimbatore",
+            "Tamil Nadu",
+            "641021"
+          ],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf",
+            "02_gst_registration_certificate.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "insurance_provider_and_expiry",
+          "question_type": "multi_fact",
+          "question": "Give me both the liability insurer and the policy expiry date.",
+          "expected_terms": [
+            "HarborPoint General Insurance Company Limited"
+          ],
+          "expected_dates": [
+            "2027-06-30"
+          ],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "absent_bank_balance",
+          "question_type": "safe_not_found",
+          "question": "What is the supplier's current bank account balance?",
+          "expected_terms": [
+            "Information not found in uploaded supplier documents."
+          ],
+          "expected_sources": [],
+          "information_found": false
+        },
+        {
+          "id": "absent_credit_rating",
+          "question_type": "safe_not_found",
+          "question": "What external credit rating has been assigned to this supplier?",
+          "expected_terms": [
+            "Information not found in uploaded supplier documents."
+          ],
+          "expected_sources": [],
+          "information_found": false
+        }
+      ],
+      "document_sha256": {
+        "registration": "c0d592dbc61b542e7293c3d2fc2b3377064d9acd02ec4c120ed596636ee1de2c",
+        "tax": "6f50f0f18a388297359d70b9a9750761d0f22f3f9f72d2ede99cb59ff695cc08",
+        "insurance": "aec01b0fd1cc7db083ac066b2373801442c196b571b53e68c5c7e377176899d0"
+      }
+    },
+    {
+      "slug": "norwood_clinical_systems",
+      "create_payload": {
+        "name": "Norwood Clinical Systems Private Limited",
+        "country": "India",
+        "contact_email": "rohan.kulkarni@example.com"
+      },
+      "documents": {
+        "registration": "01_supplier_registration_form.pdf",
+        "tax": "02_gst_registration_certificate.pdf",
+        "insurance": "03_certificate_of_liability_insurance.pdf"
+      },
+      "extraction_expectations": {
+        "registration": {
+          "supplier_name": "Norwood Clinical Systems Private Limited",
+          "registration_number": "U33110KA2020PTC141208",
+          "issuing_registry": "Registrar of Companies, India",
+          "registration_date": "2020-12-03",
+          "status": "Active"
+        },
+        "tax": {
+          "supplier_name": "Norwood Clinical Systems Private Limited",
+          "tax_identifier": "AABCN5678K",
+          "gst_status_registered_or_not_registered": "Registered",
+          "gstin_when_registered": "29AABCN5678K1Z2"
+        }
+      },
+      "rag_only_documents": {
+        "insurance": "Supplementary liability evidence for RAG; the legacy insurance type has no current policy extraction contract."
+      },
+      "questions": [
+        {
+          "id": "legal_name",
+          "question_type": "direct_fact",
+          "question": "What is the supplier's full legal name?",
+          "expected_terms": [
+            "Norwood Clinical Systems Private Limited"
+          ],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf",
+            "02_gst_registration_certificate.pdf",
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "payment_terms",
+          "question_type": "direct_fact",
+          "question": "What are the supplier's standard payment terms?",
+          "expected_terms": [
+            "Net 45 days from accepted delivery"
+          ],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "insurance_provider",
+          "question_type": "direct_fact",
+          "question": "Which company provides the supplier's liability insurance?",
+          "expected_terms": [
+            "CedarSure Commercial Insurance Company Limited"
+          ],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "insurance_expiry",
+          "question_type": "date_interpretation",
+          "question": "When does the supplier's liability insurance expire?",
+          "expected_terms": [],
+          "expected_dates": [
+            "2026-12-15"
+          ],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "business_activity",
+          "question_type": "direct_fact",
+          "question": "What products or services does this supplier provide?",
+          "expected_terms": [
+            "Diagnostic equipment carts, instrument stands and clinical workstations"
+          ],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf",
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "trading_name_paraphrase",
+          "question_type": "paraphrased_fact",
+          "question": "Which trading or brand name does this company operate under?",
+          "expected_terms": [
+            "Norwood Clinical"
+          ],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf",
+            "02_gst_registration_certificate.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "registered_address_paraphrase",
+          "question_type": "paraphrased_fact",
+          "question": "At what complete street address is this business registered? Include the locality, city, state and postal code.",
+          "expected_terms": [
+            "48",
+            "KIADB Health Technology Park",
+            "Whitefield",
+            "Bengaluru",
+            "Karnataka",
+            "560066"
+          ],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf",
+            "02_gst_registration_certificate.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "insurance_provider_and_expiry",
+          "question_type": "multi_fact",
+          "question": "Give me both the liability insurer and the policy expiry date.",
+          "expected_terms": [
+            "CedarSure Commercial Insurance Company Limited"
+          ],
+          "expected_dates": [
+            "2026-12-15"
+          ],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "absent_bank_balance",
+          "question_type": "safe_not_found",
+          "question": "What is the supplier's current bank account balance?",
+          "expected_terms": [
+            "Information not found in uploaded supplier documents."
+          ],
+          "expected_sources": [],
+          "information_found": false
+        },
+        {
+          "id": "absent_credit_rating",
+          "question_type": "safe_not_found",
+          "question": "What external credit rating has been assigned to this supplier?",
+          "expected_terms": [
+            "Information not found in uploaded supplier documents."
+          ],
+          "expected_sources": [],
+          "information_found": false
+        }
+      ],
+      "document_sha256": {
+        "registration": "8623d3afbc581e48b7aafe1efbb08d97af92e34e7a896cb48729eb3912cb1a91",
+        "tax": "3ecb51c81deb7b93e15e75f9f854db6830556d0291d4ece84db3762565d7b255",
+        "insurance": "2a8f5f895c535f22e2297560e9b1424d8a3d7723151c1600dd93d3fc55883d93"
+      }
+    },
+    {
+      "slug": "prithvi_sustainable_packaging",
+      "create_payload": {
+        "name": "Prithvi Sustainable Packaging Private Limited",
+        "country": "India",
+        "contact_email": "devika.shah@example.com"
+      },
+      "documents": {
+        "registration": "01_supplier_registration_form.pdf",
+        "tax": "02_gst_registration_certificate.pdf",
+        "insurance": "03_certificate_of_liability_insurance.pdf"
+      },
+      "extraction_expectations": {
+        "registration": {
+          "supplier_name": "Prithvi Sustainable Packaging Private Limited",
+          "registration_number": "U21099GJ2019PTC109844",
+          "issuing_registry": "Registrar of Companies, India",
+          "registration_date": "2019-08-21",
+          "status": "Active"
+        },
+        "tax": {
+          "supplier_name": "Prithvi Sustainable Packaging Private Limited",
+          "tax_identifier": "AAGCP4321L",
+          "gst_status_registered_or_not_registered": "Registered",
+          "gstin_when_registered": "24AAGCP4321L1Z6"
+        }
+      },
+      "rag_only_documents": {
+        "insurance": "Supplementary liability evidence for RAG; the legacy insurance type has no current policy extraction contract."
+      },
+      "questions": [
+        {
+          "id": "legal_name",
+          "question_type": "direct_fact",
+          "question": "What is the supplier's full legal name?",
+          "expected_terms": [
+            "Prithvi Sustainable Packaging Private Limited"
+          ],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf",
+            "02_gst_registration_certificate.pdf",
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "payment_terms",
+          "question_type": "direct_fact",
+          "question": "What are the supplier's standard payment terms?",
+          "expected_terms": [
+            "Net 60 days from invoice date"
+          ],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "insurance_provider",
+          "question_type": "direct_fact",
+          "question": "Which company provides the supplier's liability insurance?",
+          "expected_terms": [
+            "Meridian Risk Assurance Company Limited"
+          ],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "insurance_expiry",
+          "question_type": "date_interpretation",
+          "question": "When does the supplier's liability insurance expire?",
+          "expected_terms": [],
+          "expected_dates": [
+            "2028-01-31"
+          ],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "business_activity",
+          "question_type": "direct_fact",
+          "question": "What products or services does this supplier provide?",
+          "expected_terms": [
+            "Recycled corrugated cartons, molded fibre inserts and protective packaging"
+          ],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf",
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "trading_name_paraphrase",
+          "question_type": "paraphrased_fact",
+          "question": "Which trading or brand name does this company operate under?",
+          "expected_terms": [
+            "Prithvi EcoPack"
+          ],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf",
+            "02_gst_registration_certificate.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "registered_address_paraphrase",
+          "question_type": "paraphrased_fact",
+          "question": "At what complete street address is this business registered? Include the locality, city, state and postal code.",
+          "expected_terms": [
+            "Survey 118",
+            "Sanand Industrial Cluster",
+            "Ahmedabad",
+            "Gujarat",
+            "382110"
+          ],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf",
+            "02_gst_registration_certificate.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "insurance_provider_and_expiry",
+          "question_type": "multi_fact",
+          "question": "Give me both the liability insurer and the policy expiry date.",
+          "expected_terms": [
+            "Meridian Risk Assurance Company Limited"
+          ],
+          "expected_dates": [
+            "2028-01-31"
+          ],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "absent_bank_balance",
+          "question_type": "safe_not_found",
+          "question": "What is the supplier's current bank account balance?",
+          "expected_terms": [
+            "Information not found in uploaded supplier documents."
+          ],
+          "expected_sources": [],
+          "information_found": false
+        },
+        {
+          "id": "absent_credit_rating",
+          "question_type": "safe_not_found",
+          "question": "What external credit rating has been assigned to this supplier?",
+          "expected_terms": [
+            "Information not found in uploaded supplier documents."
+          ],
+          "expected_sources": [],
+          "information_found": false
+        }
+      ],
+      "document_sha256": {
+        "registration": "bd0d74a4b2a4cecaa93a99efbec534c2898fad162abcb8a1f75515eaecf38a74",
+        "tax": "f53feeb24e38984b15abe146e2e9c6b20ba5021ecc8783b1a52c53baf05e6738",
+        "insurance": "e4f583745bf01c107917f9cd01f45c3b7a0b679cb63a0b188d726171931a7178"
+      }
+    },
+    {
+      "slug": "eastbridge_logistics",
+      "create_payload": {
+        "name": "Eastbridge Logistics and Warehousing Private Limited",
+        "country": "India",
+        "contact_email": "souvik.banerjee@example.com"
+      },
+      "documents": {
+        "registration": "01_supplier_registration_form.pdf",
+        "tax": "02_gst_registration_certificate.pdf",
+        "insurance": "03_certificate_of_liability_insurance.pdf"
+      },
+      "extraction_expectations": {
+        "registration": {
+          "supplier_name": "Eastbridge Logistics and Warehousing Private Limited",
+          "registration_number": "U63030WB2017PTC221706",
+          "issuing_registry": "Registrar of Companies, India",
+          "registration_date": "2017-07-14",
+          "status": "Active"
+        },
+        "tax": {
+          "supplier_name": "Eastbridge Logistics and Warehousing Private Limited",
+          "tax_identifier": "AACCE8765M",
+          "gst_status_registered_or_not_registered": "Registered",
+          "gstin_when_registered": "19AACCE8765M1Z4"
+        }
+      },
+      "rag_only_documents": {
+        "insurance": "Supplementary liability evidence for RAG; the legacy insurance type has no current policy extraction contract."
+      },
+      "questions": [
+        {
+          "id": "legal_name",
+          "question_type": "direct_fact",
+          "question": "What is the supplier's full legal name?",
+          "expected_terms": [
+            "Eastbridge Logistics and Warehousing Private Limited"
+          ],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf",
+            "02_gst_registration_certificate.pdf",
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "payment_terms",
+          "question_type": "direct_fact",
+          "question": "What are the supplier's standard payment terms?",
+          "expected_terms": [
+            "Net 15 days after monthly service acceptance"
+          ],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "insurance_provider",
+          "question_type": "direct_fact",
+          "question": "Which company provides the supplier's liability insurance?",
+          "expected_terms": [
+            "AtlasGuard General Insurance Company Limited"
+          ],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "insurance_expiry",
+          "question_type": "date_interpretation",
+          "question": "When does the supplier's liability insurance expire?",
+          "expected_terms": [],
+          "expected_dates": [
+            "2027-09-30"
+          ],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "business_activity",
+          "question_type": "direct_fact",
+          "question": "What products or services does this supplier provide?",
+          "expected_terms": [
+            "Contract warehousing, inventory handling and regional freight coordination"
+          ],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf",
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "trading_name_paraphrase",
+          "question_type": "paraphrased_fact",
+          "question": "Which trading or brand name does this company operate under?",
+          "expected_terms": [
+            "Eastbridge Logistics"
+          ],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf",
+            "02_gst_registration_certificate.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "registered_address_paraphrase",
+          "question_type": "paraphrased_fact",
+          "question": "At what complete street address is this business registered? Include the locality, city, state and postal code.",
+          "expected_terms": [
+            "Warehouse 7",
+            "Jalan Logistics Park",
+            "Dankuni",
+            "Hooghly",
+            "West Bengal",
+            "712311"
+          ],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf",
+            "02_gst_registration_certificate.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "insurance_provider_and_expiry",
+          "question_type": "multi_fact",
+          "question": "Give me both the liability insurer and the policy expiry date.",
+          "expected_terms": [
+            "AtlasGuard General Insurance Company Limited"
+          ],
+          "expected_dates": [
+            "2027-09-30"
+          ],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "absent_bank_balance",
+          "question_type": "safe_not_found",
+          "question": "What is the supplier's current bank account balance?",
+          "expected_terms": [
+            "Information not found in uploaded supplier documents."
+          ],
+          "expected_sources": [],
+          "information_found": false
+        },
+        {
+          "id": "absent_credit_rating",
+          "question_type": "safe_not_found",
+          "question": "What external credit rating has been assigned to this supplier?",
+          "expected_terms": [
+            "Information not found in uploaded supplier documents."
+          ],
+          "expected_sources": [],
+          "information_found": false
+        }
+      ],
+      "document_sha256": {
+        "registration": "0b9d96763645510d3f7bf7c5518f9ab4bcf1da1ad0d17e68a7e4371130cde15d",
+        "tax": "47b1b0109870c611b15b0c4dd0b3cd772562e1c4297685e7aa88363d37caf0a0",
+        "insurance": "d8465338893fbc4c9204cf74aa564c858c9584d4a663614294243640161707b3"
+      }
+    },
+    {
+      "slug": "sahyadri_renewable_components",
+      "create_payload": {
+        "name": "Sahyadri Renewable Components Private Limited",
+        "country": "India",
+        "contact_email": "neha.patil@example.com"
+      },
+      "documents": {
+        "registration": "01_supplier_registration_form.pdf",
+        "tax": "02_gst_registration_certificate.pdf",
+        "insurance": "03_certificate_of_liability_insurance.pdf"
+      },
+      "extraction_expectations": {
+        "registration": {
+          "supplier_name": "Sahyadri Renewable Components Private Limited",
+          "registration_number": "U31909PN2021PTC204716",
+          "issuing_registry": "Registrar of Companies, India",
+          "registration_date": "2021-10-08",
+          "status": "Active"
+        },
+        "tax": {
+          "supplier_name": "Sahyadri Renewable Components Private Limited",
+          "tax_identifier": "AALCS2468R",
+          "gst_status_registered_or_not_registered": "Registered",
+          "gstin_when_registered": "27AALCS2468R1Z5"
+        }
+      },
+      "rag_only_documents": {
+        "insurance": "Supplementary liability evidence for RAG; the legacy insurance type has no current policy extraction contract."
+      },
+      "questions": [
+        {
+          "id": "legal_name",
+          "question_type": "direct_fact",
+          "question": "What is the supplier's full legal name?",
+          "expected_terms": [
+            "Sahyadri Renewable Components Private Limited"
+          ],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf",
+            "02_gst_registration_certificate.pdf",
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "payment_terms",
+          "question_type": "direct_fact",
+          "question": "What are the supplier's standard payment terms?",
+          "expected_terms": [
+            "Net 30 days after goods receipt and quality acceptance"
+          ],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "insurance_provider",
+          "question_type": "direct_fact",
+          "question": "Which company provides the supplier's liability insurance?",
+          "expected_terms": [
+            "SummitShield General Insurance Company Limited"
+          ],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "insurance_expiry",
+          "question_type": "date_interpretation",
+          "question": "When does the supplier's liability insurance expire?",
+          "expected_terms": [],
+          "expected_dates": [
+            "2027-08-14"
+          ],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "business_activity",
+          "question_type": "direct_fact",
+          "question": "What products or services does this supplier provide?",
+          "expected_terms": [
+            "Solar mounting structures, inverter enclosures and renewable-energy component assemblies"
+          ],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf",
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "trading_name_paraphrase",
+          "question_type": "paraphrased_fact",
+          "question": "Which trading or brand name does this company operate under?",
+          "expected_terms": [
+            "Sahyadri Renewables"
+          ],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf",
+            "02_gst_registration_certificate.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "registered_address_paraphrase",
+          "question_type": "paraphrased_fact",
+          "question": "At what complete street address is this business registered? Include the locality, city, state and postal code.",
+          "expected_terms": [
+            "Unit 14",
+            "Chakan Green Industrial Park",
+            "Pune",
+            "Maharashtra",
+            "410501"
+          ],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf",
+            "02_gst_registration_certificate.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "insurance_provider_and_expiry",
+          "question_type": "multi_fact",
+          "question": "Give me both the liability insurer and the policy expiry date.",
+          "expected_terms": [
+            "SummitShield General Insurance Company Limited"
+          ],
+          "expected_dates": [
+            "2027-08-14"
+          ],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "absent_bank_balance",
+          "question_type": "safe_not_found",
+          "question": "What is the supplier's current bank account balance?",
+          "expected_terms": [
+            "Information not found in uploaded supplier documents."
+          ],
+          "expected_sources": [],
+          "information_found": false
+        },
+        {
+          "id": "absent_credit_rating",
+          "question_type": "safe_not_found",
+          "question": "What external credit rating has been assigned to this supplier?",
+          "expected_terms": [
+            "Information not found in uploaded supplier documents."
+          ],
+          "expected_sources": [],
+          "information_found": false
+        }
+      ],
+      "document_sha256": {
+        "registration": "7cab00a878d079b2d5abec70867163efd1d74eed9494939a5d83ff5dbefd130d",
+        "tax": "47746e6ce2325569f5f560d9daf1d2768cf10272b9a6649b9c25b9f48718c476",
+        "insurance": "d726f7b762b3240370ac739256d4f7e73605c4d82434e017a652d997ef6f77b3"
+      }
+    },
+    {
+      "slug": "mallige_precision_works",
+      "create_payload": {
+        "name": "Mallige Precision Works Private Limited",
+        "country": "India",
+        "contact_email": "evaluation.mallige_precision_works@example.com"
+      },
+      "documents": {
+        "registration": "01_supplier_registration_form.pdf",
+        "tax": "02_gst_registration_certificate.pdf",
+        "insurance": "03_certificate_of_liability_insurance.pdf"
+      },
+      "extraction_expectations": {
+        "registration": {
+          "supplier_name": "Mallige Precision Works Private Limited",
+          "registration_number": "U29120KA2020PTC150101",
+          "issuing_registry": "Registrar of Companies, India",
+          "registration_date": "2020-09-12",
+          "status": "Active"
+        },
+        "tax": {
+          "supplier_name": "Mallige Precision Works Private Limited",
+          "tax_identifier": "AABCR1201F",
+          "gst_status_registered_or_not_registered": "Registered",
+          "gstin_when_registered": "29AABCR1201F1Z8"
+        }
+      },
+      "rag_only_documents": {
+        "insurance": "Supplementary liability evidence for RAG; the legacy insurance type has no current policy extraction contract."
+      },
+      "questions": [
+        {
+          "id": "legal_name",
+          "question_type": "direct_fact",
+          "question": "What is the supplier's full legal name?",
+          "expected_terms": [
+            "Mallige Precision Works Private Limited"
+          ],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf",
+            "02_gst_registration_certificate.pdf",
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "payment_terms",
+          "question_type": "direct_fact",
+          "question": "What are the supplier's standard payment terms?",
+          "expected_terms": [
+            "Net 30 days from invoice receipt"
+          ],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "insurance_provider",
+          "question_type": "direct_fact",
+          "question": "Which company provides the supplier's liability insurance?",
+          "expected_terms": [
+            "HarborPoint General Insurance Company Limited"
+          ],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "insurance_expiry",
+          "question_type": "date_interpretation",
+          "question": "When does the supplier's liability insurance expire?",
+          "expected_terms": [],
+          "expected_dates": [
+            "2027-06-30"
+          ],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "business_activity",
+          "question_type": "direct_fact",
+          "question": "What products or services does this supplier provide?",
+          "expected_terms": [
+            "Industrial sensors and calibration services"
+          ],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf",
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "trading_name_paraphrase",
+          "question_type": "paraphrased_fact",
+          "question": "Which trading or brand name does this company operate under?",
+          "expected_terms": [
+            "Mallige Precision Works"
+          ],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf",
+            "02_gst_registration_certificate.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "registered_address_paraphrase",
+          "question_type": "paraphrased_fact",
+          "question": "At what complete street address is this business registered? Include the locality, city, state and postal code.",
+          "expected_terms": [
+            "Unit 21",
+            "Peenya Industrial Estate",
+            "Bengaluru",
+            "Karnataka",
+            "560058"
+          ],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf",
+            "02_gst_registration_certificate.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "insurance_provider_and_expiry",
+          "question_type": "multi_fact",
+          "question": "Give me both the liability insurer and the policy expiry date.",
+          "expected_terms": [
+            "HarborPoint General Insurance Company Limited"
+          ],
+          "expected_dates": [
+            "2027-06-30"
+          ],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "absent_bank_balance",
+          "question_type": "safe_not_found",
+          "question": "What is the supplier's current bank account balance?",
+          "expected_terms": [
+            "Information not found in uploaded supplier documents."
+          ],
+          "expected_sources": [],
+          "information_found": false
+        },
+        {
+          "id": "absent_credit_rating",
+          "question_type": "safe_not_found",
+          "question": "What external credit rating has been assigned to this supplier?",
+          "expected_terms": [
+            "Information not found in uploaded supplier documents."
+          ],
+          "expected_sources": [],
+          "information_found": false
+        }
+      ],
+      "cohort": "ocr",
+      "document_modes": {
+        "registration": "ocr",
+        "tax": "ocr",
+        "insurance": "ocr"
+      },
+      "source_transcript_sha256": {
+        "registration": "d0e3eed7df14e1820bc26dcdfab3cd511b5ed784082fdc4d75e2440ef4691f68",
+        "tax": "42ccf6ebad3d08af7ecfdaf35657dca450964594d43fe87f12b8b5614f62e26a",
+        "insurance": "a0f6f0c6a6895a4c9445a324db9f395201ab0068a4de13257f7fcb0aa753d36c"
+      },
+      "document_sha256": {
+        "registration": "bd4aca6e4d3dc288856eef8772daf9101246485684f600db94cb2f1ac4c0e607",
+        "tax": "fc3de9c8df03efe10ce3b2ca9f61867295476d40798e42571c9edf88f928b955",
+        "insurance": "0e835378c990973b1381b8e5c9d4cc409dcf87b4c1c8cd13c65d5d3924b3c246"
+      }
+    },
+    {
+      "slug": "narmada_instrumentation",
+      "create_payload": {
+        "name": "Narmada Instrumentation Private Limited",
+        "country": "India",
+        "contact_email": "evaluation.narmada_instrumentation@example.com"
+      },
+      "documents": {
+        "registration": "01_supplier_registration_form.pdf",
+        "tax": "02_gst_registration_certificate.pdf",
+        "insurance": "03_certificate_of_liability_insurance.pdf"
+      },
+      "extraction_expectations": {
+        "registration": {
+          "supplier_name": "Narmada Instrumentation Private Limited",
+          "registration_number": "U29120GJ2020PTC150102",
+          "issuing_registry": "Registrar of Companies, India",
+          "registration_date": "2020-09-12",
+          "status": "Active"
+        },
+        "tax": {
+          "supplier_name": "Narmada Instrumentation Private Limited",
+          "tax_identifier": "AABCR1202F",
+          "gst_status_registered_or_not_registered": "Registered",
+          "gstin_when_registered": "24AABCR1202F1Z8"
+        }
+      },
+      "rag_only_documents": {
+        "insurance": "Supplementary liability evidence for RAG; the legacy insurance type has no current policy extraction contract."
+      },
+      "questions": [
+        {
+          "id": "legal_name",
+          "question_type": "direct_fact",
+          "question": "What is the supplier's full legal name?",
+          "expected_terms": [
+            "Narmada Instrumentation Private Limited"
+          ],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf",
+            "02_gst_registration_certificate.pdf",
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "payment_terms",
+          "question_type": "direct_fact",
+          "question": "What are the supplier's standard payment terms?",
+          "expected_terms": [
+            "Net 30 days from invoice receipt"
+          ],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "insurance_provider",
+          "question_type": "direct_fact",
+          "question": "Which company provides the supplier's liability insurance?",
+          "expected_terms": [
+            "HarborPoint General Insurance Company Limited"
+          ],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "insurance_expiry",
+          "question_type": "date_interpretation",
+          "question": "When does the supplier's liability insurance expire?",
+          "expected_terms": [],
+          "expected_dates": [
+            "2027-06-30"
+          ],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "business_activity",
+          "question_type": "direct_fact",
+          "question": "What products or services does this supplier provide?",
+          "expected_terms": [
+            "Industrial sensors and calibration services"
+          ],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf",
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "trading_name_paraphrase",
+          "question_type": "paraphrased_fact",
+          "question": "Which trading or brand name does this company operate under?",
+          "expected_terms": [
+            "Narmada Instrumentation"
+          ],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf",
+            "02_gst_registration_certificate.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "registered_address_paraphrase",
+          "question_type": "paraphrased_fact",
+          "question": "At what complete street address is this business registered? Include the locality, city, state and postal code.",
+          "expected_terms": [
+            "Plot 32",
+            "Makarpura Industrial Estate",
+            "Vadodara",
+            "Gujarat",
+            "390010"
+          ],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf",
+            "02_gst_registration_certificate.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "insurance_provider_and_expiry",
+          "question_type": "multi_fact",
+          "question": "Give me both the liability insurer and the policy expiry date.",
+          "expected_terms": [
+            "HarborPoint General Insurance Company Limited"
+          ],
+          "expected_dates": [
+            "2027-06-30"
+          ],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "absent_bank_balance",
+          "question_type": "safe_not_found",
+          "question": "What is the supplier's current bank account balance?",
+          "expected_terms": [
+            "Information not found in uploaded supplier documents."
+          ],
+          "expected_sources": [],
+          "information_found": false
+        },
+        {
+          "id": "absent_credit_rating",
+          "question_type": "safe_not_found",
+          "question": "What external credit rating has been assigned to this supplier?",
+          "expected_terms": [
+            "Information not found in uploaded supplier documents."
+          ],
+          "expected_sources": [],
+          "information_found": false
+        }
+      ],
+      "cohort": "ocr",
+      "document_modes": {
+        "registration": "ocr",
+        "tax": "ocr",
+        "insurance": "ocr"
+      },
+      "source_transcript_sha256": {
+        "registration": "613394a5a155db401e9f3e189f49b7f96bb77e347e88230295a8288819988d3c",
+        "tax": "e38be0d74f60a50e6dd7a90c06135a80d6022d982098abab39824cc22e3e41cf",
+        "insurance": "60c65f79c6fc80e47b8d88002a16b6147b827dd9ba04c229dfc1ba8c46eb43d7"
+      },
+      "document_sha256": {
+        "registration": "03ee076cde4b93d1b4e323bdfd003ab40a9826c7b878768ca406245a69f6b667",
+        "tax": "28f6589779bdbb6e15f3502329f66de343fc9754a5d55445ff6e752d11ac7f22",
+        "insurance": "fe7df8d0a94eba4063e5ce576e249a16791d2ad756c025ac6e902f9082eed2b0"
+      }
+    },
+    {
+      "slug": "aravali_process_equipment",
+      "create_payload": {
+        "name": "Aravali Process Equipment Private Limited",
+        "country": "India",
+        "contact_email": "evaluation.aravali_process_equipment@example.com"
+      },
+      "documents": {
+        "registration": "01_supplier_registration_form.pdf",
+        "tax": "02_gst_registration_certificate.pdf",
+        "insurance": "03_certificate_of_liability_insurance.pdf"
+      },
+      "extraction_expectations": {
+        "registration": {
+          "supplier_name": "Aravali Process Equipment Private Limited",
+          "registration_number": "U29120RJ2020PTC150103",
+          "issuing_registry": "Registrar of Companies, India",
+          "registration_date": "2020-09-12",
+          "status": "Active"
+        },
+        "tax": {
+          "supplier_name": "Aravali Process Equipment Private Limited",
+          "tax_identifier": "AABCR1203F",
+          "gst_status_registered_or_not_registered": "Registered",
+          "gstin_when_registered": "08AABCR1203F1Z8"
+        }
+      },
+      "rag_only_documents": {
+        "insurance": "Supplementary liability evidence for RAG; the legacy insurance type has no current policy extraction contract."
+      },
+      "questions": [
+        {
+          "id": "legal_name",
+          "question_type": "direct_fact",
+          "question": "What is the supplier's full legal name?",
+          "expected_terms": [
+            "Aravali Process Equipment Private Limited"
+          ],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf",
+            "02_gst_registration_certificate.pdf",
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "insurance_provider",
+          "question_type": "direct_fact",
+          "question": "Which company provides the supplier's liability insurance?",
+          "expected_terms": [
+            "HarborPoint General Insurance Company Limited"
+          ],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "trading_name_paraphrase",
+          "question_type": "paraphrased_fact",
+          "question": "Which trading or brand name does this company operate under?",
+          "expected_terms": [
+            "Aravali Process Equipment"
+          ],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf",
+            "02_gst_registration_certificate.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "insurance_provider_and_expiry",
+          "question_type": "multi_fact",
+          "question": "Give me both the liability insurer and the policy expiry date.",
+          "expected_terms": [
+            "HarborPoint General Insurance Company Limited"
+          ],
+          "expected_dates": [
+            "2027-06-30"
+          ],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "absent_bank_balance",
+          "question_type": "safe_not_found",
+          "question": "What is the supplier's current bank account balance?",
+          "expected_terms": [
+            "Information not found in uploaded supplier documents."
+          ],
+          "expected_sources": [],
+          "information_found": false
+        },
+        {
+          "id": "absent_credit_rating",
+          "question_type": "safe_not_found",
+          "question": "What external credit rating has been assigned to this supplier?",
+          "expected_terms": [
+            "Information not found in uploaded supplier documents."
+          ],
+          "expected_sources": [],
+          "information_found": false
+        },
+        {
+          "id": "address_disagreement",
+          "question_type": "conflict_resolution",
+          "question": "For the vendor master, what registered address should we use? Check the registration and tax originals and explain whether they establish a single confirmed address.",
+          "expected_terms": [
+            "Plot 41, Sitapura Industrial Area, Jaipur, Rajasthan 302022",
+            "Plot 91, Mansarovar Industrial Area, Jaipur, Rajasthan 302020"
+          ],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf",
+            "02_gst_registration_certificate.pdf"
+          ],
+          "required_sources": [
+            "01_supplier_registration_form.pdf",
+            "02_gst_registration_certificate.pdf"
+          ],
+          "information_found": true,
+          "requires_conflict_acknowledgement": true,
+          "requires_uncertainty": true,
+          "gold_rationale": "Both originals assert the same field but disagree. No precedence, correction or confirmation is supplied. Report both source-attributed values and request clarification instead of declaring either authoritative.",
+          "expected_term_groups": [
+            [
+              "registration",
+              "supplier form"
+            ],
+            [
+              "tax",
+              "GST"
+            ]
+          ]
+        },
+        {
+          "id": "payment_disagreement",
+          "question_type": "conflict_resolution",
+          "question": "Before I set payment terms in ERP, compare the stated standard payment terms in the registration and tax documents. Is there one agreed term?",
+          "expected_terms": [
+            "Net 30",
+            "Net 60"
+          ],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf",
+            "02_gst_registration_certificate.pdf"
+          ],
+          "required_sources": [
+            "01_supplier_registration_form.pdf",
+            "02_gst_registration_certificate.pdf"
+          ],
+          "information_found": true,
+          "requires_conflict_acknowledgement": true,
+          "requires_uncertainty": true,
+          "gold_rationale": "Both originals assert the same field but disagree. No precedence, correction or confirmation is supplied. Report both source-attributed values and request clarification instead of declaring either authoritative.",
+          "expected_term_groups": [
+            [
+              "registration",
+              "supplier form"
+            ],
+            [
+              "tax",
+              "GST"
+            ]
+          ]
+        },
+        {
+          "id": "expiry_disagreement",
+          "question_type": "conflict_resolution",
+          "question": "When does liability cover end? Compare the registration summary and liability certificate and explain whether I can diary one confirmed expiry date.",
+          "expected_terms": [],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf",
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "required_sources": [
+            "01_supplier_registration_form.pdf",
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "information_found": true,
+          "requires_conflict_acknowledgement": true,
+          "requires_uncertainty": true,
+          "gold_rationale": "Both originals assert the same field but disagree. No precedence, correction or confirmation is supplied. Report both source-attributed values and request clarification instead of declaring either authoritative.",
+          "expected_term_groups": [
+            [
+              "registration",
+              "supplier form"
+            ],
+            [
+              "insurance",
+              "liability"
+            ]
+          ],
+          "expected_dates": [
+            "2027-06-30",
+            "2027-07-31"
+          ]
+        },
+        {
+          "id": "conflict_review_note",
+          "question_type": "conflict_resolution",
+          "question": "Prepare a review note about the address and payment-term conflicts between the registration and tax originals. Include both addresses and both terms, and identify the need for clarification.",
+          "expected_terms": [
+            "Plot 41, Sitapura Industrial Area, Jaipur, Rajasthan 302022",
+            "Plot 91, Mansarovar Industrial Area, Jaipur, Rajasthan 302020",
+            "Net 30",
+            "Net 60"
+          ],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf",
+            "02_gst_registration_certificate.pdf"
+          ],
+          "required_sources": [
+            "01_supplier_registration_form.pdf",
+            "02_gst_registration_certificate.pdf"
+          ],
+          "information_found": true,
+          "requires_conflict_acknowledgement": true,
+          "requires_uncertainty": true,
+          "gold_rationale": "Both originals assert the same field but disagree. No precedence, correction or confirmation is supplied. Report both source-attributed values and request clarification instead of declaring either authoritative.",
+          "expected_term_groups": [
+            [
+              "registration",
+              "supplier form"
+            ],
+            [
+              "tax",
+              "GST"
+            ]
+          ]
+        }
+      ],
+      "cohort": "conflicting_evidence",
+      "document_modes": {
+        "registration": "native",
+        "tax": "native",
+        "insurance": "native"
+      },
+      "source_transcript_sha256": {},
+      "document_sha256": {
+        "registration": "31892539d7fa19d068c855eb42539b05afb34dbae496d9f1b73f3182cec98e93",
+        "tax": "90c0064b9d5683202ed2efb9452e78dec719945937fe0020800d92ccea0d117f",
+        "insurance": "b2a26a4974669be3f2b421b73f83da179bcf650dfbc60cef5350357e55856295"
+      }
+    },
+    {
+      "slug": "coromandel_sensor_systems",
+      "create_payload": {
+        "name": "Coromandel Sensor Systems Private Limited",
+        "country": "India",
+        "contact_email": "evaluation.coromandel_sensor_systems@example.com"
+      },
+      "documents": {
+        "registration": "01_supplier_registration_form.pdf",
+        "tax": "02_gst_registration_certificate.pdf",
+        "insurance": "03_certificate_of_liability_insurance.pdf"
+      },
+      "extraction_expectations": {
+        "registration": {
+          "supplier_name": "Coromandel Sensor Systems Private Limited",
+          "registration_number": "U29120TN2020PTC150104",
+          "issuing_registry": "Registrar of Companies, India",
+          "registration_date": "2020-09-12",
+          "status": "Active"
+        },
+        "tax": {
+          "supplier_name": "Coromandel Sensor Systems Private Limited",
+          "tax_identifier": "AABCR1204F",
+          "gst_status_registered_or_not_registered": "Registered",
+          "gstin_when_registered": "33AABCR1204F1Z8"
+        }
+      },
+      "rag_only_documents": {
+        "insurance": "Supplementary liability evidence for RAG; the legacy insurance type has no current policy extraction contract."
+      },
+      "questions": [
+        {
+          "id": "legal_name",
+          "question_type": "direct_fact",
+          "question": "What is the supplier's full legal name?",
+          "expected_terms": [
+            "Coromandel Sensor Systems Private Limited"
+          ],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf",
+            "02_gst_registration_certificate.pdf",
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "insurance_provider",
+          "question_type": "direct_fact",
+          "question": "Which company provides the supplier's liability insurance?",
+          "expected_terms": [
+            "HarborPoint General Insurance Company Limited"
+          ],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "trading_name_paraphrase",
+          "question_type": "paraphrased_fact",
+          "question": "Which trading or brand name does this company operate under?",
+          "expected_terms": [
+            "Coromandel Sensor Systems"
+          ],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf",
+            "02_gst_registration_certificate.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "insurance_provider_and_expiry",
+          "question_type": "multi_fact",
+          "question": "Give me both the liability insurer and the policy expiry date.",
+          "expected_terms": [
+            "HarborPoint General Insurance Company Limited"
+          ],
+          "expected_dates": [
+            "2027-06-30"
+          ],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "absent_bank_balance",
+          "question_type": "safe_not_found",
+          "question": "What is the supplier's current bank account balance?",
+          "expected_terms": [
+            "Information not found in uploaded supplier documents."
+          ],
+          "expected_sources": [],
+          "information_found": false
+        },
+        {
+          "id": "absent_credit_rating",
+          "question_type": "safe_not_found",
+          "question": "What external credit rating has been assigned to this supplier?",
+          "expected_terms": [
+            "Information not found in uploaded supplier documents."
+          ],
+          "expected_sources": [],
+          "information_found": false
+        },
+        {
+          "id": "address_disagreement",
+          "question_type": "conflict_resolution",
+          "question": "For the vendor master, what registered address should we use? Check the registration and tax originals and explain whether they establish a single confirmed address.",
+          "expected_terms": [
+            "Unit 52, Guindy Industrial Estate, Chennai, Tamil Nadu 600032",
+            "Unit 92, Ambattur Industrial Estate, Chennai, Tamil Nadu 600058"
+          ],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf",
+            "02_gst_registration_certificate.pdf"
+          ],
+          "required_sources": [
+            "01_supplier_registration_form.pdf",
+            "02_gst_registration_certificate.pdf"
+          ],
+          "information_found": true,
+          "requires_conflict_acknowledgement": true,
+          "requires_uncertainty": true,
+          "gold_rationale": "Both originals assert the same field but disagree. No precedence, correction or confirmation is supplied. Report both source-attributed values and request clarification instead of declaring either authoritative.",
+          "expected_term_groups": [
+            [
+              "registration",
+              "supplier form"
+            ],
+            [
+              "tax",
+              "GST"
+            ]
+          ]
+        },
+        {
+          "id": "payment_disagreement",
+          "question_type": "conflict_resolution",
+          "question": "Before I set payment terms in ERP, compare the stated standard payment terms in the registration and tax documents. Is there one agreed term?",
+          "expected_terms": [
+            "Net 30",
+            "Net 60"
+          ],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf",
+            "02_gst_registration_certificate.pdf"
+          ],
+          "required_sources": [
+            "01_supplier_registration_form.pdf",
+            "02_gst_registration_certificate.pdf"
+          ],
+          "information_found": true,
+          "requires_conflict_acknowledgement": true,
+          "requires_uncertainty": true,
+          "gold_rationale": "Both originals assert the same field but disagree. No precedence, correction or confirmation is supplied. Report both source-attributed values and request clarification instead of declaring either authoritative.",
+          "expected_term_groups": [
+            [
+              "registration",
+              "supplier form"
+            ],
+            [
+              "tax",
+              "GST"
+            ]
+          ]
+        },
+        {
+          "id": "expiry_disagreement",
+          "question_type": "conflict_resolution",
+          "question": "When does liability cover end? Compare the registration summary and liability certificate and explain whether I can diary one confirmed expiry date.",
+          "expected_terms": [],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf",
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "required_sources": [
+            "01_supplier_registration_form.pdf",
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "information_found": true,
+          "requires_conflict_acknowledgement": true,
+          "requires_uncertainty": true,
+          "gold_rationale": "Both originals assert the same field but disagree. No precedence, correction or confirmation is supplied. Report both source-attributed values and request clarification instead of declaring either authoritative.",
+          "expected_term_groups": [
+            [
+              "registration",
+              "supplier form"
+            ],
+            [
+              "insurance",
+              "liability"
+            ]
+          ],
+          "expected_dates": [
+            "2027-06-30",
+            "2027-07-31"
+          ]
+        },
+        {
+          "id": "conflict_review_note",
+          "question_type": "conflict_resolution",
+          "question": "Prepare a review note about the address and payment-term conflicts between the registration and tax originals. Include both addresses and both terms, and identify the need for clarification.",
+          "expected_terms": [
+            "Unit 52, Guindy Industrial Estate, Chennai, Tamil Nadu 600032",
+            "Unit 92, Ambattur Industrial Estate, Chennai, Tamil Nadu 600058",
+            "Net 30",
+            "Net 60"
+          ],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf",
+            "02_gst_registration_certificate.pdf"
+          ],
+          "required_sources": [
+            "01_supplier_registration_form.pdf",
+            "02_gst_registration_certificate.pdf"
+          ],
+          "information_found": true,
+          "requires_conflict_acknowledgement": true,
+          "requires_uncertainty": true,
+          "gold_rationale": "Both originals assert the same field but disagree. No precedence, correction or confirmation is supplied. Report both source-attributed values and request clarification instead of declaring either authoritative.",
+          "expected_term_groups": [
+            [
+              "registration",
+              "supplier form"
+            ],
+            [
+              "tax",
+              "GST"
+            ]
+          ]
+        }
+      ],
+      "cohort": "conflicting_evidence",
+      "document_modes": {
+        "registration": "native",
+        "tax": "native",
+        "insurance": "native"
+      },
+      "source_transcript_sha256": {},
+      "document_sha256": {
+        "registration": "92a2bcef9d726d6e31dbf4c7e030f017716bbeda67b9d1b0282040630600fc53",
+        "tax": "4c374eeacbd05961a65846b8764b62b7feb045a91779804ebc3e83f185630f76",
+        "insurance": "b85f97faf811f0e31fd496ffca9a0085d9c626bbdcfd4ac64b0f979d7ba6371b"
+      }
+    },
+    {
+      "slug": "tungabhadra_industrial_services",
+      "create_payload": {
+        "name": "Tungabhadra Industrial Services Private Limited",
+        "country": "India",
+        "contact_email": "evaluation.tungabhadra_industrial_services@example.com"
+      },
+      "documents": {
+        "registration": "01_supplier_registration_form.pdf",
+        "tax": "02_gst_registration_certificate.pdf",
+        "insurance": "03_certificate_of_liability_insurance.pdf"
+      },
+      "extraction_expectations": {
+        "registration": {
+          "supplier_name": "Tungabhadra Industrial Services Private Limited",
+          "registration_number": "U29120KA2020PTC150105",
+          "issuing_registry": "Registrar of Companies, India",
+          "registration_date": "2020-09-12",
+          "status": "Active"
+        },
+        "tax": {
+          "supplier_name": "Tungabhadra Industrial Services Private Limited",
+          "tax_identifier": "AABCR1205F",
+          "gst_status_registered_or_not_registered": "Registered",
+          "gstin_when_registered": "29AABCR1205F1Z8"
+        }
+      },
+      "rag_only_documents": {
+        "insurance": "Supplementary liability evidence for RAG; the legacy insurance type has no current policy extraction contract."
+      },
+      "questions": [
+        {
+          "id": "erp_names",
+          "question_type": "scenario_based",
+          "question": "I am setting up the vendor in ERP. Give the legal name and the trading name separately so I do not swap them.",
+          "expected_terms": [
+            "Tungabhadra Industrial Services Private Limited",
+            "Tungabhadra Industrial Services"
+          ],
+          "expected_dates": [],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf",
+            "02_gst_registration_certificate.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "gst_status",
+          "question_type": "scenario_based",
+          "question": "Finance needs the legal name and GST registration status for the vendor master. What does the tax certificate state? Do not include identifiers.",
+          "expected_terms": [
+            "Tungabhadra Industrial Services Private Limited",
+            "Registered"
+          ],
+          "expected_dates": [],
+          "expected_sources": [
+            "02_gst_registration_certificate.pdf",
+            "01_supplier_registration_form.pdf"
+          ],
+          "information_found": true,
+          "required_sources": [
+            "02_gst_registration_certificate.pdf"
+          ]
+        },
+        {
+          "id": "accounts_payable",
+          "question_type": "scenario_based",
+          "question": "Our AP team starts the payment clock on invoice receipt. What number of days does this supplier allow and what is the trigger?",
+          "expected_terms": [
+            "30",
+            "invoice receipt"
+          ],
+          "expected_dates": [],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "insurance_diary",
+          "question_type": "scenario_based",
+          "question": "I need to diary the last day of liability cover. Convert the end of the policy period to a calendar date and tell me the insurer.",
+          "expected_terms": [
+            "HarborPoint General Insurance Company Limited"
+          ],
+          "expected_dates": [
+            "2027-06-30"
+          ],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "supplier_handover",
+          "question_type": "scenario_based",
+          "question": "Write a short handover for procurement with the legal name, product/service description and standard payment terms. Use only the uploaded originals.",
+          "expected_terms": [
+            "Tungabhadra Industrial Services Private Limited",
+            "Industrial sensors and calibration services",
+            "Net 30 days from invoice receipt"
+          ],
+          "expected_dates": [],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf",
+            "03_certificate_of_liability_insurance.pdf",
+            "02_gst_registration_certificate.pdf"
+          ],
+          "information_found": true,
+          "required_sources": [
+            "01_supplier_registration_form.pdf"
+          ]
+        },
+        {
+          "id": "address_for_master",
+          "question_type": "scenario_based",
+          "question": "Fill the address section of our vendor master: street, locality, city, state and PIN code. Please include every address component.",
+          "expected_terms": [
+            "Unit 63",
+            "Bommasandra Industrial Area",
+            "Bengaluru",
+            "Karnataka 560099"
+          ],
+          "expected_dates": [],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf",
+            "02_gst_registration_certificate.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "policy_identifiers",
+          "question_type": "scenario_based",
+          "question": "For the insurance check, distinguish the policy number from the PAN and GSTIN. Which policy identifier and insurer should I record?",
+          "expected_terms": [
+            "HPGL/2026/EV/18005",
+            "HarborPoint General Insurance Company Limited"
+          ],
+          "expected_dates": [],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "registration_date",
+          "question_type": "scenario_based",
+          "question": "The team needs the incorporation date in a readable format, along with the registration status. What do the registration particulars say?",
+          "expected_terms": [
+            "Active"
+          ],
+          "expected_dates": [
+            "2020-09-12"
+          ],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf"
+          ],
+          "information_found": true
+        },
+        {
+          "id": "payment_bank_missing",
+          "question_type": "safe_not_found",
+          "question": "AP is ready to pay. Which beneficiary bank account number should we use?",
+          "expected_terms": [
+            "Information not found in uploaded supplier documents."
+          ],
+          "expected_sources": [],
+          "information_found": false
+        },
+        {
+          "id": "approval_missing",
+          "question_type": "safe_not_found",
+          "question": "Can you confirm that the reviewer has approved this supplier for ERP onboarding from these uploaded documents?",
+          "expected_terms": [
+            "Information not found in uploaded supplier documents."
+          ],
+          "expected_sources": [],
+          "information_found": false
+        }
+      ],
+      "cohort": "scenario_questions",
+      "document_modes": {
+        "registration": "native",
+        "tax": "native",
+        "insurance": "native"
+      },
+      "source_transcript_sha256": {},
+      "document_sha256": {
+        "registration": "29588ff7a75a0d62f6b2bfb8ad350147460f650c6f05c40d0bb8e9e1fedbb86c",
+        "tax": "27d37300c2c42f37e8bdab1d1e58d04fd4d65730c8f4ab010fc8527ae51e45b6",
+        "insurance": "46afddcba19d1edd0b50f6b548a6283e5ffb300a7487c5086a9a6f5adcb5402f"
+      }
+    },
+    {
+      "slug": "dakshin_logistics",
+      "create_payload": {
+        "name": "Dakshin Freight Services Private Limited",
+        "country": "India",
+        "contact_email": "evaluation.dakshin_logistics@example.com"
+      },
+      "documents": {
+        "registration": "01_supplier_registration_form.pdf",
+        "tax": "02_gst_registration_certificate.pdf",
+        "insurance": "03_certificate_of_liability_insurance.pdf"
+      },
+      "extraction_expectations": {
+        "registration": {
+          "supplier_name": "Dakshin Freight Services Private Limited",
+          "registration_number": "U74999KA2020PTC190001",
+          "issuing_registry": "Registrar of Companies, India",
+          "registration_date": "2020-09-12",
+          "status": "Active"
+        },
+        "tax": {
+          "supplier_name": "Dakshin Freight Services Private Limited",
+          "tax_identifier": "AABCS6201F",
+          "gst_status_registered_or_not_registered": "Registered",
+          "gstin_when_registered": "29AABCS6201F1Z8"
+        }
+      },
+      "rag_only_documents": {
+        "insurance": "Supplementary liability evidence for RAG; the legacy insurance type has no current policy extraction contract."
+      },
+      "questions": [
+        {
+          "id": "legal_name_control",
+          "question_type": "direct_fact",
+          "question": "What legal name does the supplier registration form state?",
+          "expected_terms": [
+            "Dakshin Freight Services Private Limited"
+          ],
+          "expected_term_groups": [],
+          "expected_dates": [],
+          "expected_amounts": [],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf",
+            "02_gst_registration_certificate.pdf",
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "required_sources": [
+            "01_supplier_registration_form.pdf"
+          ],
+          "allowed_citation_pages": {
+            "01_supplier_registration_form.pdf": [
+              1
+            ],
+            "02_gst_registration_certificate.pdf": [
+              1
+            ],
+            "03_certificate_of_liability_insurance.pdf": [
+              1
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "01_supplier_registration_form.pdf",
+              "pages": [
+                1
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "The registration form states the legal name as Dakshin Freight Services Private Limited."
+        },
+        {
+          "id": "insurer_control",
+          "question_type": "direct_fact",
+          "question": "Which insurance provider is named on the liability certificate?",
+          "expected_terms": [
+            "HarborPoint General Insurance Company Limited"
+          ],
+          "expected_term_groups": [],
+          "expected_dates": [],
+          "expected_amounts": [],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "required_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "allowed_citation_pages": {
+            "03_certificate_of_liability_insurance.pdf": [
+              1
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "03_certificate_of_liability_insurance.pdf",
+              "pages": [
+                1
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "The liability certificate names HarborPoint General Insurance Company Limited as the provider."
+        },
+        {
+          "id": "transit_limit",
+          "question_type": "stress_retrieval",
+          "question": "What is the road-transit limit per consignment? Distinguish it from storage cover.",
+          "expected_terms": [
+            "consignment"
+          ],
+          "expected_term_groups": [],
+          "expected_dates": [],
+          "expected_amounts": [
+            2000000
+          ],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "required_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "allowed_citation_pages": {
+            "03_certificate_of_liability_insurance.pdf": [
+              2
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "03_certificate_of_liability_insurance.pdf",
+              "pages": [
+                2
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "Road transit is limited to INR 20 lakh per consignment; this is the transit limit, separate from storage cover."
+        },
+        {
+          "id": "storage_limit",
+          "question_type": "stress_retrieval",
+          "question": "What cover limit applies to goods already received into an approved warehouse, and on what basis?",
+          "expected_terms": [
+            "occurrence"
+          ],
+          "expected_term_groups": [],
+          "expected_dates": [],
+          "expected_amounts": [
+            5000000
+          ],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "required_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "allowed_citation_pages": {
+            "03_certificate_of_liability_insurance.pdf": [
+              3
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "03_certificate_of_liability_insurance.pdf",
+              "pages": [
+                3
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "At an approved warehouse, the storage limit is INR 50 lakh per occurrence."
+        },
+        {
+          "id": "subcontract_limit",
+          "question_type": "stress_retrieval",
+          "question": "What is the subcontracted-carriage sublimit and what register condition must be met before dispatch?",
+          "expected_terms": [
+            "consignment"
+          ],
+          "expected_term_groups": [
+            [
+              "approved-carrier register",
+              "approved carrier register"
+            ],
+            [
+              "before dispatch",
+              "prior to dispatch"
+            ]
+          ],
+          "expected_dates": [],
+          "expected_amounts": [
+            1000000
+          ],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "required_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "allowed_citation_pages": {
+            "03_certificate_of_liability_insurance.pdf": [
+              4
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "03_certificate_of_liability_insurance.pdf",
+              "pages": [
+                4
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "Subcontracted carriage is limited to INR 10 lakh per consignment and requires the carrier to be on the approved-carrier register before dispatch."
+        },
+        {
+          "id": "transit_and_storage",
+          "question_type": "stress_synthesis",
+          "question": "Compare the road-transit and warehouse-storage limits, labelling which basis belongs to each operation.",
+          "expected_terms": [
+            "transit",
+            "storage",
+            "consignment",
+            "occurrence"
+          ],
+          "expected_term_groups": [],
+          "expected_dates": [],
+          "expected_amounts": [
+            2000000,
+            5000000
+          ],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "required_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "allowed_citation_pages": {
+            "03_certificate_of_liability_insurance.pdf": [
+              2,
+              3
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "03_certificate_of_liability_insurance.pdf",
+              "pages": [
+                2
+              ]
+            },
+            {
+              "filename": "03_certificate_of_liability_insurance.pdf",
+              "pages": [
+                3
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "Road transit: INR 20 lakh per consignment. Warehouse storage: INR 50 lakh per occurrence."
+        },
+        {
+          "id": "dock_and_payment",
+          "question_type": "stress_synthesis",
+          "question": "For AP and dispatch handover, give the warehouse receiving location and payment days with the payment-clock trigger.",
+          "expected_terms": [
+            "Dock 4",
+            "Hoskote Freight Park",
+            "562114",
+            "45"
+          ],
+          "expected_term_groups": [
+            [
+              "accepted invoice",
+              "invoice acceptance",
+              "acceptance of the invoice",
+              "invoice is accepted",
+              "invoice has been accepted",
+              "invoice accepted"
+            ]
+          ],
+          "expected_dates": [],
+          "expected_amounts": [],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf"
+          ],
+          "required_sources": [
+            "01_supplier_registration_form.pdf"
+          ],
+          "allowed_citation_pages": {
+            "01_supplier_registration_form.pdf": [
+              2,
+              3
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "01_supplier_registration_form.pdf",
+              "pages": [
+                2
+              ]
+            },
+            {
+              "filename": "01_supplier_registration_form.pdf",
+              "pages": [
+                3
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "Receive at Dock 4, Hoskote Freight Park, Bengaluru, Karnataka 562114. AP terms are Net 45 days from accepted invoice."
+        },
+        {
+          "id": "unlisted_carrier",
+          "question_type": "stress_conditional",
+          "question": "A carrier is not named on the approved-carrier register before dispatch. Does the submitted subcontracted-carriage clause cover that journey? Explain the condition.",
+          "expected_terms": [
+            "carrier",
+            "register"
+          ],
+          "expected_term_groups": [
+            [
+              "not covered",
+              "outside",
+              "no cover",
+              "not apply",
+              "does not apply"
+            ]
+          ],
+          "expected_dates": [],
+          "expected_amounts": [],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "required_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "allowed_citation_pages": {
+            "03_certificate_of_liability_insurance.pdf": [
+              4
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "03_certificate_of_liability_insurance.pdf",
+              "pages": [
+                4
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "No cover applies: a carrier not named on the approved-carrier register before dispatch is outside the subcontracted-carriage clause."
+        },
+        {
+          "id": "missing_carrier_approval",
+          "question_type": "safe_not_found",
+          "question": "Which subcontracted carrier has actually been approved on this supplier's approved-carrier register?",
+          "expected_terms": [
+            "Information not found in uploaded supplier documents."
+          ],
+          "expected_sources": [],
+          "information_found": false,
+          "manual_review_required": true,
+          "gold_rationale": "No original supplies this requested value. Related information does not establish it.",
+          "reference_answer": "Information not found in uploaded supplier documents."
+        },
+        {
+          "id": "missing_credit_rating",
+          "question_type": "safe_not_found",
+          "question": "What external credit rating has been assigned to this supplier?",
+          "expected_terms": [
+            "Information not found in uploaded supplier documents."
+          ],
+          "expected_sources": [],
+          "information_found": false,
+          "manual_review_required": true,
+          "gold_rationale": "No original supplies this requested value. Related information does not establish it.",
+          "reference_answer": "Information not found in uploaded supplier documents."
+        }
+      ],
+      "cohort": "stress",
+      "stress_category": "logistics",
+      "document_modes": {
+        "registration": "native",
+        "tax": "native",
+        "insurance": "native"
+      },
+      "expected_ocr_pages": {
+        "registration": [],
+        "tax": [],
+        "insurance": []
+      },
+      "source_transcript_sha256": {},
+      "document_sha256": {
+        "registration": "34024b802cddf9e89ccc9e4d792f2a3e0afcabc9538d30b27fa3b7d12639ca5f",
+        "tax": "efb81b77e928c275ba81781774c5ad25e9be0056edadec3e7a66276ffc2c8637",
+        "insurance": "073884a40b84703bd50eeff1f7d3d60b3f6366efac4efa7fdb6eb81a386c8a62"
+      }
+    },
+    {
+      "slug": "amrutha_food",
+      "create_payload": {
+        "name": "Amrutha Meal Services Private Limited",
+        "country": "India",
+        "contact_email": "evaluation.amrutha_food@example.com"
+      },
+      "documents": {
+        "registration": "01_supplier_registration_form.pdf",
+        "tax": "02_gst_registration_certificate.pdf",
+        "insurance": "03_certificate_of_liability_insurance.pdf"
+      },
+      "extraction_expectations": {
+        "registration": {
+          "supplier_name": "Amrutha Meal Services Private Limited",
+          "registration_number": "U74999KA2020PTC190002",
+          "issuing_registry": "Registrar of Companies, India",
+          "registration_date": "2020-09-12",
+          "status": "Active"
+        },
+        "tax": {
+          "supplier_name": "Amrutha Meal Services Private Limited",
+          "tax_identifier": "AABCS6202F",
+          "gst_status_registered_or_not_registered": "Registered",
+          "gstin_when_registered": "29AABCS6202F1Z8"
+        }
+      },
+      "rag_only_documents": {
+        "insurance": "Supplementary liability evidence for RAG; the legacy insurance type has no current policy extraction contract."
+      },
+      "questions": [
+        {
+          "id": "legal_name_control",
+          "question_type": "direct_fact",
+          "question": "What legal name does the supplier registration form state?",
+          "expected_terms": [
+            "Amrutha Meal Services Private Limited"
+          ],
+          "expected_term_groups": [],
+          "expected_dates": [],
+          "expected_amounts": [],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf",
+            "02_gst_registration_certificate.pdf",
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "required_sources": [
+            "01_supplier_registration_form.pdf"
+          ],
+          "allowed_citation_pages": {
+            "01_supplier_registration_form.pdf": [
+              1
+            ],
+            "02_gst_registration_certificate.pdf": [
+              1
+            ],
+            "03_certificate_of_liability_insurance.pdf": [
+              1
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "01_supplier_registration_form.pdf",
+              "pages": [
+                1
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "The registration form states the legal name as Amrutha Meal Services Private Limited."
+        },
+        {
+          "id": "insurer_control",
+          "question_type": "direct_fact",
+          "question": "Which insurance provider is named on the liability certificate?",
+          "expected_terms": [
+            "HarborPoint General Insurance Company Limited"
+          ],
+          "expected_term_groups": [],
+          "expected_dates": [],
+          "expected_amounts": [],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "required_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "allowed_citation_pages": {
+            "03_certificate_of_liability_insurance.pdf": [
+              1
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "03_certificate_of_liability_insurance.pdf",
+              "pages": [
+                1
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "The liability certificate names HarborPoint General Insurance Company Limited as the provider."
+        },
+        {
+          "id": "original_aggregate",
+          "question_type": "stress_retrieval",
+          "question": "What annual aggregate was stated in the original product-liability schedule, before either amendment becomes effective?",
+          "expected_terms": [
+            "annual",
+            "aggregate"
+          ],
+          "expected_term_groups": [],
+          "expected_dates": [],
+          "expected_amounts": [
+            2000000
+          ],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "required_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "allowed_citation_pages": {
+            "03_certificate_of_liability_insurance.pdf": [
+              2
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "03_certificate_of_liability_insurance.pdf",
+              "pages": [
+                2
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "The original annual product-liability aggregate is INR 20 lakh."
+        },
+        {
+          "id": "renewal_expiry",
+          "question_type": "stress_retrieval",
+          "question": "What expiry does endorsement E1 establish for the renewal period?",
+          "expected_terms": [],
+          "expected_term_groups": [],
+          "expected_dates": [
+            "2028-06-30"
+          ],
+          "expected_amounts": [],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "required_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "allowed_citation_pages": {
+            "03_certificate_of_liability_insurance.pdf": [
+              3
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "03_certificate_of_liability_insurance.pdf",
+              "pages": [
+                3
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "Endorsement E1 establishes renewal expiry on 30 June 2028."
+        },
+        {
+          "id": "e2_preserved_expiry",
+          "question_type": "stress_retrieval",
+          "question": "What annual aggregate does amendment E2 set, and which expiry does it explicitly leave unchanged?",
+          "expected_terms": [
+            "annual",
+            "aggregate"
+          ],
+          "expected_term_groups": [],
+          "expected_dates": [
+            "2028-06-30"
+          ],
+          "expected_amounts": [
+            4000000
+          ],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "required_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "allowed_citation_pages": {
+            "03_certificate_of_liability_insurance.pdf": [
+              4
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "03_certificate_of_liability_insurance.pdf",
+              "pages": [
+                4
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "E2 sets the annual aggregate at INR 40 lakh and leaves the expiry of 30 June 2028 unchanged."
+        },
+        {
+          "id": "july_vs_august",
+          "question_type": "stress_synthesis",
+          "question": "Compare the applicable annual product-liability aggregate on 15 July 2027 and on 15 August 2027. Label each date and limit.",
+          "expected_terms": [],
+          "expected_term_groups": [
+            [
+              "July",
+              "JUL"
+            ],
+            [
+              "August",
+              "AUG"
+            ]
+          ],
+          "expected_dates": [],
+          "expected_amounts": [
+            3000000,
+            4000000
+          ],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "required_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "allowed_citation_pages": {
+            "03_certificate_of_liability_insurance.pdf": [
+              3,
+              4
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "03_certificate_of_liability_insurance.pdf",
+              "pages": [
+                3
+              ]
+            },
+            {
+              "filename": "03_certificate_of_liability_insurance.pdf",
+              "pages": [
+                4
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "On 15 July 2027, the annual aggregate is INR 30 lakh under E1. On 15 August 2027, INR 40 lakh applies under E2."
+        },
+        {
+          "id": "ap_and_renewal",
+          "question_type": "stress_synthesis",
+          "question": "For the procurement handover, state the payment days and trigger, plus the renewed insurance expiry.",
+          "expected_terms": [
+            "30"
+          ],
+          "expected_term_groups": [
+            [
+              "accepted delivery",
+              "delivery acceptance",
+              "acceptance of delivery",
+              "delivery is accepted",
+              "delivery has been accepted",
+              "delivery accepted"
+            ]
+          ],
+          "expected_dates": [
+            "2028-06-30"
+          ],
+          "expected_amounts": [],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf",
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "required_sources": [
+            "01_supplier_registration_form.pdf",
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "allowed_citation_pages": {
+            "01_supplier_registration_form.pdf": [
+              2
+            ],
+            "03_certificate_of_liability_insurance.pdf": [
+              3
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "01_supplier_registration_form.pdf",
+              "pages": [
+                2
+              ]
+            },
+            {
+              "filename": "03_certificate_of_liability_insurance.pdf",
+              "pages": [
+                3
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "Payment is Net 30 days after accepted delivery. The renewed insurance expiry is 30 June 2028."
+        },
+        {
+          "id": "before_e2_effective",
+          "question_type": "stress_conditional",
+          "question": "As of 20 July 2027, may AP record E2's higher annual aggregate just because E2 was issued in May? Give the applicable limit and E2's effective date.",
+          "expected_terms": [],
+          "expected_term_groups": [
+            [
+              "not yet",
+              "no",
+              "not effective",
+              "does not apply"
+            ]
+          ],
+          "expected_dates": [
+            "2027-08-01"
+          ],
+          "expected_amounts": [
+            3000000
+          ],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "required_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "allowed_citation_pages": {
+            "03_certificate_of_liability_insurance.pdf": [
+              4
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "03_certificate_of_liability_insurance.pdf",
+              "pages": [
+                4
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "No. On 20 July 2027, the applicable annual aggregate is INR 30 lakh. E2 is not yet effective; its effective date is 01 August 2027."
+        },
+        {
+          "id": "missing_recall_limit",
+          "question_type": "safe_not_found",
+          "question": "What monetary recall-expense limit has been approved for this supplier?",
+          "expected_terms": [
+            "Information not found in uploaded supplier documents."
+          ],
+          "expected_sources": [],
+          "information_found": false,
+          "manual_review_required": true,
+          "gold_rationale": "No original supplies this requested value. Related information does not establish it.",
+          "reference_answer": "Information not found in uploaded supplier documents."
+        },
+        {
+          "id": "missing_food_score",
+          "question_type": "safe_not_found",
+          "question": "What numerical food-safety inspection score did the authority give this supplier?",
+          "expected_terms": [
+            "Information not found in uploaded supplier documents."
+          ],
+          "expected_sources": [],
+          "information_found": false,
+          "manual_review_required": true,
+          "gold_rationale": "No original supplies this requested value. Related information does not establish it.",
+          "reference_answer": "Information not found in uploaded supplier documents."
+        }
+      ],
+      "cohort": "stress",
+      "stress_category": "food",
+      "document_modes": {
+        "registration": "native",
+        "tax": "native",
+        "insurance": "native"
+      },
+      "expected_ocr_pages": {
+        "registration": [],
+        "tax": [],
+        "insurance": []
+      },
+      "source_transcript_sha256": {},
+      "document_sha256": {
+        "registration": "6e669a861db59576e56942e1d6db4290c9d3f2e4c46703bc74a1ad8744ea598d",
+        "tax": "6955a50702ec74be8f2a3c4f44bd85b49542d2405b025ab5e0c251ff93e7e31b",
+        "insurance": "e13f598a16c37c69b9c9f502be8cf48746860281996c4af03b4ba14a93a8f1e1"
+      }
+    },
+    {
+      "slug": "varsha_facilities",
+      "create_payload": {
+        "name": "Varsha Facilities Services Private Limited",
+        "country": "India",
+        "contact_email": "evaluation.varsha_facilities@example.com"
+      },
+      "documents": {
+        "registration": "01_supplier_registration_form.pdf",
+        "tax": "02_gst_registration_certificate.pdf",
+        "insurance": "03_certificate_of_liability_insurance.pdf"
+      },
+      "extraction_expectations": {
+        "registration": {
+          "supplier_name": "Varsha Facilities Services Private Limited",
+          "registration_number": "U74999KA2020PTC190003",
+          "issuing_registry": "Registrar of Companies, India",
+          "registration_date": "2020-09-12",
+          "status": "Active"
+        },
+        "tax": {
+          "supplier_name": "Varsha Facilities Services Private Limited",
+          "tax_identifier": "AABCS6203F",
+          "gst_status_registered_or_not_registered": "Registered",
+          "gstin_when_registered": "29AABCS6203F1Z8"
+        }
+      },
+      "rag_only_documents": {
+        "insurance": "Supplementary liability evidence for RAG; the legacy insurance type has no current policy extraction contract."
+      },
+      "questions": [
+        {
+          "id": "legal_name_control",
+          "question_type": "direct_fact",
+          "question": "What legal name does the supplier registration form state?",
+          "expected_terms": [
+            "Varsha Facilities Services Private Limited"
+          ],
+          "expected_term_groups": [],
+          "expected_dates": [],
+          "expected_amounts": [],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf",
+            "02_gst_registration_certificate.pdf",
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "required_sources": [
+            "01_supplier_registration_form.pdf"
+          ],
+          "allowed_citation_pages": {
+            "01_supplier_registration_form.pdf": [
+              1
+            ],
+            "02_gst_registration_certificate.pdf": [
+              1
+            ],
+            "03_certificate_of_liability_insurance.pdf": [
+              1
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "01_supplier_registration_form.pdf",
+              "pages": [
+                1
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "The registration form states the legal name as Varsha Facilities Services Private Limited."
+        },
+        {
+          "id": "insurer_control",
+          "question_type": "direct_fact",
+          "question": "Which insurance provider is named on the liability certificate?",
+          "expected_terms": [
+            "HarborPoint General Insurance Company Limited"
+          ],
+          "expected_term_groups": [],
+          "expected_dates": [],
+          "expected_amounts": [],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "required_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "allowed_citation_pages": {
+            "03_certificate_of_liability_insurance.pdf": [
+              1
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "03_certificate_of_liability_insurance.pdf",
+              "pages": [
+                1
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "The liability certificate names HarborPoint General Insurance Company Limited as the provider."
+        },
+        {
+          "id": "helpdesk_window",
+          "question_type": "stress_retrieval",
+          "question": "What hours and weekdays are stated for the emergency facilities helpdesk, rather than housekeeping?",
+          "expected_terms": [
+            "Monday",
+            "Saturday"
+          ],
+          "expected_term_groups": [
+            [
+              "06:00",
+              "6:00",
+              "6 am",
+              "6am"
+            ],
+            [
+              "22:00",
+              "10 pm",
+              "10pm"
+            ]
+          ],
+          "expected_dates": [],
+          "expected_amounts": [],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf"
+          ],
+          "required_sources": [
+            "01_supplier_registration_form.pdf"
+          ],
+          "allowed_citation_pages": {
+            "01_supplier_registration_form.pdf": [
+              2
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "01_supplier_registration_form.pdf",
+              "pages": [
+                2
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "The emergency helpdesk operates 06:00 to 22:00, Monday to Saturday; these are not the housekeeping hours."
+        },
+        {
+          "id": "acknowledgement_target",
+          "question_type": "stress_retrieval",
+          "question": "What is the priority-one incident acknowledgement target, and is it an onsite-arrival or resolution deadline?",
+          "expected_terms": [
+            "45"
+          ],
+          "expected_term_groups": [
+            [
+              "acknowledgement",
+              "acknowledgment"
+            ],
+            [
+              "not",
+              "neither"
+            ]
+          ],
+          "expected_dates": [],
+          "expected_amounts": [],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf"
+          ],
+          "required_sources": [
+            "01_supplier_registration_form.pdf"
+          ],
+          "allowed_citation_pages": {
+            "01_supplier_registration_form.pdf": [
+              3
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "01_supplier_registration_form.pdf",
+              "pages": [
+                3
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "The priority-one target is acknowledgement within 45 minutes of a logged ticket during the service window. It is not an onsite-arrival or resolution deadline."
+        },
+        {
+          "id": "public_liability",
+          "question_type": "stress_retrieval",
+          "question": "Give the public-liability occurrence limit and its deductible, keeping the two roles separate.",
+          "expected_terms": [
+            "occurrence",
+            "deductible"
+          ],
+          "expected_term_groups": [],
+          "expected_dates": [],
+          "expected_amounts": [
+            1500000,
+            20000
+          ],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "required_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "allowed_citation_pages": {
+            "03_certificate_of_liability_insurance.pdf": [
+              2
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "03_certificate_of_liability_insurance.pdf",
+              "pages": [
+                2
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "Public liability: INR 15 lakh per occurrence. Deductible: INR 20,000 per claim."
+        },
+        {
+          "id": "service_and_payment",
+          "question_type": "stress_synthesis",
+          "question": "Summarise the emergency helpdesk window and the invoice payment days and trigger.",
+          "expected_terms": [
+            "Monday",
+            "Saturday",
+            "30"
+          ],
+          "expected_term_groups": [
+            [
+              "06:00",
+              "6:00",
+              "6 am",
+              "6am"
+            ],
+            [
+              "22:00",
+              "10 pm",
+              "10pm"
+            ],
+            [
+              "accepted monthly service sheet",
+              "acceptance of the monthly service sheet",
+              "monthly service sheet acceptance",
+              "monthly service sheet is accepted",
+              "monthly service sheet has been accepted"
+            ]
+          ],
+          "expected_dates": [],
+          "expected_amounts": [],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf"
+          ],
+          "required_sources": [
+            "01_supplier_registration_form.pdf"
+          ],
+          "allowed_citation_pages": {
+            "01_supplier_registration_form.pdf": [
+              2,
+              3
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "01_supplier_registration_form.pdf",
+              "pages": [
+                2
+              ]
+            },
+            {
+              "filename": "01_supplier_registration_form.pdf",
+              "pages": [
+                3
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "Emergency helpdesk: 06:00 to 22:00, Monday to Saturday. Payment: Net 30 days from accepted monthly service sheet."
+        },
+        {
+          "id": "operating_site_and_property",
+          "question_type": "stress_synthesis",
+          "question": "What is the service-establishment address, and what sublimit applies to customer property in the supplier's care, custody and control?",
+          "expected_terms": [
+            "Suite 6",
+            "Yelahanka Service Centre",
+            "560064"
+          ],
+          "expected_term_groups": [],
+          "expected_dates": [],
+          "expected_amounts": [
+            300000
+          ],
+          "expected_sources": [
+            "02_gst_registration_certificate.pdf",
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "required_sources": [
+            "02_gst_registration_certificate.pdf",
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "allowed_citation_pages": {
+            "02_gst_registration_certificate.pdf": [
+              2
+            ],
+            "03_certificate_of_liability_insurance.pdf": [
+              2
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "02_gst_registration_certificate.pdf",
+              "pages": [
+                2
+              ]
+            },
+            {
+              "filename": "03_certificate_of_liability_insurance.pdf",
+              "pages": [
+                2
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "The service establishment is Suite 6, Yelahanka Service Centre, Bengaluru, Karnataka 560064. Customer property in care, custody and control has an INR 3 lakh sublimit."
+        },
+        {
+          "id": "height_without_permit",
+          "question_type": "stress_conditional",
+          "question": "A job is above three metres and no site permit was issued before work. Does the declared working-at-height extension cover it?",
+          "expected_terms": [
+            "permit"
+          ],
+          "expected_term_groups": [
+            [
+              "excluded",
+              "not covered",
+              "does not cover",
+              "no cover"
+            ]
+          ],
+          "expected_dates": [],
+          "expected_amounts": [],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "required_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "allowed_citation_pages": {
+            "03_certificate_of_liability_insurance.pdf": [
+              3
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "03_certificate_of_liability_insurance.pdf",
+              "pages": [
+                3
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "It is excluded: work above three metres needs a site permit issued before work starts, and this job lacks that permit."
+        },
+        {
+          "id": "missing_sunday_hours",
+          "question_type": "safe_not_found",
+          "question": "What exact standard Sunday hours has the customer contracted for the emergency helpdesk?",
+          "expected_terms": [
+            "Information not found in uploaded supplier documents."
+          ],
+          "expected_sources": [],
+          "information_found": false,
+          "manual_review_required": true,
+          "gold_rationale": "No original supplies this requested value. Related information does not establish it.",
+          "reference_answer": "Information not found in uploaded supplier documents."
+        },
+        {
+          "id": "missing_permit_number",
+          "question_type": "safe_not_found",
+          "question": "What is the number of the site permit actually issued for the next working-at-height job?",
+          "expected_terms": [
+            "Information not found in uploaded supplier documents."
+          ],
+          "expected_sources": [],
+          "information_found": false,
+          "manual_review_required": true,
+          "gold_rationale": "No original supplies this requested value. Related information does not establish it.",
+          "reference_answer": "Information not found in uploaded supplier documents."
+        }
+      ],
+      "cohort": "stress",
+      "stress_category": "facilities",
+      "document_modes": {
+        "registration": "mixed",
+        "tax": "mixed",
+        "insurance": "mixed"
+      },
+      "expected_ocr_pages": {
+        "registration": [
+          2
+        ],
+        "tax": [
+          2
+        ],
+        "insurance": [
+          2
+        ]
+      },
+      "source_transcript_sha256": {
+        "registration": "3d6c01aefd03b1e1c03dd39c1f85d3029a4a7e3774fc5d7f1f2e0eb177efcece",
+        "tax": "939b6111d8b6a894b060e3c86976fc166f6f64031360e1062dd0e9086ac91ce8",
+        "insurance": "0bf967e88fae00733b68eb3bafadf061671891680e325ed13873e131a157fc79"
+      },
+      "document_sha256": {
+        "registration": "1ee4d17959396684db45ccbe1bd033d044f844c575d62d524831c709d99fc7c6",
+        "tax": "1e0b4db901968ce24c378df9bdc3fbfb6b0c4531a62f6c6bba2f81988b8ebeb2",
+        "insurance": "2abb5d4689f6c39229f36d6b1d213df54c7244812fa76fdbac7e1ff237c95b04"
+      }
+    },
+    {
+      "slug": "chitra_components",
+      "create_payload": {
+        "name": "Chitra Industrial Components Private Limited",
+        "country": "India",
+        "contact_email": "evaluation.chitra_components@example.com"
+      },
+      "documents": {
+        "registration": "01_supplier_registration_form.pdf",
+        "tax": "02_gst_registration_certificate.pdf",
+        "insurance": "03_certificate_of_liability_insurance.pdf"
+      },
+      "extraction_expectations": {
+        "registration": {
+          "supplier_name": "Chitra Industrial Components Private Limited",
+          "registration_number": "U74999KA2020PTC190004",
+          "issuing_registry": "Registrar of Companies, India",
+          "registration_date": "2020-09-12",
+          "status": "Active"
+        },
+        "tax": {
+          "supplier_name": "Chitra Industrial Components Private Limited",
+          "tax_identifier": "AABCS6204F",
+          "gst_status_registered_or_not_registered": "Registered",
+          "gstin_when_registered": "29AABCS6204F1Z8"
+        }
+      },
+      "rag_only_documents": {
+        "insurance": "Supplementary liability evidence for RAG; the legacy insurance type has no current policy extraction contract."
+      },
+      "questions": [
+        {
+          "id": "legal_name_control",
+          "question_type": "direct_fact",
+          "question": "What legal name does the supplier registration form state?",
+          "expected_terms": [
+            "Chitra Industrial Components Private Limited"
+          ],
+          "expected_term_groups": [],
+          "expected_dates": [],
+          "expected_amounts": [],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf",
+            "02_gst_registration_certificate.pdf",
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "required_sources": [
+            "01_supplier_registration_form.pdf"
+          ],
+          "allowed_citation_pages": {
+            "01_supplier_registration_form.pdf": [
+              1
+            ],
+            "02_gst_registration_certificate.pdf": [
+              1
+            ],
+            "03_certificate_of_liability_insurance.pdf": [
+              1
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "01_supplier_registration_form.pdf",
+              "pages": [
+                1
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "The registration form states the legal name as Chitra Industrial Components Private Limited."
+        },
+        {
+          "id": "insurer_control",
+          "question_type": "direct_fact",
+          "question": "Which insurance provider is named on the liability certificate?",
+          "expected_terms": [
+            "HarborPoint General Insurance Company Limited"
+          ],
+          "expected_term_groups": [],
+          "expected_dates": [],
+          "expected_amounts": [],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "required_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "allowed_citation_pages": {
+            "03_certificate_of_liability_insurance.pdf": [
+              1
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "03_certificate_of_liability_insurance.pdf",
+              "pages": [
+                1
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "The liability certificate names HarborPoint General Insurance Company Limited as the provider."
+        },
+        {
+          "id": "registered_office",
+          "question_type": "stress_retrieval",
+          "question": "Which address should be entered as the registered office for statutory correspondence, rather than plant, depot or claims desk?",
+          "expected_terms": [
+            "Unit 71",
+            "Jigani Business Centre",
+            "560105"
+          ],
+          "expected_term_groups": [],
+          "expected_dates": [],
+          "expected_amounts": [],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf",
+            "02_gst_registration_certificate.pdf"
+          ],
+          "required_sources": [
+            "01_supplier_registration_form.pdf"
+          ],
+          "allowed_citation_pages": {
+            "01_supplier_registration_form.pdf": [
+              1
+            ],
+            "02_gst_registration_certificate.pdf": [
+              1
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "01_supplier_registration_form.pdf",
+              "pages": [
+                1
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "Use Unit 71, Jigani Business Centre, Bengaluru, Karnataka 560105 as the registered office for statutory correspondence."
+        },
+        {
+          "id": "pickup_depot",
+          "question_type": "stress_retrieval",
+          "question": "Where should a customer collect finished goods? Give the dispatch location, not the manufacturing plant.",
+          "expected_terms": [
+            "Bay 9",
+            "Nelamangala Freight Yard",
+            "562123"
+          ],
+          "expected_term_groups": [],
+          "expected_dates": [],
+          "expected_amounts": [],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf"
+          ],
+          "required_sources": [
+            "01_supplier_registration_form.pdf"
+          ],
+          "allowed_citation_pages": {
+            "01_supplier_registration_form.pdf": [
+              2
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "01_supplier_registration_form.pdf",
+              "pages": [
+                2
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "Collect from the dispatch depot: Bay 9, Nelamangala Freight Yard, Bengaluru, Karnataka 562123."
+        },
+        {
+          "id": "claims_routing",
+          "question_type": "stress_retrieval",
+          "question": "Where is insurance claims correspondence routed, and whose routing address is it?",
+          "expected_terms": [
+            "Claims Desk 2",
+            "Residency Road",
+            "560025",
+            "insurer"
+          ],
+          "expected_term_groups": [],
+          "expected_dates": [],
+          "expected_amounts": [],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "required_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "allowed_citation_pages": {
+            "03_certificate_of_liability_insurance.pdf": [
+              2
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "03_certificate_of_liability_insurance.pdf",
+              "pages": [
+                2
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "Insurance claims correspondence goes to Claims Desk 2, Residency Road, Bengaluru, Karnataka 560025. This is the insurer's routing address."
+        },
+        {
+          "id": "entity_and_trading",
+          "question_type": "stress_synthesis",
+          "question": "For ERP, separate the full invoice legal name from the trading name, and state the payment period and its trigger.",
+          "expected_terms": [
+            "Chitra Industrial Components Private Limited",
+            "Chitra Components",
+            "60"
+          ],
+          "expected_term_groups": [
+            [
+              "quality acceptance",
+              "acceptance after quality inspection",
+              "accepted after quality inspection",
+              "quality approval"
+            ]
+          ],
+          "expected_dates": [],
+          "expected_amounts": [],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf",
+            "02_gst_registration_certificate.pdf",
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "required_sources": [
+            "01_supplier_registration_form.pdf"
+          ],
+          "allowed_citation_pages": {
+            "01_supplier_registration_form.pdf": [
+              1,
+              3
+            ],
+            "02_gst_registration_certificate.pdf": [
+              1
+            ],
+            "03_certificate_of_liability_insurance.pdf": [
+              1
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "01_supplier_registration_form.pdf",
+              "pages": [
+                1
+              ]
+            },
+            {
+              "filename": "01_supplier_registration_form.pdf",
+              "pages": [
+                3
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "Invoice legal name: Chitra Industrial Components Private Limited. Trading name: Chitra Components. Payment is Net 60 days after quality acceptance."
+        },
+        {
+          "id": "factory_and_cover",
+          "question_type": "stress_synthesis",
+          "question": "For a plant audit, give the manufacturing location and the declared insured activity at that plant.",
+          "expected_terms": [
+            "Shed 18",
+            "Doddaballapur Industrial Area",
+            "561203",
+            "precision machining",
+            "assembly"
+          ],
+          "expected_term_groups": [],
+          "expected_dates": [],
+          "expected_amounts": [],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf",
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "required_sources": [
+            "01_supplier_registration_form.pdf",
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "allowed_citation_pages": {
+            "01_supplier_registration_form.pdf": [
+              2
+            ],
+            "03_certificate_of_liability_insurance.pdf": [
+              2
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "01_supplier_registration_form.pdf",
+              "pages": [
+                2
+              ]
+            },
+            {
+              "filename": "03_certificate_of_liability_insurance.pdf",
+              "pages": [
+                2
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "The manufacturing location is Shed 18, Doddaballapur Industrial Area, Bengaluru, Karnataka 561203. The insured activity is precision machining and assembly of industrial components."
+        },
+        {
+          "id": "canada_claim",
+          "question_type": "stress_conditional",
+          "question": "A component is supplied into Canada. Does the declared India product-liability territory cover the resulting product claim? Explain the stated exclusion.",
+          "expected_terms": [
+            "Canada",
+            "India"
+          ],
+          "expected_term_groups": [
+            [
+              "excluded",
+              "excludes",
+              "not covered",
+              "does not cover"
+            ]
+          ],
+          "expected_dates": [],
+          "expected_amounts": [],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "required_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "allowed_citation_pages": {
+            "03_certificate_of_liability_insurance.pdf": [
+              3
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "03_certificate_of_liability_insurance.pdf",
+              "pages": [
+                3
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "No. The declared territory is India; product claims arising from supply into Canada are excluded."
+        },
+        {
+          "id": "missing_export_endorsement",
+          "question_type": "safe_not_found",
+          "question": "What is the number of an issued export endorsement that extends this supplier's product cover to Canada?",
+          "expected_terms": [
+            "Information not found in uploaded supplier documents."
+          ],
+          "expected_sources": [],
+          "information_found": false,
+          "manual_review_required": true,
+          "gold_rationale": "No original supplies this requested value. Related information does not establish it.",
+          "reference_answer": "Information not found in uploaded supplier documents."
+        },
+        {
+          "id": "missing_bank_account",
+          "question_type": "safe_not_found",
+          "question": "Which beneficiary bank account number should AP use for this supplier?",
+          "expected_terms": [
+            "Information not found in uploaded supplier documents."
+          ],
+          "expected_sources": [],
+          "information_found": false,
+          "manual_review_required": true,
+          "gold_rationale": "No original supplies this requested value. Related information does not establish it.",
+          "reference_answer": "Information not found in uploaded supplier documents."
+        }
+      ],
+      "cohort": "stress",
+      "stress_category": "components",
+      "document_modes": {
+        "registration": "native",
+        "tax": "native",
+        "insurance": "native"
+      },
+      "expected_ocr_pages": {
+        "registration": [],
+        "tax": [],
+        "insurance": []
+      },
+      "source_transcript_sha256": {},
+      "document_sha256": {
+        "registration": "fe29ac05452c5d2631bb67047643863124db57db2bcc4542ad7aab0028e2b952",
+        "tax": "984f21b1a1ba06b577016e1859510f22008d910dab716cf3e06bb4e3544d8370",
+        "insurance": "e46f8e695de6cb8c99f2d23f4fb48aa13152ed81217abf6090e6464aa3a3e4d2"
+      }
+    },
+    {
+      "slug": "udaya_maintenance",
+      "create_payload": {
+        "name": "Udaya Equipment Maintenance Private Limited",
+        "country": "India",
+        "contact_email": "evaluation.udaya_maintenance@example.com"
+      },
+      "documents": {
+        "registration": "01_supplier_registration_form.pdf",
+        "tax": "02_gst_registration_certificate.pdf",
+        "insurance": "03_certificate_of_liability_insurance.pdf"
+      },
+      "extraction_expectations": {
+        "registration": {
+          "supplier_name": "Udaya Equipment Maintenance Private Limited",
+          "registration_number": "U74999KA2020PTC190005",
+          "issuing_registry": "Registrar of Companies, India",
+          "registration_date": "2020-09-12",
+          "status": "Active"
+        },
+        "tax": {
+          "supplier_name": "Udaya Equipment Maintenance Private Limited",
+          "tax_identifier": "AABCS6205F",
+          "gst_status_registered_or_not_registered": "Registered",
+          "gstin_when_registered": "29AABCS6205F1Z8"
+        }
+      },
+      "rag_only_documents": {
+        "insurance": "Supplementary liability evidence for RAG; the legacy insurance type has no current policy extraction contract."
+      },
+      "questions": [
+        {
+          "id": "legal_name_control",
+          "question_type": "direct_fact",
+          "question": "What legal name does the supplier registration form state?",
+          "expected_terms": [
+            "Udaya Equipment Maintenance Private Limited"
+          ],
+          "expected_term_groups": [],
+          "expected_dates": [],
+          "expected_amounts": [],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf",
+            "02_gst_registration_certificate.pdf",
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "required_sources": [
+            "01_supplier_registration_form.pdf"
+          ],
+          "allowed_citation_pages": {
+            "01_supplier_registration_form.pdf": [
+              1
+            ],
+            "02_gst_registration_certificate.pdf": [
+              1
+            ],
+            "03_certificate_of_liability_insurance.pdf": [
+              1
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "01_supplier_registration_form.pdf",
+              "pages": [
+                1
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "The registration form states the legal name as Udaya Equipment Maintenance Private Limited."
+        },
+        {
+          "id": "insurer_control",
+          "question_type": "direct_fact",
+          "question": "Which insurance provider is named on the liability certificate?",
+          "expected_terms": [
+            "HarborPoint General Insurance Company Limited"
+          ],
+          "expected_term_groups": [],
+          "expected_dates": [],
+          "expected_amounts": [],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "required_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "allowed_citation_pages": {
+            "03_certificate_of_liability_insurance.pdf": [
+              1
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "03_certificate_of_liability_insurance.pdf",
+              "pages": [
+                1
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "The liability certificate names HarborPoint General Insurance Company Limited as the provider."
+        },
+        {
+          "id": "acknowledgement_vs_repair",
+          "question_type": "stress_retrieval",
+          "question": "What telephone acknowledgement target applies to a critical breakdown, and does it guarantee repair completion?",
+          "expected_terms": [
+            "30"
+          ],
+          "expected_term_groups": [
+            [
+              "acknowledgement",
+              "acknowledgment"
+            ],
+            [
+              "not",
+              "no",
+              "does not"
+            ]
+          ],
+          "expected_dates": [],
+          "expected_amounts": [],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf"
+          ],
+          "required_sources": [
+            "01_supplier_registration_form.pdf"
+          ],
+          "allowed_citation_pages": {
+            "01_supplier_registration_form.pdf": [
+              2
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "01_supplier_registration_form.pdf",
+              "pages": [
+                2
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "Telephone acknowledgement for a critical breakdown is within 30 minutes of a logged ticket during service hours. It is not a repair-completion guarantee."
+        },
+        {
+          "id": "limit_and_deductible",
+          "question_type": "stress_retrieval",
+          "question": "State the public-liability occurrence limit and per-claim deductible with their roles labelled.",
+          "expected_terms": [
+            "occurrence",
+            "deductible"
+          ],
+          "expected_term_groups": [],
+          "expected_dates": [],
+          "expected_amounts": [
+            3500000,
+            50000
+          ],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "required_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "allowed_citation_pages": {
+            "03_certificate_of_liability_insurance.pdf": [
+              2
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "03_certificate_of_liability_insurance.pdf",
+              "pages": [
+                2
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "Public liability limit: INR 35 lakh per occurrence. The deductible is INR 50,000 per claim."
+        },
+        {
+          "id": "electrical_condition",
+          "question_type": "stress_retrieval",
+          "question": "What does the schedule say about live electrical work and the records needed for de-energised work?",
+          "expected_terms": [
+            "live",
+            "excluded",
+            "isolation",
+            "lockout"
+          ],
+          "expected_term_groups": [],
+          "expected_dates": [],
+          "expected_amounts": [],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "required_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "allowed_citation_pages": {
+            "03_certificate_of_liability_insurance.pdf": [
+              4
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "03_certificate_of_liability_insurance.pdf",
+              "pages": [
+                4
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "Live electrical work is excluded. De-energised work needs documented isolation and a verified lockout record."
+        },
+        {
+          "id": "hot_work_conditions",
+          "question_type": "stress_synthesis",
+          "question": "For a maintenance handover, give both mandatory hot-work cover conditions and the policy occurrence limit.",
+          "expected_terms": [
+            "permit",
+            "fire watch",
+            "60"
+          ],
+          "expected_term_groups": [
+            [
+              "before work",
+              "prior to work"
+            ],
+            [
+              "after completion",
+              "after work",
+              "post-work"
+            ]
+          ],
+          "expected_dates": [],
+          "expected_amounts": [
+            3500000
+          ],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "required_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "allowed_citation_pages": {
+            "03_certificate_of_liability_insurance.pdf": [
+              2,
+              3
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "03_certificate_of_liability_insurance.pdf",
+              "pages": [
+                3
+              ]
+            },
+            {
+              "filename": "03_certificate_of_liability_insurance.pdf",
+              "pages": [
+                2
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "Hot work needs a permit issued before work and a fire watch for 60 minutes after completion. The public-liability occurrence limit is INR 35 lakh."
+        },
+        {
+          "id": "hours_and_ap",
+          "question_type": "stress_synthesis",
+          "question": "State normal service weekdays and hours, and the payment period and completion-record trigger.",
+          "expected_terms": [
+            "Monday",
+            "Friday",
+            "30"
+          ],
+          "expected_term_groups": [
+            [
+              "08:00",
+              "8:00",
+              "8 am",
+              "8am"
+            ],
+            [
+              "18:00",
+              "6 pm",
+              "6pm"
+            ],
+            [
+              "signed service completion",
+              "signed completion record",
+              "service completion is signed",
+              "signing of service completion",
+              "signed completion of service"
+            ]
+          ],
+          "expected_dates": [],
+          "expected_amounts": [],
+          "expected_sources": [
+            "01_supplier_registration_form.pdf"
+          ],
+          "required_sources": [
+            "01_supplier_registration_form.pdf"
+          ],
+          "allowed_citation_pages": {
+            "01_supplier_registration_form.pdf": [
+              3
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "01_supplier_registration_form.pdf",
+              "pages": [
+                3
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "Service is 08:00 to 18:00, Monday to Friday. Payment is Net 30 days after signed service completion."
+        },
+        {
+          "id": "permit_without_watch",
+          "question_type": "stress_conditional",
+          "question": "Hot work has a permit, but no fire watch remains after completion. Does the submitted hot-work extension cover this situation?",
+          "expected_terms": [
+            "fire watch"
+          ],
+          "expected_term_groups": [
+            [
+              "excluded",
+              "not covered",
+              "does not cover",
+              "no cover"
+            ]
+          ],
+          "expected_dates": [],
+          "expected_amounts": [],
+          "expected_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "required_sources": [
+            "03_certificate_of_liability_insurance.pdf"
+          ],
+          "allowed_citation_pages": {
+            "03_certificate_of_liability_insurance.pdf": [
+              3
+            ]
+          },
+          "citation_requirements": [
+            {
+              "filename": "03_certificate_of_liability_insurance.pdf",
+              "pages": [
+                3
+              ]
+            }
+          ],
+          "information_found": true,
+          "manual_review_required": true,
+          "gold_rationale": "Every requested fact is stated on the declared source pages; retain scope, role and qualifications. Page rules accept cited chunks from each required evidence page, without assuming the 280-character UI excerpt contains the full answer.",
+          "reference_answer": "It is excluded from the hot-work extension: a permit alone is insufficient without the required fire watch after completion."
+        },
+        {
+          "id": "missing_restoration",
+          "question_type": "safe_not_found",
+          "question": "What exact guaranteed repair-completion time applies to a critical breakdown?",
+          "expected_terms": [
+            "Information not found in uploaded supplier documents."
+          ],
+          "expected_sources": [],
+          "information_found": false,
+          "manual_review_required": true,
+          "gold_rationale": "No original supplies this requested value. Related information does not establish it.",
+          "reference_answer": "Information not found in uploaded supplier documents."
+        },
+        {
+          "id": "missing_repair_success",
+          "question_type": "safe_not_found",
+          "question": "What audited repair success percentage has this supplier achieved?",
+          "expected_terms": [
+            "Information not found in uploaded supplier documents."
+          ],
+          "expected_sources": [],
+          "information_found": false,
+          "manual_review_required": true,
+          "gold_rationale": "No original supplies this requested value. Related information does not establish it.",
+          "reference_answer": "Information not found in uploaded supplier documents."
+        }
+      ],
+      "cohort": "stress",
+      "stress_category": "maintenance",
+      "document_modes": {
+        "registration": "native",
+        "tax": "native",
+        "insurance": "native"
+      },
+      "expected_ocr_pages": {
+        "registration": [],
+        "tax": [],
+        "insurance": []
+      },
+      "source_transcript_sha256": {},
+      "document_sha256": {
+        "registration": "697383738e25b05b59d4709860b29190140ab28b3ff54b0da2eb17581b99082d",
+        "tax": "eb4ede8417b7f3e1670d3ccee281af433df9ffe6576ad6885808eb0f34392e8c",
+        "insurance": "01cf547c46ec6c4bbb3ab60f2bc605f8dc075e55dfbf2ed9217e389d9677d2be"
+      }
+    }
+  ]
+}

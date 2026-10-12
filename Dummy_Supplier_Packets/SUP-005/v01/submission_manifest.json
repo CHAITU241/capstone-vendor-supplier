@@ -1,0 +1,45 @@
+{
+  "supplier_id": "SUP-005",
+  "submission_id": "SUP-005_v01",
+  "submission_version": 1,
+  "primary_code": "PROF-LFA",
+  "policy_version": "1.1",
+  "evaluation_date_ist": "2026-09-19",
+  "uploaded_documents": [
+    {
+      "requirement_id": "BASE-001",
+      "filename": "evidence/BASE-001_01_business_registration_certificate.pdf",
+      "document_type": "Business registration certificate"
+    },
+    {
+      "requirement_id": "BASE-002",
+      "filename": "evidence/BASE-002_01_pan_and_tax_registration_notice.pdf",
+      "document_type": "PAN and tax registration notice"
+    },
+    {
+      "requirement_id": "BASE-003",
+      "filename": "evidence/BASE-003_01_bank_issued_account_letter.pdf",
+      "document_type": "Bank-issued account letter"
+    },
+    {
+      "requirement_id": "CONF-001",
+      "filename": "evidence/CONF-001_01_buyer_standard_confidentiality_undertaking.pdf",
+      "document_type": "Buyer standard confidentiality undertaking"
+    },
+    {
+      "requirement_id": "PRIV-001",
+      "filename": "evidence/PRIV-001_01_buyer_privacy_questionnaire.pdf",
+      "document_type": "Buyer privacy questionnaire"
+    },
+    {
+      "requirement_id": "CRED-001",
+      "filename": "evidence/CRED-001_01_professional_service_authorization.pdf",
+      "document_type": "Professional service authorization"
+    },
+    {
+      "requirement_id": "INS-PI-001",
+      "filename": "evidence/INS-PI-001_01_professional_indemnity_insurance_certificate.pdf",
+      "document_type": "Professional indemnity insurance certificate"
+    }
+  ]
+}

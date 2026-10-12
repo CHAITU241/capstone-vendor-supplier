@@ -1,37 +1,39 @@
-import AddBusinessRoundedIcon from '@mui/icons-material/AddBusinessRounded'
-import DashboardRoundedIcon from '@mui/icons-material/DashboardRounded'
 import AutoAwesomeRoundedIcon from '@mui/icons-material/AutoAwesomeRounded'
+import LogoutRoundedIcon from '@mui/icons-material/LogoutRounded'
 import { AppBar, Box, Button, Container, Stack, Toolbar, Typography } from '@mui/material'
-import { Link, Outlet, useLocation } from 'react-router-dom'
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { useAuth } from '../auth/AuthContext'
 import { SupplierAssistantPopover } from './SupplierAssistantPopover'
 
 export function AppShell() {
+  const { session, signOut } = useAuth()
+  const navigate = useNavigate()
   const location = useLocation()
+  const workspace = session?.role === 'reviewer' ? '/review' : session?.role === 'admin' ? '/admin' : '/supplier/application'
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
       <AppBar position="static" color="inherit" elevation={0} sx={{ borderBottom: '1px solid', borderColor: 'divider' }}>
         <Container maxWidth="lg">
-          <Toolbar disableGutters sx={{ minHeight: 68, gap: 2 }}>
+          <Toolbar disableGutters sx={{ minHeight: 72, gap: 2 }}>
+            <Box component={Link} to="/" sx={{ display: 'flex', alignItems: 'center', gap: 1.5, textDecoration: 'none', color: 'text.primary', flexGrow: 1 }}>
             <Box sx={{ display: 'grid', placeItems: 'center', width: 38, height: 38, borderRadius: 2, bgcolor: 'tertiary.main', color: 'white' }}>
               <AutoAwesomeRoundedIcon fontSize="small" />
             </Box>
-            <Typography variant="h6" sx={{ flexGrow: 1 }}>VendorLens</Typography>
-            <Stack direction="row" spacing={1}>
-              <Button component={Link} to="/" startIcon={<DashboardRoundedIcon />} variant={location.pathname === '/' ? 'contained' : 'text'}>
-                Dashboard
-              </Button>
-              <Button component={Link} to="/suppliers/new" startIcon={<AddBusinessRoundedIcon />} variant={location.pathname === '/suppliers/new' ? 'contained' : 'outlined'}>
-                New supplier
-              </Button>
-            </Stack>
+            <Typography variant="h6">SourceSure AI</Typography>
+            </Box>
+            {session && <Stack direction="row" spacing={1} alignItems="center">
+              {location.pathname !== workspace && <Button component={Link} to={workspace} variant="text">{session.role === 'reviewer' ? 'Review workspace' : session.role === 'admin' ? 'Admin' : 'My application'}</Button>}
+              <Button onClick={() => { const destination = session.role === 'supplier' ? '/supplier/login' : '/'; void signOut().then(() => navigate(destination)) }} startIcon={<LogoutRoundedIcon />} color="inherit" sx={{ display: { xs: 'none', sm: 'inline-flex' } }}>Sign out</Button>
+              <Button onClick={() => { const destination = session.role === 'supplier' ? '/supplier/login' : '/'; void signOut().then(() => navigate(destination)) }} color="inherit" sx={{ display: { xs: 'inline-flex', sm: 'none' } }}>Exit</Button>
+            </Stack>}
           </Toolbar>
         </Container>
       </AppBar>
-      <Container maxWidth="lg" component="main" sx={{ py: { xs: 3, md: 5 } }}>
+      <Container maxWidth="lg" component="main" sx={{ py: { xs: 4, md: 6 }, pb: 12 }}>
         <Outlet />
       </Container>
-      <SupplierAssistantPopover />
+      {session?.role !== 'admin' && <SupplierAssistantPopover />}
     </Box>
   )
 }

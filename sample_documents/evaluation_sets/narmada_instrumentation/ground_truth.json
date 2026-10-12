@@ -1,0 +1,178 @@
+{
+  "slug": "narmada_instrumentation",
+  "create_payload": {
+    "name": "Narmada Instrumentation Private Limited",
+    "country": "India",
+    "contact_email": "evaluation.narmada_instrumentation@example.com"
+  },
+  "documents": {
+    "registration": "01_supplier_registration_form.pdf",
+    "tax": "02_gst_registration_certificate.pdf",
+    "insurance": "03_certificate_of_liability_insurance.pdf"
+  },
+  "extraction_expectations": {
+    "registration": {
+      "supplier_name": "Narmada Instrumentation Private Limited",
+      "registration_number": "U29120GJ2020PTC150102",
+      "issuing_registry": "Registrar of Companies, India",
+      "registration_date": "2020-09-12",
+      "status": "Active"
+    },
+    "tax": {
+      "supplier_name": "Narmada Instrumentation Private Limited",
+      "tax_identifier": "AABCR1202F",
+      "gst_status_registered_or_not_registered": "Registered",
+      "gstin_when_registered": "24AABCR1202F1Z8"
+    }
+  },
+  "rag_only_documents": {
+    "insurance": "Supplementary liability evidence for RAG; the legacy insurance type has no current policy extraction contract."
+  },
+  "questions": [
+    {
+      "id": "legal_name",
+      "question_type": "direct_fact",
+      "question": "What is the supplier's full legal name?",
+      "expected_terms": [
+        "Narmada Instrumentation Private Limited"
+      ],
+      "expected_sources": [
+        "01_supplier_registration_form.pdf",
+        "02_gst_registration_certificate.pdf",
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "information_found": true
+    },
+    {
+      "id": "payment_terms",
+      "question_type": "direct_fact",
+      "question": "What are the supplier's standard payment terms?",
+      "expected_terms": [
+        "Net 30 days from invoice receipt"
+      ],
+      "expected_sources": [
+        "01_supplier_registration_form.pdf"
+      ],
+      "information_found": true
+    },
+    {
+      "id": "insurance_provider",
+      "question_type": "direct_fact",
+      "question": "Which company provides the supplier's liability insurance?",
+      "expected_terms": [
+        "HarborPoint General Insurance Company Limited"
+      ],
+      "expected_sources": [
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "information_found": true
+    },
+    {
+      "id": "insurance_expiry",
+      "question_type": "date_interpretation",
+      "question": "When does the supplier's liability insurance expire?",
+      "expected_terms": [],
+      "expected_dates": [
+        "2027-06-30"
+      ],
+      "expected_sources": [
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "information_found": true
+    },
+    {
+      "id": "business_activity",
+      "question_type": "direct_fact",
+      "question": "What products or services does this supplier provide?",
+      "expected_terms": [
+        "Industrial sensors and calibration services"
+      ],
+      "expected_sources": [
+        "01_supplier_registration_form.pdf",
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "information_found": true
+    },
+    {
+      "id": "trading_name_paraphrase",
+      "question_type": "paraphrased_fact",
+      "question": "Which trading or brand name does this company operate under?",
+      "expected_terms": [
+        "Narmada Instrumentation"
+      ],
+      "expected_sources": [
+        "01_supplier_registration_form.pdf",
+        "02_gst_registration_certificate.pdf"
+      ],
+      "information_found": true
+    },
+    {
+      "id": "registered_address_paraphrase",
+      "question_type": "paraphrased_fact",
+      "question": "At what complete street address is this business registered? Include the locality, city, state and postal code.",
+      "expected_terms": [
+        "Plot 32",
+        "Makarpura Industrial Estate",
+        "Vadodara",
+        "Gujarat",
+        "390010"
+      ],
+      "expected_sources": [
+        "01_supplier_registration_form.pdf",
+        "02_gst_registration_certificate.pdf"
+      ],
+      "information_found": true
+    },
+    {
+      "id": "insurance_provider_and_expiry",
+      "question_type": "multi_fact",
+      "question": "Give me both the liability insurer and the policy expiry date.",
+      "expected_terms": [
+        "HarborPoint General Insurance Company Limited"
+      ],
+      "expected_dates": [
+        "2027-06-30"
+      ],
+      "expected_sources": [
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "information_found": true
+    },
+    {
+      "id": "absent_bank_balance",
+      "question_type": "safe_not_found",
+      "question": "What is the supplier's current bank account balance?",
+      "expected_terms": [
+        "Information not found in uploaded supplier documents."
+      ],
+      "expected_sources": [],
+      "information_found": false
+    },
+    {
+      "id": "absent_credit_rating",
+      "question_type": "safe_not_found",
+      "question": "What external credit rating has been assigned to this supplier?",
+      "expected_terms": [
+        "Information not found in uploaded supplier documents."
+      ],
+      "expected_sources": [],
+      "information_found": false
+    }
+  ],
+  "cohort": "ocr",
+  "document_modes": {
+    "registration": "ocr",
+    "tax": "ocr",
+    "insurance": "ocr"
+  },
+  "source_transcript_sha256": {
+    "registration": "613394a5a155db401e9f3e189f49b7f96bb77e347e88230295a8288819988d3c",
+    "tax": "e38be0d74f60a50e6dd7a90c06135a80d6022d982098abab39824cc22e3e41cf",
+    "insurance": "60c65f79c6fc80e47b8d88002a16b6147b827dd9ba04c229dfc1ba8c46eb43d7"
+  },
+  "document_sha256": {
+    "registration": "03ee076cde4b93d1b4e323bdfd003ab40a9826c7b878768ca406245a69f6b667",
+    "tax": "28f6589779bdbb6e15f3502329f66de343fc9754a5d55445ff6e752d11ac7f22",
+    "insurance": "fe7df8d0a94eba4063e5ce576e249a16791d2ad756c025ac6e902f9082eed2b0"
+  }
+}

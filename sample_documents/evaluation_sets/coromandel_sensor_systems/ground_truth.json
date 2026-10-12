@@ -1,0 +1,246 @@
+{
+  "slug": "coromandel_sensor_systems",
+  "create_payload": {
+    "name": "Coromandel Sensor Systems Private Limited",
+    "country": "India",
+    "contact_email": "evaluation.coromandel_sensor_systems@example.com"
+  },
+  "documents": {
+    "registration": "01_supplier_registration_form.pdf",
+    "tax": "02_gst_registration_certificate.pdf",
+    "insurance": "03_certificate_of_liability_insurance.pdf"
+  },
+  "extraction_expectations": {
+    "registration": {
+      "supplier_name": "Coromandel Sensor Systems Private Limited",
+      "registration_number": "U29120TN2020PTC150104",
+      "issuing_registry": "Registrar of Companies, India",
+      "registration_date": "2020-09-12",
+      "status": "Active"
+    },
+    "tax": {
+      "supplier_name": "Coromandel Sensor Systems Private Limited",
+      "tax_identifier": "AABCR1204F",
+      "gst_status_registered_or_not_registered": "Registered",
+      "gstin_when_registered": "33AABCR1204F1Z8"
+    }
+  },
+  "rag_only_documents": {
+    "insurance": "Supplementary liability evidence for RAG; the legacy insurance type has no current policy extraction contract."
+  },
+  "questions": [
+    {
+      "id": "legal_name",
+      "question_type": "direct_fact",
+      "question": "What is the supplier's full legal name?",
+      "expected_terms": [
+        "Coromandel Sensor Systems Private Limited"
+      ],
+      "expected_sources": [
+        "01_supplier_registration_form.pdf",
+        "02_gst_registration_certificate.pdf",
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "information_found": true
+    },
+    {
+      "id": "insurance_provider",
+      "question_type": "direct_fact",
+      "question": "Which company provides the supplier's liability insurance?",
+      "expected_terms": [
+        "HarborPoint General Insurance Company Limited"
+      ],
+      "expected_sources": [
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "information_found": true
+    },
+    {
+      "id": "trading_name_paraphrase",
+      "question_type": "paraphrased_fact",
+      "question": "Which trading or brand name does this company operate under?",
+      "expected_terms": [
+        "Coromandel Sensor Systems"
+      ],
+      "expected_sources": [
+        "01_supplier_registration_form.pdf",
+        "02_gst_registration_certificate.pdf"
+      ],
+      "information_found": true
+    },
+    {
+      "id": "insurance_provider_and_expiry",
+      "question_type": "multi_fact",
+      "question": "Give me both the liability insurer and the policy expiry date.",
+      "expected_terms": [
+        "HarborPoint General Insurance Company Limited"
+      ],
+      "expected_dates": [
+        "2027-06-30"
+      ],
+      "expected_sources": [
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "information_found": true
+    },
+    {
+      "id": "absent_bank_balance",
+      "question_type": "safe_not_found",
+      "question": "What is the supplier's current bank account balance?",
+      "expected_terms": [
+        "Information not found in uploaded supplier documents."
+      ],
+      "expected_sources": [],
+      "information_found": false
+    },
+    {
+      "id": "absent_credit_rating",
+      "question_type": "safe_not_found",
+      "question": "What external credit rating has been assigned to this supplier?",
+      "expected_terms": [
+        "Information not found in uploaded supplier documents."
+      ],
+      "expected_sources": [],
+      "information_found": false
+    },
+    {
+      "id": "address_disagreement",
+      "question_type": "conflict_resolution",
+      "question": "For the vendor master, what registered address should we use? Check the registration and tax originals and explain whether they establish a single confirmed address.",
+      "expected_terms": [
+        "Unit 52, Guindy Industrial Estate, Chennai, Tamil Nadu 600032",
+        "Unit 92, Ambattur Industrial Estate, Chennai, Tamil Nadu 600058"
+      ],
+      "expected_sources": [
+        "01_supplier_registration_form.pdf",
+        "02_gst_registration_certificate.pdf"
+      ],
+      "required_sources": [
+        "01_supplier_registration_form.pdf",
+        "02_gst_registration_certificate.pdf"
+      ],
+      "information_found": true,
+      "requires_conflict_acknowledgement": true,
+      "requires_uncertainty": true,
+      "gold_rationale": "Both originals assert the same field but disagree. No precedence, correction or confirmation is supplied. Report both source-attributed values and request clarification instead of declaring either authoritative.",
+      "expected_term_groups": [
+        [
+          "registration",
+          "supplier form"
+        ],
+        [
+          "tax",
+          "GST"
+        ]
+      ]
+    },
+    {
+      "id": "payment_disagreement",
+      "question_type": "conflict_resolution",
+      "question": "Before I set payment terms in ERP, compare the stated standard payment terms in the registration and tax documents. Is there one agreed term?",
+      "expected_terms": [
+        "Net 30",
+        "Net 60"
+      ],
+      "expected_sources": [
+        "01_supplier_registration_form.pdf",
+        "02_gst_registration_certificate.pdf"
+      ],
+      "required_sources": [
+        "01_supplier_registration_form.pdf",
+        "02_gst_registration_certificate.pdf"
+      ],
+      "information_found": true,
+      "requires_conflict_acknowledgement": true,
+      "requires_uncertainty": true,
+      "gold_rationale": "Both originals assert the same field but disagree. No precedence, correction or confirmation is supplied. Report both source-attributed values and request clarification instead of declaring either authoritative.",
+      "expected_term_groups": [
+        [
+          "registration",
+          "supplier form"
+        ],
+        [
+          "tax",
+          "GST"
+        ]
+      ]
+    },
+    {
+      "id": "expiry_disagreement",
+      "question_type": "conflict_resolution",
+      "question": "When does liability cover end? Compare the registration summary and liability certificate and explain whether I can diary one confirmed expiry date.",
+      "expected_terms": [],
+      "expected_sources": [
+        "01_supplier_registration_form.pdf",
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "required_sources": [
+        "01_supplier_registration_form.pdf",
+        "03_certificate_of_liability_insurance.pdf"
+      ],
+      "information_found": true,
+      "requires_conflict_acknowledgement": true,
+      "requires_uncertainty": true,
+      "gold_rationale": "Both originals assert the same field but disagree. No precedence, correction or confirmation is supplied. Report both source-attributed values and request clarification instead of declaring either authoritative.",
+      "expected_term_groups": [
+        [
+          "registration",
+          "supplier form"
+        ],
+        [
+          "insurance",
+          "liability"
+        ]
+      ],
+      "expected_dates": [
+        "2027-06-30",
+        "2027-07-31"
+      ]
+    },
+    {
+      "id": "conflict_review_note",
+      "question_type": "conflict_resolution",
+      "question": "Prepare a review note about the address and payment-term conflicts between the registration and tax originals. Include both addresses and both terms, and identify the need for clarification.",
+      "expected_terms": [
+        "Unit 52, Guindy Industrial Estate, Chennai, Tamil Nadu 600032",
+        "Unit 92, Ambattur Industrial Estate, Chennai, Tamil Nadu 600058",
+        "Net 30",
+        "Net 60"
+      ],
+      "expected_sources": [
+        "01_supplier_registration_form.pdf",
+        "02_gst_registration_certificate.pdf"
+      ],
+      "required_sources": [
+        "01_supplier_registration_form.pdf",
+        "02_gst_registration_certificate.pdf"
+      ],
+      "information_found": true,
+      "requires_conflict_acknowledgement": true,
+      "requires_uncertainty": true,
+      "gold_rationale": "Both originals assert the same field but disagree. No precedence, correction or confirmation is supplied. Report both source-attributed values and request clarification instead of declaring either authoritative.",
+      "expected_term_groups": [
+        [
+          "registration",
+          "supplier form"
+        ],
+        [
+          "tax",
+          "GST"
+        ]
+      ]
+    }
+  ],
+  "cohort": "conflicting_evidence",
+  "document_modes": {
+    "registration": "native",
+    "tax": "native",
+    "insurance": "native"
+  },
+  "source_transcript_sha256": {},
+  "document_sha256": {
+    "registration": "92a2bcef9d726d6e31dbf4c7e030f017716bbeda67b9d1b0282040630600fc53",
+    "tax": "4c374eeacbd05961a65846b8764b62b7feb045a91779804ebc3e83f185630f76",
+    "insurance": "b85f97faf811f0e31fd496ffca9a0085d9c626bbdcfd4ac64b0f979d7ba6371b"
+  }
+}

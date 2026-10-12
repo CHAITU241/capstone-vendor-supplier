@@ -1,0 +1,19 @@
+{
+  "supplier_id": "SUP-006",
+  "legal_name": "Fable Creative Studio 006 Pvt Ltd",
+  "primary_code": "PROF-MKT",
+  "contracted_service": "Marketing Creative and Research",
+  "portal_legal_name": "Fable Creative Studio 006 Pvt Ltd",
+  "portal_pan_tax_reference": "DEMO-PAN-0006",
+  "portal_gst_status": "registered",
+  "portal_gstin": "DEMO-GST-00006",
+  "portal_bank_account": "9900000000006",
+  "portal_ifsc": "DEMO0001234",
+  "portal_offered_sku": "MDL-0006",
+  "contact_name": "A. Rao 006",
+  "contact_email": "onboarding006@supplier.example",
+  "submission_id": "SUP-006_v01",
+  "submission_version": 1,
+  "evaluation_date_ist": "2026-09-19",
+  "final_submission_gate": false
+}

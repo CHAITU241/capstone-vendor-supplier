@@ -1,4 +1,4 @@
-# VendorLens AI — Docker setup from a fresh clone
+# SourceSure AI — Docker setup from a fresh clone
 
 This guide starts the complete core application with Docker Compose:
 
@@ -49,6 +49,15 @@ cp backend/.env.example backend/.env
 ```
 
 `backend/.env` is ignored by Git. Never commit API keys or replace the blank values in `.env.example` with real credentials.
+
+Reviewer and administrator workspaces use one-click access by default for the capstone demo:
+
+```env
+REVIEWER_AUTH_ENABLED=false
+ADMIN_AUTH_ENABLED=false
+```
+
+To require credentials for either role, set its flag to `true` and configure that role's email and password. The two switches are independent. Recreate the backend after changing them. Supplier sign-in always remains enabled because supplier profiles must stay separate.
 
 The Compose file overrides `DATABASE_URL`, `UPLOAD_DIR`, `CHROMA_PATH`, and `FRONTEND_ORIGIN` with container-safe values. You do not need to edit those entries.
 
@@ -113,7 +122,7 @@ docker compose logs -f
 
 Press `Ctrl+C` to stop following logs; the containers continue running in the background.
 
-## 6. Open and verify VendorLens
+## 6. Open and verify SourceSure AI
 
 - Application: `http://localhost:5173`
 - FastAPI documentation: `http://localhost:8000/docs`
@@ -191,9 +200,10 @@ docker compose exec database psql -U vendorlens -d vendorlens
 
 Named volumes preserve:
 
-- PostgreSQL records and audit history in `vendorlens_postgres_data`.
-- Uploaded source files in `vendorlens_uploads_data`.
-- Chroma vectors in `vendorlens_chroma_data`.
+- PostgreSQL records and audit history in the stable internal volume `vendorlens_postgres_data`.
+- Uploaded source files in the stable internal volume `vendorlens_uploads_data`.
+- Originals removed from the active checklist remain in the same uploads volume and are listed as previous uploads. Replacements receive new document IDs and version numbers.
+- Chroma vectors in the stable internal volume `vendorlens_chroma_data`.
 
 To inspect them:
 

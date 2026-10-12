@@ -1,4 +1,4 @@
-"""Prometheus metrics for the VendorLens demo.
+"""Prometheus metrics for the SourceSure AI demo.
 
 Metric labels intentionally describe bounded dimensions such as route,
 operation, model, and status. Supplier IDs, filenames, questions, and other
@@ -16,67 +16,67 @@ from prometheus_client import Counter, Gauge, Histogram, make_asgi_app
 
 
 HTTP_REQUESTS = Counter(
-    "vendorlens_http_requests_total",
-    "Total HTTP requests handled by the VendorLens API.",
+    "sourcesure_http_requests_total",
+    "Total HTTP requests handled by the SourceSure AI API.",
     ("method", "route", "status"),
 )
 HTTP_REQUEST_DURATION = Histogram(
-    "vendorlens_http_request_duration_seconds",
+    "sourcesure_http_request_duration_seconds",
     "HTTP request duration in seconds.",
     ("method", "route"),
     buckets=(0.01, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30),
 )
 HTTP_REQUESTS_IN_PROGRESS = Gauge(
-    "vendorlens_http_requests_in_progress",
+    "sourcesure_http_requests_in_progress",
     "Current number of in-progress HTTP requests.",
 )
 
 AI_CALLS = Counter(
-    "vendorlens_ai_calls_total",
+    "sourcesure_ai_calls_total",
     "AI calls grouped by operation, model, and outcome.",
     ("operation", "model", "status"),
 )
 AI_CALL_DURATION = Histogram(
-    "vendorlens_ai_call_duration_seconds",
+    "sourcesure_ai_call_duration_seconds",
     "AI call duration in seconds.",
     ("operation", "model"),
     buckets=(0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60, 120),
 )
 AI_TOKENS = Counter(
-    "vendorlens_ai_tokens_total",
+    "sourcesure_ai_tokens_total",
     "AI tokens reported by the provider.",
     ("operation", "direction"),
 )
 
 PROCESSING_RUNS = Counter(
-    "vendorlens_processing_runs_total",
+    "sourcesure_processing_runs_total",
     "Supplier document processing runs by outcome.",
     ("status",),
 )
 RAG_QUESTIONS = Counter(
-    "vendorlens_rag_questions_total",
+    "sourcesure_rag_questions_total",
     "Supplier-scoped questions grouped by whether evidence was found.",
     ("information_found",),
 )
 RAG_RETRIEVED_CHUNKS = Histogram(
-    "vendorlens_rag_retrieved_chunks",
+    "sourcesure_rag_retrieved_chunks",
     "Number of chunks retrieved for a supplier question.",
     buckets=(0, 1, 2, 3, 4, 5, 8, 12),
 )
 COMPLIANCE_CHECKS = Counter(
-    "vendorlens_compliance_checks_total",
+    "sourcesure_compliance_checks_total",
     "Persisted deterministic compliance checks by status.",
     ("status",),
 )
 SUPPLIER_DECISIONS = Counter(
-    "vendorlens_supplier_decisions_total",
+    "sourcesure_supplier_decisions_total",
     "Human-confirmed supplier decisions.",
     ("decision",),
 )
 
 DEPENDENCY_UP = Gauge(
-    "vendorlens_dependency_up",
-    "Whether a VendorLens dependency is available (1=yes, 0=no).",
+    "sourcesure_dependency_up",
+    "Whether a SourceSure AI dependency is available (1=yes, 0=no).",
     ("dependency",),
 )
 

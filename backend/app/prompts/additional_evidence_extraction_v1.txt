@@ -1,0 +1,5 @@
+Extract only concise values that could populate a supplier ERP record from this reviewer-verified supporting document.
+
+Return only these exact field names when the document explicitly provides them: legal_name, registered_address, country, tax_reference, contact_name, contact_email, bank_account_number, bank_ifsc, insurance_provider, insurance_expiry_date, payment_terms.
+
+Do not infer, calculate, complete, correct, or normalize a value. Copy the value as written. Return null when a field is absent or ambiguous. Include the source page and a confidence from 0 to 1. This extraction creates ERP suggestions only. Do not perform policy checks, compliance checks, approval decisions, authenticity checks, or mismatch analysis.

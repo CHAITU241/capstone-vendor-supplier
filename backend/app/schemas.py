@@ -12,9 +12,11 @@ from app.models import (
     ProcessingStatus,
     SupplierStatus,
 )
+from app.services.document_policy import Checklist
 
 
 class SupplierCreate(BaseModel):
+    is_evaluation: bool = False
     name: str = Field(min_length=2, max_length=200)
     country: str = Field(min_length=2, max_length=100)
     contact_email: EmailStr | None = None
@@ -23,17 +25,29 @@ class SupplierCreate(BaseModel):
 class SupplierSummary(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
+    is_evaluation: bool = False
+
     id: uuid.UUID
     name: str
     country: str | None
     contact_email: EmailStr | None
+    category: str | None
+    subcategory: str | None
+    service_description: str | None = None
+    submitted_at: datetime | None
     status: SupplierStatus
     created_at: datetime
     updated_at: datetime
     decision_reason: str | None
     decided_at: datetime | None
     erp_supplier_id: str | None
+    erp_record_id: str | None = None
+    vendor_id: str | None = None
+    erp_payload: dict | None = None
     document_count: int = 0
+    other_review_note: str | None = None
+    other_reviewed_by: str | None = None
+    other_review_completed_at: datetime | None = None
 
 
 class DocumentRead(BaseModel):
@@ -45,9 +59,62 @@ class DocumentRead(BaseModel):
     filename: str
     content_type: str
     file_size: int
+    sha256: str | None = None
+    revision: int = 1
     page_count: int
     processing_status: ProcessingStatus
     error_message: str | None
+    text_extraction_method: Literal["native", "ocr", "mixed"] | None = None
+    ocr_pages: list[int] = Field(default_factory=list)
+    ocr_language: str | None = None
+    ocr_warnings: list[str] = Field(default_factory=list)
+    ocr_quality_score: float | None = None
+    ocr_quality_status: Literal["poor", "review", "good"] | None = None
+    ocr_quality_details: dict | None = None
+    ai_extraction_status: Literal["pending", "processing", "ready", "failed"] = "pending"
+    ai_extraction_error: str | None = None
+    ai_index_status: Literal["pending", "processing", "ready", "failed"] = "pending"
+    ai_index_error: str | None = None
+    upload_validation_status: Literal["pending", "text_only", "passed"] = "pending"
+    upload_validation_details: dict | None = None
+    review_status: str = "pending"
+    review_comment: str | None = None
+    reviewed_by: str | None = None
+    reviewed_at: datetime | None = None
+    created_at: datetime
+
+
+class DocumentRevisionRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    supplier_id: uuid.UUID
+    document_type: str
+    revision: int
+    filename: str
+    content_type: str
+    file_size: int
+    sha256: str
+    uploaded_at: datetime
+    archived_at: datetime
+
+
+class AdditionalDocumentRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    supplier_id: uuid.UUID
+    filename: str
+    content_type: str
+    file_size: int
+    uploaded_by: str
+    verification_note: str
+    verified_at: datetime
+    erp_fields: list[dict] = Field(default_factory=list)
+    ai_extraction_status: str
+    ai_extraction_error: str | None = None
+    text_extraction_method: str | None = None
+    ocr_quality_score: float | None = None
     created_at: datetime
 
 
@@ -72,6 +139,10 @@ class ExtractedFieldRead(BaseModel):
     page_number: int
     confidence: float
     needs_review: bool
+    review_status: str = "pending"
+    review_comment: str | None = None
+    reviewed_by: str | None = None
+    reviewed_at: datetime | None = None
     created_at: datetime
 
 
@@ -104,17 +175,62 @@ class ComplianceResultRead(BaseModel):
 
 
 class SupplierDetail(SupplierSummary):
+    tax_reference: str | None
+    bank_account_number: str | None
+    bank_ifsc: str | None
+    requirements: Checklist
     documents: list[DocumentRead]
+    additional_documents: list[AdditionalDocumentRead] = Field(default_factory=list)
     audit_events: list[AuditEventRead]
     extracted_fields: list[ExtractedFieldRead]
     ai_runs: list[AiRunRead]
     compliance_results: list[ComplianceResultRead]
+    erp_preview: dict
 
 
 class ExtractedFieldUpdate(BaseModel):
     value: str = Field(min_length=1, max_length=1000)
     page_number: int = Field(ge=1)
     reviewer_name: str = Field(default="Demo reviewer", min_length=2, max_length=100)
+
+
+class ReviewSelectionRequest(BaseModel):
+    ids: list[uuid.UUID] = Field(min_length=1, max_length=100)
+    action: Literal["verify", "dispute"]
+    reason: str | None = Field(default=None, max_length=1000)
+    reviewer_name: str = Field(default="Demo reviewer", min_length=2, max_length=100)
+
+
+class EvidenceReviewRequest(BaseModel):
+    action: Literal["verify", "dispute"]
+    reason: str | None = Field(default=None, max_length=1000)
+    reviewer_name: str = Field(default="Demo reviewer", min_length=2, max_length=100)
+
+
+class ConfirmReadyRequirementsRequest(BaseModel):
+    reviewer_name: str = Field(default="Demo reviewer", min_length=2, max_length=100)
+
+
+class ConfirmReadyRequirementsResponse(BaseModel):
+    confirmed_count: int = Field(ge=1)
+    document_ids: list[uuid.UUID]
+
+
+class OtherReviewRequest(BaseModel):
+    note: str = Field(min_length=10, max_length=2000)
+    reviewer_name: str = Field(default="Demo reviewer", min_length=2, max_length=100)
+
+
+class OtherReviewResponse(BaseModel):
+    completed_at: datetime
+    reviewer_name: str
+    note: str
+
+
+class FlagReasonDraftRead(BaseModel):
+    reason: str
+    source: Literal["ai_rag", "deterministic_fallback"]
+    finding_count: int = Field(ge=0)
 
 
 class ComplianceRunResponse(BaseModel):
@@ -138,7 +254,34 @@ class DecisionResponse(BaseModel):
     status: SupplierStatus
     message: str
     erp_supplier_id: str | None
+    erp_record_id: str | None = None
+    vendor_id: str | None = None
     decided_at: datetime
+
+
+class ErpValidationResponse(BaseModel):
+    valid: bool
+    errors: list[dict]
+    warnings: list[dict]
+    existing_erp_supplier_id: str | None = None
+    existing_vendor_id: str | None = None
+    idempotent_replay: bool = False
+
+
+class ErpRecordRead(BaseModel):
+    erp_supplier_id: str
+    erp_record_id: str
+    vendor_id: str
+    supplier_reference: str | None = None
+    source_supplier_id: uuid.UUID
+    legal_name: str
+    tax_reference: str
+    category: str
+    subcategory: str
+    status: str
+    payload: dict
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
 
 class ProcessSupplierResponse(BaseModel):
@@ -146,10 +289,18 @@ class ProcessSupplierResponse(BaseModel):
     field_count: int
     chunk_count: int
     redaction_counts: dict[str, int]
+    processed_document_count: int = 0
+    failed_document_count: int = 0
 
 
 class SupplierQuestionRequest(BaseModel):
     question: str = Field(min_length=3, max_length=1000)
+    capture_evaluation_evidence: bool = False
+
+
+class EvaluationJudgeRequest(BaseModel):
+    run_id: uuid.UUID
+    prior_judgment: dict | None = None
 
 
 class QuestionCitation(BaseModel):
@@ -168,7 +319,7 @@ class SupplierQuestionResponse(BaseModel):
 
 class GeneralAssistantMessage(BaseModel):
     role: Literal["user", "assistant"]
-    content: str = Field(min_length=1, max_length=2000)
+    content: str = Field(min_length=1, max_length=8000)
 
 
 class GeneralAssistantRequest(BaseModel):
@@ -187,6 +338,17 @@ class GeneralAssistantRun(BaseModel):
 class GeneralAssistantResponse(BaseModel):
     answer: str
     run: GeneralAssistantRun
+    citations: list[QuestionCitation] = Field(default_factory=list)
+
+
+class AssistantHistoryMessage(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    role: Literal["user", "assistant"]
+    content: str
+    citations: list[QuestionCitation] = Field(default_factory=list)
+    created_at: datetime
 
 
 class HealthResponse(BaseModel):

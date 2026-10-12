@@ -1,7 +1,7 @@
 $ErrorActionPreference = "Stop"
 
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
-$headers = @{ "User-Agent" = "VendorLens-local-monitoring" }
+$headers = @{ "User-Agent" = "SourceSure AI-local-monitoring" }
 $release = Invoke-RestMethod `
     -Uri "https://api.github.com/repos/prometheus/prometheus/releases/latest" `
     -Headers $headers
@@ -14,7 +14,7 @@ if ($null -eq $asset) {
 }
 
 $archivePath = Join-Path $scriptRoot $asset.name
-$extractPath = Join-Path ([IO.Path]::GetTempPath()) ("vendorlens-prometheus-" + [guid]::NewGuid())
+$extractPath = Join-Path ([IO.Path]::GetTempPath()) ("sourcesure-prometheus-" + [guid]::NewGuid())
 
 Write-Host "Downloading $($asset.name)..."
 Invoke-WebRequest -Uri $asset.browser_download_url -Headers $headers -OutFile $archivePath

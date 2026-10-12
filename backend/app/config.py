@@ -1,12 +1,12 @@
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import SecretStr
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    app_name: str = "VendorLens AI API"
+    app_name: str = "SourceSure AI API"
     app_env: str = "development"
     database_url: str = (
         "postgresql+psycopg://vendorlens:vendorlens@localhost:5432/vendorlens"
@@ -15,32 +15,54 @@ class Settings(BaseSettings):
     upload_dir: Path = Path("uploads")
     chroma_path: Path = Path("data/chroma")
     max_upload_size_mb: int = 10
+    upload_ai_validation_enabled: bool = True
+    ocr_enabled: bool = True
+    ocr_language: str = "eng"
+    ocr_dpi: int = Field(default=300, ge=150, le=600)
+    ocr_min_native_alphanumeric_chars: int = Field(default=30, ge=0, le=1000)
+    ocr_min_native_words: int = Field(default=5, ge=0, le=200)
+    ocr_image_coverage_threshold: float = Field(default=0.5, ge=0.1, le=1.0)
+    ocr_max_pages: int = Field(default=30, ge=1, le=200)
+    ocr_quality_reject_threshold: int = Field(default=35, ge=0, le=100)
+    ocr_quality_review_threshold: int = Field(default=70, ge=0, le=100)
+    reviewer_auth_enabled: bool = False
+    reviewer_email: str | None = None
+    reviewer_password: SecretStr | None = None
+    admin_auth_enabled: bool = False
+    admin_email: str | None = None
+    admin_password: SecretStr | None = None
     openrouter_api_key: SecretStr | None = None
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
     openrouter_extraction_model: str = "openai/gpt-4o-mini"
     openrouter_answer_model: str = "openai/gpt-4o-mini"
     openrouter_embedding_model: str = "openai/text-embedding-3-small"
     openrouter_site_url: str | None = None
-    openrouter_app_name: str = "VendorLens AI"
+    openrouter_app_name: str = "SourceSure AI"
     openai_api_key: SecretStr | None = None
     azure_openai_endpoint: str | None = None
     azure_openai_api_version: str = "2024-10-21"
     openai_extraction_model: str = "gpt-4o-mini"
     openai_answer_model: str = "gpt-4o-mini"
     openai_embedding_model: str = "text-embedding-3-small"
-    extraction_prompt_version: str = "extraction-v3"
+    extraction_max_completion_tokens: int = Field(default=4096, ge=1024, le=16384)
+    extraction_prompt_version: str = "extraction-v4"
     answer_prompt_version: str = "rag-answer-v3"
-    assistant_prompt_version: str = "supplier-assistant-v1"
+    assistant_prompt_version: str = "supplier-assistant-v2"
+    reviewer_flag_prompt_version: str = "reviewer-flag-reason-v2"
     langfuse_enabled: bool = True
     langfuse_public_key: str | None = None
     langfuse_secret_key: SecretStr | None = None
     langfuse_base_url: str = "https://cloud.langfuse.com"
+    langfuse_dashboard_url: str | None = None
     langfuse_capture_content: bool = False
     langfuse_release: str | None = None
     chunk_size_tokens: int = 500
     chunk_overlap_tokens: int = 75
     rag_top_k: int = 4
     rag_max_distance: float = 0.72
+    evaluation_judge_model: str | None = None
+    mock_erp_mcp_url: str | None = None
+    mock_erp_timeout_seconds: float = Field(default=8.0, ge=1.0, le=30.0)
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
@@ -58,6 +80,13 @@ class Settings(BaseSettings):
     @property
     def ai_provider(self) -> str:
         return "openrouter" if self.use_openrouter else "azure"
+
+    @property
+    def ai_configured(self) -> bool:
+        return self.use_openrouter or bool(
+            self.openai_api_key and self.openai_api_key.get_secret_value().strip()
+            and self.azure_openai_endpoint and self.azure_openai_endpoint.strip()
+        )
 
     @property
     def active_extraction_model(self) -> str:

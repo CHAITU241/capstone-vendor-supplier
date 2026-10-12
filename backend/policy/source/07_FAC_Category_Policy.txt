@@ -1,0 +1,159 @@
+ Facilities and On Site Services Supplier Policy
+ Synthetic buyer policy corpus | Version 1.1 | 19 September 2026 | FAC category applicability
+
+
+ This category policy covers facilities and on site services suppliers whose primary contracted deliverable
+ falls in one of the three codes below. Services performed at company premises for site operations,
+ security, or construction. Each inherits BASE-001 through BASE-003. The subcategory-specific IDs and
+ acceptance checks are set out here and under those same IDs in Evidence and Validation Standards.
+
+
+ FAC-01 Supplier journeys
+
+   Primary code           Subcategory                             Additional IDs
+
+
+                          Cleaning Housekeeping and
+   FAC-MNT                                                        PEOP-001, SITE-001
+                          Maintenance
+
+
+   FAC-SEC                Physical Security                       PEOP-001, PEOP-002, SITE-002
+
+
+   FAC-CON                Construction Fit Out and Repair         PEOP-001, SITE-001
+
+
+
+ FAC-02 Common baseline
+ Every supplier in this category must submit BASE-001 business registration evidence, BASE-002 tax
+ registration or accepted tax status evidence, and BASE-003 bank account verification evidence. The
+ exact fields, alternatives and checks are in Evidence and Validation Standards sections BASE-001 to
+ BASE-003.
+
+
+ FAC-MNT Cleaning Housekeeping and Maintenance
+ Routine cleaning, upkeep, and maintenance of premises or installed facilities. Examples: Office cleaning,
+ housekeeping, HVAC servicing, plumbing, and routine electrical maintenance.
+
+ Category boundary. Major construction or fit-out work belongs in FAC-CON. Guarding and site security
+ belong in FAC-SEC.
+
+ In addition to the three baseline documents, submit the following evidence. The evidence standard
+ named by each ID supplies its fields and exact pass criteria.
+
+ PEOP-001 Workforce compliance
+ Why and what to submit. Confirm that supplier-provided workers have accountable employment controls. Signed
+ workforce compliance declaration dated within 180 calendar days.
+
+ Required content. Supplier legal name; worker engagement model; worker records maintained; wage and contract
+ compliance attestation; workforce contact; signature and date.
+
+ PEOP-001.R1 Both the worker-record and wage/contract compliance attestations are Yes.
+
+ PEOP-001.R2 A workforce contact is supplied and the declaration is signed within 180 calendar days.
+
+
+
+
+Synthetic onboarding policy | Version 1.1                                                               Page 1
+ SITE-001 On site safety
+ Why and what to submit. Control safety risks in work performed on site. Signed site safety plan or method
+ statement reviewed within 180 calendar days.
+
+ Required content. Supplier legal name; service scope; hazards; control measures; emergency lead; PPE
+ commitment; incident notice interval; review date.
+
+ SITE-001.R1 The plan lists hazards, controls and an emergency lead, and PPE is committed where the plan identifies
+ a PPE need.
+
+ SITE-001.R2 Incident notice is within 24 hours and the plan review is within 180 calendar days.
+
+
+ FAC-SEC Physical Security
+ Personnel or services whose primary purpose is to protect premises and control physical access.
+ Examples: Security guards, reception security, access control personnel, and site patrols.
+
+ Category boundary. Cybersecurity monitoring belongs in TECH-CYB. Installation of security equipment
+ as a goods purchase may belong in GOODS-ITE or GOODS-IND, according to the main deliverable.
+
+ In addition to the three baseline documents, submit the following evidence. The evidence standard
+ named by each ID supplies its fields and exact pass criteria.
+
+ PEOP-001 Workforce compliance
+ Why and what to submit. Confirm that supplier-provided workers have accountable employment controls. Signed
+ workforce compliance declaration dated within 180 calendar days.
+
+ Required content. Supplier legal name; worker engagement model; worker records maintained; wage and contract
+ compliance attestation; workforce contact; signature and date.
+
+ PEOP-001.R1 Both the worker-record and wage/contract compliance attestations are Yes.
+
+ PEOP-001.R2 A workforce contact is supplied and the declaration is signed within 180 calendar days.
+
+ PEOP-002 Worker screening
+ Why and what to submit. Ensure assigned workers are screened before receiving access. Signed worker screening
+ process declaration dated within 180 calendar days.
+
+ Required content. Supplier legal name; identity check; consent procedure; background check; coverage of
+ assigned workers; access timing; signature and date.
+
+ PEOP-002.R1 Identity, consent and background checks are each attested Yes for 100% of assigned workers.
+
+ PEOP-002.R2 The declaration commits to complete the checks before a worker receives access.
+
+ SITE-002 Physical security authorization
+ Why and what to submit. Show authority to provide physical guarding and control site access. Physical guarding
+ authorization and supplier guard-training declaration.
+
+ Required content. Supplier legal name; issuer; authorization number; guarding scope; effective and expiry dates;
+ trained-guard attestation; declaration date.
+
+ SITE-002.R1 The authorization scope includes physical guarding and the supplier attests that assigned guards are
+ trained.
+
+ SITE-002.R2 Authorization is effective and has at least 30 calendar days remaining; the declaration is within 180
+ calendar days.
+
+
+
+
+Synthetic onboarding policy | Version 1.1                                                                       Page 2
+ FAC-CON Construction Fit Out and Repair
+ Project-based construction, renovation, fit-out, or substantial repair at company premises. Examples:
+ Office fit-outs, civil work, major electrical installations, and renovation contractors.
+
+ Category boundary. Routine maintenance belongs in FAC-MNT. Supply of building materials without
+ construction services belongs in GOODS-IND.
+
+ In addition to the three baseline documents, submit the following evidence. The evidence standard
+ named by each ID supplies its fields and exact pass criteria.
+
+ PEOP-001 Workforce compliance
+ Why and what to submit. Confirm that supplier-provided workers have accountable employment controls. Signed
+ workforce compliance declaration dated within 180 calendar days.
+
+ Required content. Supplier legal name; worker engagement model; worker records maintained; wage and contract
+ compliance attestation; workforce contact; signature and date.
+
+ PEOP-001.R1 Both the worker-record and wage/contract compliance attestations are Yes.
+
+ PEOP-001.R2 A workforce contact is supplied and the declaration is signed within 180 calendar days.
+
+ SITE-001 On site safety
+ Why and what to submit. Control safety risks in work performed on site. Signed site safety plan or method
+ statement reviewed within 180 calendar days.
+
+ Required content. Supplier legal name; service scope; hazards; control measures; emergency lead; PPE
+ commitment; incident notice interval; review date.
+
+ SITE-001.R1 The plan lists hazards, controls and an emergency lead, and PPE is committed where the plan identifies
+ a PPE need.
+
+ SITE-001.R2 Incident notice is within 24 hours and the plan review is within 180 calendar days.
+
+
+
+
+Synthetic onboarding policy | Version 1.1                                                                     Page 3
+

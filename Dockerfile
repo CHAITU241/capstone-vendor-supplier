@@ -10,7 +10,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 RUN apt-get update \
-    && apt-get install --no-install-recommends -y libgomp1 \
+    && apt-get install --no-install-recommends -y libgomp1 tesseract-ocr tesseract-ocr-eng \
     && rm -rf /var/lib/apt/lists/*
 
 COPY backend/requirements.txt ./requirements.txt
@@ -18,20 +18,22 @@ RUN python -m pip install --no-cache-dir -r requirements.txt \
     && mkdir -p "$TIKTOKEN_CACHE_DIR" \
     && python -c "import tiktoken; tiktoken.get_encoding('cl100k_base')"
 
-RUN groupadd --system vendorlens \
-    && useradd --system --gid vendorlens --home-dir /app vendorlens
+RUN groupadd --system sourcesure \
+    && useradd --system --gid sourcesure --home-dir /app sourcesure
 
 COPY backend/alembic.ini ./alembic.ini
 COPY backend/alembic ./alembic
 COPY backend/app ./app
+COPY backend/policy ./policy
+COPY scripts/run_quality_evaluation.py ./scripts/run_quality_evaluation.py
 COPY backend/docker-entrypoint.sh ./docker-entrypoint.sh
 
 RUN mkdir -p /app/uploads /app/data/chroma \
     && sed -i 's/\r$//' /app/docker-entrypoint.sh \
     && chmod +x /app/docker-entrypoint.sh \
-    && chown -R vendorlens:vendorlens /app /opt/tiktoken-cache
+    && chown -R sourcesure:sourcesure /app /opt/tiktoken-cache
 
-USER vendorlens
+USER sourcesure
 
 EXPOSE 8000
 

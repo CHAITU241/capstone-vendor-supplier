@@ -1,0 +1,120 @@
+ Food Pantry and Hospitality Supplier Policy
+ Synthetic buyer policy corpus | Version 1.1 | 19 September 2026 | FOOD category applicability
+
+
+ This category policy covers food pantry and hospitality suppliers whose primary contracted deliverable
+ falls in one of the three codes below. Food, drink, catering, and hospitality products or services for
+ company use. Each inherits BASE-001 through BASE-003. The subcategory-specific IDs and acceptance
+ checks are set out here and under those same IDs in Evidence and Validation Standards.
+
+
+ FOOD-01 Supplier journeys
+
+   Primary code           Subcategory                             Additional IDs
+
+
+                          Pantry Coffee and Packaged
+   FOOD-PAN                                                       FOOD-001
+                          Consumables
+
+
+   FOOD-CAT               Catering and Meal Services              FOOD-001, FOOD-002
+
+
+   FOOD-EVT               Events and Hospitality                  EVENT-001
+
+
+
+ FOOD-02 Common baseline
+ Every supplier in this category must submit BASE-001 business registration evidence, BASE-002 tax
+ registration or accepted tax status evidence, and BASE-003 bank account verification evidence. The
+ exact fields, alternatives and checks are in Evidence and Validation Standards sections BASE-001 to
+ BASE-003.
+
+
+ FOOD-PAN Pantry Coffee and Packaged Consumables
+ Supply of packaged food, drinks, and pantry items without operating a meal service. Examples: Coffee
+ beans, tea, packaged snacks, beverages, and pantry stock.
+
+ Category boundary. Preparing or serving meals for the company belongs in FOOD-CAT. General office
+ stationery belongs in GOODS-OFF.
+
+ In addition to the three baseline documents, submit the following evidence. The evidence standard
+ named by each ID supplies its fields and exact pass criteria.
+
+ FOOD-001 Food supply controls
+ Why and what to submit. Maintain basic control and traceability of supplied food products. Signed food sourcing
+ and handling declaration dated within 180 calendar days.
+
+ Required content. Supplier legal name; product types; source and batch traceability; storage method; recall
+ contact; recall notice interval; signature and date.
+
+ FOOD-001.R1 Source/batch traceability and documented storage methods are affirmed.
+
+ FOOD-001.R2 A recall contact is named and the commitment to notify the buyer is within 24 hours.
+
+
+
+
+Synthetic onboarding policy | Version 1.1                                                                      Page 1
+ FOOD-CAT Catering and Meal Services
+ Preparation, delivery, or operation of prepared meals or food service. Examples: Corporate catering,
+ cafeteria operation, and prepared meal supply.
+
+ Category boundary. Sealed coffee or snack supply without meal preparation belongs in FOOD-PAN.
+ Event planning with food as one component belongs in FOOD-EVT when the event is the main contract.
+
+ In addition to the three baseline documents, submit the following evidence. The evidence standard
+ named by each ID supplies its fields and exact pass criteria.
+
+ FOOD-001 Food supply controls
+ Why and what to submit. Maintain basic control and traceability of supplied food products. Signed food sourcing
+ and handling declaration dated within 180 calendar days.
+
+ Required content. Supplier legal name; product types; source and batch traceability; storage method; recall
+ contact; recall notice interval; signature and date.
+
+ FOOD-001.R1 Source/batch traceability and documented storage methods are affirmed.
+
+ FOOD-001.R2 A recall contact is named and the commitment to notify the buyer is within 24 hours.
+
+ FOOD-002 Prepared meal controls
+ Why and what to submit. Add hygiene controls for preparing or serving meals. Food hygiene certificate for the
+ service site and signed food safety plan.
+
+ Required content. Supplier legal name; site; certificate issuer, number and expiry; allergen controls; temperature
+ controls; food-handler training date; plan review date.
+
+ FOOD-002.R1 The certificate identifies the service site and has at least 30 calendar days remaining; both allergen
+ and temperature controls are documented.
+
+ FOOD-002.R2 Handler training took place within 365 calendar days and the safety plan was reviewed within 180
+ calendar days.
+
+
+ FOOD-EVT Events and Hospitality
+ Planning or providing events, venues, conferences, or hospitality services. Examples: Conference
+ organisers, event management, venue services, and corporate hospitality.
+
+ Category boundary. A contract solely to prepare and serve meals belongs in FOOD-CAT. Creative
+ campaign work without event delivery belongs in PROF-MKT.
+
+ In addition to the three baseline documents, submit the following evidence. The evidence standard
+ named by each ID supplies its fields and exact pass criteria.
+
+ EVENT-001 Event operations
+ Why and what to submit. Establish how events are delivered safely. Signed generic event safety and delivery plan
+ reviewed within 180 calendar days.
+
+ Required content. Supplier legal name; typical event scope; maximum planned attendance; evacuation
+ arrangements; first-aid lead; incident notice interval; review date.
+
+ EVENT-001.R1 The plan includes maximum attendance, evacuation arrangements and a first-aid lead.
+
+ EVENT-001.R2 Incident notification is within 24 hours and the review date is within 180 calendar days.
+
+
+
+
+Synthetic onboarding policy | Version 1.1                                                                       Page 2
+

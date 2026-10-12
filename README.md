@@ -1,14 +1,18 @@
-# VendorLens AI
+# SourceSure AI
 
-VendorLens is an AI-assisted supplier onboarding application. It turns registration, tax, and insurance documents into an auditable review workflow while keeping the final approval decision with a human reviewer.
+SourceSure AI is an AI-assisted supplier onboarding application. It turns registration, tax, and insurance documents into an auditable review workflow while keeping the final approval decision with a human reviewer.
 
 ## What it does
 
 - Creates supplier cases and accepts one document in each required category.
-- Extracts selectable PDF text, redacts PII before AI calls, and stores supplier-scoped ChromaDB embeddings.
+- Stages uploads temporarily, rejects unreadable/wrong-type/wrong-supplier evidence with exact feedback, and promotes only validated files to permanent storage.
+- Scores OCR extraction reliability from image clarity, OCR yield and AI field confidence; poor scans are rejected, uncertain scans are routed to human review, suppliers receive a read-only preview, and reviewer corrections remain auditable.
+- Extracts native PDF/text content and uses page-selective local Tesseract OCR for scanned PDFs, PNGs and JPEGs; records OCR provenance, redacts PII before AI calls, and stores supplier-scoped ChromaDB embeddings.
 - Uses OpenRouter when configured, with Azure OpenAI as the configuration fallback, for structured extraction, embeddings, and cited document Q&A.
 - Shows confidence, source pages, conflicts, compliance checks, and editable fields.
-- Records approval or rejection decisions and a mock ERP handoff in PostgreSQL.
+- Prefills reviewer flag reasons from calculated findings plus retrieved policy context; the reviewer can edit the draft and remains the decision-maker.
+- Validates and creates supplier master records through a separate mock ERP MCP service, with idempotent retries and retrieval.
+- Gives reviewers a searchable SAP-style Vendor Master for accepted ERP suppliers, with full-record drill-down and filtered CSV export.
 
 ## Architecture
 
@@ -24,7 +28,17 @@ Document text extraction -> PII redaction -> OpenRouter or Azure AI
 Compliance rules + audit trail -> human decision -> ERP handoff
 ```
 
-Langfuse traces AI calls, Promptfoo evaluates answer quality, and Prometheus exposes application metrics.
+## Mock ERP MCP boundary
+
+Docker Compose runs `mock-erp-mcp` as a separate stateless JSON-RPC service. The portal invokes named MCP tools; an LLM never controls supplier creation.
+
+- `validate_supplier_record` checks required master data, category mappings, and duplicate tax/bank references.
+- `create_supplier_record` runs only after explicit reviewer approval and uses the portal supplier reference as an idempotency key.
+- `get_supplier_record` and `list_supplier_records` prove that approved records are independently retrievable from the downstream supplier master.
+
+Every call stores a sanitized tool-attempt audit with status, latency, attempt number, and error code. Raw tax and bank values are not copied into the integration audit log. If the ERP is unavailable, approval remains incomplete and the reviewer can retry safely.
+
+The authenticated admin portal summarizes AI runs, tokens, model/prompt usage, latency, RAG grounding, OCR, and ERP tool health. Langfuse adds correlated, privacy-safe workflow traces and cost analysis; Promptfoo evaluates answer quality; Prometheus exposes application metrics.
 
 ## Run with Docker (recommended for a fresh clone)
 
@@ -44,6 +58,12 @@ See [DOCKER_SETUP.md](DOCKER_SETUP.md) for the complete first-clone guide, verif
 
 See [MONITORING_SETUP.md](MONITORING_SETUP.md) for the three monitoring and evaluation tools.
 
+## Controlled quality evaluation
+
+Evaluation suppliers are kept out of the reviewer worklist. Rebuild the backend after pulling to apply the migration for existing evaluation records; future runs mark their own records automatically.
+
+The final package has 15 synthetic suppliers, 45 PDFs (73 pages) and 150 RAG questions, including a separately reported 50-question stress cohort. Multi-page clauses, dated endorsements, mixed OCR, address roles and cover conditions complement native/OCR/conflict/scenario evidence. Run `docker compose run --rm --build evaluation --validate-only`, then `docker compose run --rm --build evaluation --judge` against the configured backend to capture evidence, score the deterministic rubric and optionally judge relevance/claim support. Omit `--judge` to capture evidence with semantic metrics pending. JSON/Markdown reports separate upload/OCR, processing, Q&A and semantic-judge usage/timing. They retain ranked top-ten full text and exact generation context so judged Precision@10 and faithfulness can be recalculated from JSON without backend/model calls. Normal answer generation remains top-4 by default, and short supplier pools limit fixed-denominator Precision@10. See [RAG_METRICS.md](RAG_METRICS.md), [QUALITY_EVALUATION.md](QUALITY_EVALUATION.md) and [EVALUATOR_CALIBRATION.md](EVALUATOR_CALIBRATION.md) for definitions, coverage and execution instructions. The latest owner-run reassessment corrects two false negatives to 145/150 (96.67%) end-to-end pass rate, including 47/50 (94%) stress; five failed cases and the 50 pending stress human reviews remain. This is grading correction, not model improvement. The 135 registration/tax field checks establish neither insurance compliance nor supplier approval. Calibration tests are not model scores.
+
 ## AI provider selection
 
 Set `OPENROUTER_API_KEY` to route document extraction, embeddings, supplier Q&A, and the general assistant through OpenRouter. OpenRouter model IDs are configured independently with `OPENROUTER_EXTRACTION_MODEL`, `OPENROUTER_ANSWER_MODEL`, and `OPENROUTER_EMBEDDING_MODEL`.
@@ -51,5 +71,7 @@ Set `OPENROUTER_API_KEY` to route document extraction, embeddings, supplier Q&A,
 When `OPENROUTER_API_KEY` is empty or absent, the backend uses the existing Azure `OPENAI_API_KEY`, `AZURE_OPENAI_ENDPOINT`, and Azure deployment-name settings. Restart FastAPI after changing provider settings because the client is cached for the process lifetime.
 
 Provider selection is configuration-based. A failed OpenRouter request does not retry through Azure, which prevents an outage, invalid key, or quota failure from silently sending supplier data to a different provider.
+
+`UPLOAD_AI_VALIDATION_ENABLED=true` is the production/demo default. It requires a configured AI provider and prevents permanent acceptance until OCR/text extraction, document classification, required-field checks, and conservative supplier identity comparisons pass. Set it to `false` only for offline development; text/OCR readability checks still run before storage.
 
 The default OpenRouter embedding model is the same `text-embedding-3-small` family used by Azure. If you select an embedding model with a different vector size, recreate the local Chroma data and reprocess every supplier before asking document questions.

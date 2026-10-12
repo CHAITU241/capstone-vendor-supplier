@@ -1,0 +1,45 @@
+{
+  "supplier_id": "SUP-060",
+  "submission_id": "SUP-060_v01",
+  "submission_version": 1,
+  "primary_code": "FAC-SEC",
+  "policy_version": "1.1",
+  "evaluation_date_ist": "2026-09-19",
+  "uploaded_documents": [
+    {
+      "requirement_id": "BASE-001",
+      "filename": "evidence/BASE-001_01_business_registration_certificate.pdf",
+      "document_type": "Business registration certificate"
+    },
+    {
+      "requirement_id": "BASE-002",
+      "filename": "evidence/BASE-002_01_pan_and_tax_registration_notice.pdf",
+      "document_type": "PAN and tax registration notice"
+    },
+    {
+      "requirement_id": "BASE-003",
+      "filename": "evidence/BASE-003_01_bank_issued_account_letter.pdf",
+      "document_type": "Bank-issued account letter"
+    },
+    {
+      "requirement_id": "PEOP-001",
+      "filename": "evidence/PEOP-001_01_workforce_compliance_declaration.pdf",
+      "document_type": "Workforce compliance declaration"
+    },
+    {
+      "requirement_id": "PEOP-002",
+      "filename": "evidence/PEOP-002_01_worker_screening_process_declaration.pdf",
+      "document_type": "Worker screening process declaration"
+    },
+    {
+      "requirement_id": "SITE-002",
+      "filename": "evidence/SITE-002_01_physical_guarding_authorization.pdf",
+      "document_type": "Physical guarding authorization"
+    },
+    {
+      "requirement_id": "SITE-002",
+      "filename": "evidence/SITE-002_02_guard_training_declaration.pdf",
+      "document_type": "Guard training declaration"
+    }
+  ]
+}

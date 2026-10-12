@@ -1,6 +1,6 @@
-# VendorLens monitoring
+# SourceSure AI monitoring
 
-VendorLens exposes Prometheus-compatible metrics from the FastAPI process and
+SourceSure AI exposes Prometheus-compatible metrics from the FastAPI process and
 can be scraped by a local Prometheus server. This is intentionally a small
 demo setup: Prometheus runs as a user-level extracted binary, with no Docker,
 Windows service, or administrator installation.
@@ -46,23 +46,23 @@ Open the Prometheus UI at <http://localhost:9090>.
 Paste these into the Prometheus expression box:
 
 ```promql
-rate(vendorlens_http_requests_total[5m])
+rate(sourcesure_http_requests_total[5m])
 ```
 
 ```promql
-histogram_quantile(0.95, sum by (le) (rate(vendorlens_http_request_duration_seconds_bucket[5m])))
+histogram_quantile(0.95, sum by (le) (rate(sourcesure_http_request_duration_seconds_bucket[5m])))
 ```
 
 ```promql
-sum by (operation, status) (rate(vendorlens_ai_calls_total[5m]))
+sum by (operation, status) (rate(sourcesure_ai_calls_total[5m]))
 ```
 
 ```promql
-rate(vendorlens_ai_tokens_total[5m])
+rate(sourcesure_ai_tokens_total[5m])
 ```
 
 ```promql
-vendorlens_dependency_up
+sourcesure_dependency_up
 ```
 
 ## Metrics included

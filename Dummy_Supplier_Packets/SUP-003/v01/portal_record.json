@@ -1,0 +1,19 @@
+{
+  "supplier_id": "SUP-003",
+  "legal_name": "Cobalt Infrastructure Care 003 Pvt Ltd",
+  "primary_code": "TECH-ITM",
+  "contracted_service": "Managed IT and Infrastructure Services",
+  "portal_legal_name": "Cobalt Infrastructure Care 003 Pvt Ltd",
+  "portal_pan_tax_reference": "DEMO-PAN-0003",
+  "portal_gst_status": "registered",
+  "portal_gstin": "DEMO-GST-00003",
+  "portal_bank_account": "9900000000003",
+  "portal_ifsc": "DEMO0001234",
+  "portal_offered_sku": "MDL-0003",
+  "contact_name": "A. Rao 003",
+  "contact_email": "onboarding003@supplier.example",
+  "submission_id": "SUP-003_v01",
+  "submission_version": 1,
+  "evaluation_date_ist": "2026-09-19",
+  "final_submission_gate": false
+}

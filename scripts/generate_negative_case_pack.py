@@ -1,4 +1,4 @@
-"""Generate a complete negative-case supplier pack for VendorLens."""
+"""Generate a complete negative-case supplier pack for SourceSure AI."""
 
 from pathlib import Path
 from shutil import copy2
